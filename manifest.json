@@ -1,0 +1,18 @@
+{
+  "name": "GolfYards - Club Distance Tracker",
+  "short_name": "GolfYards",
+  "description": "Track your golf club distances using GPS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1a0a",
+  "theme_color": "#0a1a0a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
