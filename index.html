@@ -704,6 +704,41 @@
   .auto-pill.walk  { background:rgba(250,140,22,.2); color:var(--orange); border-color:var(--orange); }
   .auto-pill.saved { background:rgba(82,196,26,.35); color:var(--green-light); border-color:var(--green); }
   .auto-status-lbl { display: none; }
+  /* ── Auth screen ─────────────────────────────────────────── */
+  #auth-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    display: none; align-items: center; justify-content: center; padding: 28px;
+  }
+  .auth-card { width: 100%; max-width: 340px; }
+  .auth-logo { text-align: center; margin-bottom: 32px; }
+  .auth-logo-icon { font-size: 36px; }
+  .auth-logo-name { font-size: 22px; font-weight: 900; color: var(--text); margin-top: 6px; }
+  .auth-mode-lbl  { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .8px; text-align: center; margin-bottom: 20px; }
+  .auth-input {
+    width: 100%; box-sizing: border-box;
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 13px 14px;
+    font-size: 15px; color: var(--text); font-family: inherit;
+    margin-bottom: 10px; outline: none;
+  }
+  .auth-input:focus { border-color: var(--green-mid); }
+  .auth-submit {
+    width: 100%; padding: 14px; border-radius: 10px;
+    background: var(--green); color: #000;
+    font-size: 15px; font-weight: 900; border: none; cursor: pointer; font-family: inherit;
+    margin-top: 4px;
+  }
+  .auth-error  { font-size: 12px; color: #ff7875; text-align: center; margin-top: 10px; min-height: 16px; }
+  .auth-toggle { background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit; margin-top: 16px; display: block; width: 100%; text-align: center; }
+  .profile-pill {
+    position: absolute; top: 10px; right: 10px; z-index: 491;
+    background: rgba(0,0,0,.65); border: 1.5px solid rgba(255,255,255,.15);
+    border-radius: 16px; padding: 5px 12px;
+    font-size: 11px; font-weight: 700; color: rgba(255,255,255,.7);
+    cursor: pointer;
+  }
+
   .at-cfm-btn {
     padding: 5px 14px;
     border-radius: 14px;
@@ -836,6 +871,22 @@
   </style>
 </head>
 <body>
+
+<!-- Auth Screen -->
+<div id="auth-screen" data-mode="signin">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">⛳</div>
+      <div class="auth-logo-name">GolfYards</div>
+    </div>
+    <div class="auth-mode-lbl" id="auth-mode-lbl">SIGN IN</div>
+    <input id="auth-email"    class="auth-input" type="email"    placeholder="Email" autocomplete="email">
+    <input id="auth-password" class="auth-input" type="password" placeholder="Password" autocomplete="current-password">
+    <button id="auth-submit-btn" class="auth-submit" onclick="authSubmit()">Sign In</button>
+    <div id="auth-error" class="auth-error"></div>
+    <button id="auth-toggle-btn" class="auth-toggle" onclick="authToggle()">Create account instead</button>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════
      SCREEN 1 — HOME (tabbed)
@@ -1002,6 +1053,9 @@
 
     <!-- Subtle hint when no target is pinned -->
     <div id="map-tap-hint">Tap the map to measure distance</div>
+
+    <!-- Profile pill -->
+    <button class="profile-pill" id="profile-pill" onclick="signOut()" title="Tap to sign out"></button>
 
     <!-- Auto-track pill + status -->
     <div style="position:absolute;top:10px;left:10px;z-index:491;display:flex;flex-direction:column;align-items:flex-start;gap:4px">
@@ -1292,10 +1346,14 @@ const AT_SWING_DPS = 200;  // °/s rotationRate spike = swing
 const AT_SWING_G   = 30;   // m/s² acceleration magnitude fallback
 const AT_SWING_DEBOUNCE_MS = 2500; // ignore swings closer than this
 const AT_LEARN_KEY   = 'gy_at_learn';
-const AT_TRAIN_SHOTS = 10;   // confirmed shots before trained mode
-const AT_TRAIN_NON   = 3;    // non-shots before trained mode
-const AT_CONF_AUTO   = 0.82; // confidence threshold to skip confirmation
-const AT_PRETRIG_DPS = 130;  // lower trigger used during learning
+const AT_TRAIN_SHOTS = 10;
+const AT_TRAIN_NON   = 3;
+const AT_CONF_AUTO   = 0.82;
+const AT_PRETRIG_DPS = 130;
+
+// ── Profiles ───────────────────────────────────────────────
+let activeProfile = null;
+function userKey(k) { return activeProfile ? `${k}_${activeProfile.id}` : k; }
 
 let atLastSwing      = 0;
 let atMotionHandler  = null;
@@ -1303,19 +1361,14 @@ let atMotionBuf      = [];   // rolling 600ms motion samples {t,rot,acc}
 let atPendingFeatures= null; // features of swing awaiting confirmation
 let atConfirmTimer   = null; // auto-dismiss timer for confirm UI
 let atStableTime     = 0;    // timestamp when current stable phase began
-let atLearnData      = (() => {
-  try {
-    const d = JSON.parse(localStorage.getItem(AT_LEARN_KEY) || 'null');
-    return (d && Array.isArray(d.shots)) ? d : { shots: [], nonShots: [] };
-  } catch { return { shots: [], nonShots: [] }; }
-})();
+let atLearnData      = { shots: [], nonShots: [] };
 
 // ── Scorecard ───────────────────────────────────────────────
 let roundScore = {};  // { [holeNum]: { score: null|int, putts: 0 } }
 
-function saveRoundScore() { localStorage.setItem('gy_round_score', JSON.stringify(roundScore)); }
+function saveRoundScore() { localStorage.setItem(userKey('gy_round_score'), JSON.stringify(roundScore)); }
 function loadRoundScore() {
-  try { return JSON.parse(localStorage.getItem('gy_round_score') || '{}'); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(userKey('gy_round_score')) || '{}'); } catch { return {}; }
 }
 
 const DEFAULT_CLUBS = [
@@ -1379,7 +1432,7 @@ const COURSE_SCORECARDS = {
   }
 };
 
-let selectedTee = localStorage.getItem('gy_tee') || 'blue';
+let selectedTee = 'blue';
 
 function getHoleData(holeNum) {
   if (!selectedCourse) return null;
@@ -1390,7 +1443,7 @@ function getHoleData(holeNum) {
 
 function setTee(tee) {
   selectedTee = tee;
-  localStorage.setItem('gy_tee', tee);
+  localStorage.setItem(userKey('gy_tee'), tee);
   ['black','blue','white','yellow'].forEach(t => {
     const b = document.getElementById('tbtn-' + t);
     if (b) b.classList.toggle('on', t === tee);
@@ -1491,18 +1544,18 @@ function renderSavedCourses() {
 // ── Persistence ────────────────────────────────────────────
 function loadClubs() {
   try {
-    const s = localStorage.getItem('gy_clubs');
+    const s = localStorage.getItem(userKey('gy_clubs'));
     if (s) return JSON.parse(s).map(c => ({ manualYards: null, ...c }));
     return DEFAULT_CLUBS.map(n => ({ name: n, shots: [], manualYards: null }));
   } catch { return DEFAULT_CLUBS.map(n => ({ name: n, shots: [], manualYards: null })); }
 }
-function saveClubs() { localStorage.setItem('gy_clubs', JSON.stringify(clubs)); }
+function saveClubs() { localStorage.setItem(userKey('gy_clubs'), JSON.stringify(clubs)); }
 
 function loadShots() {
-  try { const s = localStorage.getItem('gy_shots'); return s ? JSON.parse(s) : []; }
+  try { const s = localStorage.getItem(userKey('gy_shots')); return s ? JSON.parse(s) : []; }
   catch { return []; }
 }
-function saveShots() { localStorage.setItem('gy_shots', JSON.stringify(shots)); }
+function saveShots() { localStorage.setItem(userKey('gy_shots'), JSON.stringify(shots)); }
 
 function saveTees(courseId, holes) {
   localStorage.setItem('gy_tees_' + courseId, JSON.stringify(holes));
@@ -1550,17 +1603,131 @@ function importHoleData(event) {
   reader.readAsText(file);
 }
 
+// ── Auth & Profiles ────────────────────────────────────────
+function loadProfiles() {
+  try { return JSON.parse(localStorage.getItem('gy_profiles') || '[]'); } catch { return []; }
+}
+function saveProfiles(p) { localStorage.setItem('gy_profiles', JSON.stringify(p)); }
+function genId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+async function hashPw(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function initUserData() {
+  clubs      = loadClubs();
+  shots      = loadShots();
+  roundScore = loadRoundScore();
+  selectedTee = localStorage.getItem(userKey('gy_tee')) || 'blue';
+  ['black','blue','white','yellow'].forEach(t => {
+    const b = document.getElementById('tbtn-' + t);
+    if (b) b.classList.toggle('on', t === selectedTee);
+  });
+  try {
+    const d = JSON.parse(localStorage.getItem(userKey(AT_LEARN_KEY)) || 'null');
+    atLearnData = (d && Array.isArray(d.shots)) ? d : { shots: [], nonShots: [] };
+  } catch { atLearnData = { shots: [], nonShots: [] }; }
+}
+
+function migrateLegacyData() {
+  ['gy_clubs','gy_shots','gy_round_score','gy_tee', AT_LEARN_KEY].forEach(k => {
+    const old = localStorage.getItem(k);
+    const nk  = userKey(k);
+    if (old && nk !== k && !localStorage.getItem(nk)) localStorage.setItem(nk, old);
+  });
+}
+
+function loginAs(profile) {
+  activeProfile = profile;
+  localStorage.setItem('gy_active_profile', profile.id);
+  document.getElementById('auth-screen').style.display = 'none';
+  const pi = document.getElementById('profile-pill');
+  if (pi) pi.textContent = profile.email.split('@')[0];
+  migrateLegacyData();
+  initUserData();
+  render();
+}
+
+function signOut() {
+  activeProfile = null;
+  localStorage.removeItem('gy_active_profile');
+  clubs = []; shots = []; roundScore = {}; atLearnData = { shots: [], nonShots: [] };
+  const s = document.getElementById('auth-screen');
+  s.style.display = 'flex';
+  s.dataset.mode  = 'signin';
+  document.getElementById('auth-email').value    = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-submit-btn').textContent  = 'Sign In';
+  document.getElementById('auth-toggle-btn').textContent  = 'Create account instead';
+  document.getElementById('auth-mode-lbl').textContent    = 'SIGN IN';
+}
+
+function checkAuth() {
+  const id = localStorage.getItem('gy_active_profile');
+  if (id) {
+    const p = loadProfiles().find(p => p.id === id);
+    if (p) { loginAs(p); return; }
+  }
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+function authToggle() {
+  const s = document.getElementById('auth-screen');
+  const creating = s.dataset.mode !== 'create';
+  s.dataset.mode = creating ? 'create' : 'signin';
+  document.getElementById('auth-mode-lbl').textContent   = creating ? 'CREATE ACCOUNT' : 'SIGN IN';
+  document.getElementById('auth-submit-btn').textContent = creating ? 'Create Account'  : 'Sign In';
+  document.getElementById('auth-toggle-btn').textContent = creating ? 'Sign in instead' : 'Create account instead';
+  document.getElementById('auth-error').textContent = '';
+}
+
+async function authSubmit() {
+  const email    = document.getElementById('auth-email').value.trim().toLowerCase();
+  const pw       = document.getElementById('auth-password').value;
+  const creating = document.getElementById('auth-screen').dataset.mode === 'create';
+  const errEl    = document.getElementById('auth-error');
+  errEl.textContent = '';
+  if (!email || !pw) { errEl.textContent = 'Enter email and password'; return; }
+
+  const hash     = await hashPw(pw);
+  const profiles = loadProfiles();
+
+  if (creating) {
+    if (profiles.find(p => p.email === email)) { errEl.textContent = 'Account exists — sign in instead'; return; }
+    const profile = { id: genId(), email, hash, created: Date.now() };
+    profiles.push(profile);
+    saveProfiles(profiles);
+    loginAs(profile);
+  } else {
+    const profile = profiles.find(p => p.email === email);
+    if (!profile || profile.hash !== hash) { errEl.textContent = 'Incorrect email or password'; return; }
+    loginAs(profile);
+  }
+}
+
 function exportTrainingCSV() {
   const { shots, nonShots } = atLearnData;
   if (!shots.length && !nonShots.length) { toast('No training data yet — use Auto on the course first'); return; }
   const rows = [['type','rot_dps','acc_ms2','stable_secs'],
     ...shots.map(s    => ['SHOT',     s.rot.toFixed(1), s.acc.toFixed(1), s.stable.toFixed(1)]),
     ...nonShots.map(s => ['NOT_SHOT', s.rot.toFixed(1), s.acc.toFixed(1), s.stable.toFixed(1)])];
-  const a = document.createElement('a');
-  a.href = 'data:text/csv,' + encodeURIComponent(rows.map(r => r.join(',')).join('\n'));
-  a.download = 'swing-training.csv';
-  a.click();
+  dl('swing-training.csv', rows.map(r => r.join(',')).join('\n'));
+
+  // Also download profiles sheet
+  const profiles = loadProfiles();
+  const pRows = [['email','created','password_hash'],
+    ...profiles.map(p => [p.email, new Date(p.created).toLocaleDateString(), p.hash])];
+  dl('profiles.csv', pRows.map(r => r.join(',')).join('\n'));
+
   toast(`Exported ${shots.length} shots + ${nonShots.length} non-shots`);
+}
+
+function dl(filename, csv) {
+  const a = document.createElement('a');
+  a.href = 'data:text/csv,' + encodeURIComponent(csv);
+  a.download = filename; a.click();
 }
 
 function exportAllData() {
@@ -1595,9 +1762,8 @@ function importAllData(event) {
   reader.readAsText(file);
 }
 
-let clubs = loadClubs();
-let shots = loadShots();
-roundScore = loadRoundScore();
+let clubs = [];
+let shots = [];
 
 // ── GPS ────────────────────────────────────────────────────
 function initGPS() {
@@ -2372,7 +2538,7 @@ function atScoreMotion(f) {
 }
 
 function atSaveLearnData() {
-  try { localStorage.setItem(AT_LEARN_KEY, JSON.stringify(atLearnData)); } catch {}
+  try { localStorage.setItem(userKey(AT_LEARN_KEY), JSON.stringify(atLearnData)); } catch {}
 }
 
 // Called when a potential swing is detected.
@@ -3731,9 +3897,8 @@ document.getElementById('course-search-inp').addEventListener('keypress', e => {
 // ── Init ───────────────────────────────────────────────────
 render();
 renderSavedCourses();
-// Apply saved tee selection to buttons
-setTee(selectedTee);
 initGPS();
+checkAuth();
 setTimeout(() => { if (!hasInitiatedSearch) { setStatus('GPS slow — search by name below', false); hasInitiatedSearch = true; } }, 3000);
 </script>
 </body>
