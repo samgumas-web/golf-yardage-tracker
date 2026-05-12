@@ -704,6 +704,17 @@
   .auto-pill.walk  { background:rgba(250,140,22,.2); color:var(--orange); border-color:var(--orange); }
   .auto-pill.saved { background:rgba(82,196,26,.35); color:var(--green-light); border-color:var(--green); }
   .auto-status-lbl { display: none; }
+  .at-cfm-btn {
+    padding: 5px 14px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1.5px solid;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .at-cfm-btn.yes { background:rgba(82,196,26,.2); color:var(--green-light); border-color:var(--green-mid); }
+  .at-cfm-btn.no  { background:rgba(255,77,79,.1); color:#ff7875; border-color:rgba(255,77,79,.35); }
 
   /* ── Auto shot card ───────────────────────────────────── */
   #auto-shot-card {
@@ -995,6 +1006,10 @@
     <!-- Auto-track pill + status -->
     <div style="position:absolute;top:10px;left:10px;z-index:491;display:flex;flex-direction:column;align-items:flex-start;gap:4px">
       <button class="auto-pill off" id="auto-btn" onclick="toggleAutoTrack()">Auto</button>
+      <div id="auto-confirm" style="display:none;align-items:center;gap:6px">
+        <button class="at-cfm-btn yes" onclick="atLearnSwing(true)">Yes</button>
+        <button class="at-cfm-btn no"  onclick="atLearnSwing(false)">No</button>
+      </div>
       <div class="auto-status-lbl" id="auto-status"></div>
     </div>
 
@@ -1262,9 +1277,24 @@ const AT_MIN_YDS   = 12;   // minimum shot distance to record
 const AT_SWING_DPS = 200;  // °/s rotationRate spike = swing
 const AT_SWING_G   = 30;   // m/s² acceleration magnitude fallback
 const AT_SWING_DEBOUNCE_MS = 2500; // ignore swings closer than this
+const AT_LEARN_KEY   = 'gy_at_learn';
+const AT_TRAIN_SHOTS = 10;   // confirmed shots before trained mode
+const AT_TRAIN_NON   = 3;    // non-shots before trained mode
+const AT_CONF_AUTO   = 0.82; // confidence threshold to skip confirmation
+const AT_PRETRIG_DPS = 130;  // lower trigger used during learning
 
-let atLastSwing    = 0;    // timestamp of last registered swing
-let atMotionHandler = null;
+let atLastSwing      = 0;
+let atMotionHandler  = null;
+let atMotionBuf      = [];   // rolling 600ms motion samples {t,rot,acc}
+let atPendingFeatures= null; // features of swing awaiting confirmation
+let atConfirmTimer   = null; // auto-dismiss timer for confirm UI
+let atStableTime     = 0;    // timestamp when current stable phase began
+let atLearnData      = (() => {
+  try {
+    const d = JSON.parse(localStorage.getItem(AT_LEARN_KEY) || 'null');
+    return (d && Array.isArray(d.shots)) ? d : { shots: [], nonShots: [] };
+  } catch { return { shots: [], nonShots: [] }; }
+})();
 
 // ── Scorecard ───────────────────────────────────────────────
 let roundScore = {};  // { [holeNum]: { score: null|int, putts: 0 } }
@@ -2220,55 +2250,141 @@ function showFAB(v) {
 
 // ── Auto shot detection ────────────────────────────────────
 
-// Detects rotation-rate spike (gyro) or acceleration spike (fallback)
 function atMotionTick(e) {
-  let triggered = false;
-
+  const now = Date.now();
   const rr = e.rotationRate;
-  if (rr) {
-    const peak = Math.max(Math.abs(rr.alpha || 0), Math.abs(rr.beta || 0), Math.abs(rr.gamma || 0));
-    if (peak >= AT_SWING_DPS) triggered = true;
-  }
-  if (!triggered) {
-    const ai = e.accelerationIncludingGravity;
-    if (ai) {
-      const mag = Math.sqrt((ai.x||0)**2 + (ai.y||0)**2 + (ai.z||0)**2);
-      if (mag >= AT_SWING_G) triggered = true;
-    }
-  }
+  const ai = e.accelerationIncludingGravity;
 
-  if (triggered) onSwingDetected();
+  let rot = 0;
+  if (rr) rot = Math.max(Math.abs(rr.alpha||0), Math.abs(rr.beta||0), Math.abs(rr.gamma||0));
+  let acc = 0;
+  if (ai) acc = Math.sqrt((ai.x||0)**2 + (ai.y||0)**2 + (ai.z||0)**2);
+
+  atMotionBuf.push({t: now, rot, acc});
+  const cutoff = now - 600;
+  while (atMotionBuf.length && atMotionBuf[0].t < cutoff) atMotionBuf.shift();
+
+  const trig = atIsTrained() ? atAdaptiveTrig() : AT_PRETRIG_DPS;
+  if (rot >= trig || acc >= AT_SWING_G) {
+    onSwingDetected(atExtractFeatures(atMotionBuf));
+  }
 }
 
-// Called when a swing is detected. Only acts when player is 'ready' (stable).
-function onSwingDetected() {
+function atExtractFeatures(buf) {
+  const peakRot = buf.length ? Math.max(...buf.map(s => s.rot)) : 0;
+  const peakAcc = buf.length ? Math.max(...buf.map(s => s.acc)) : 0;
+  const stable  = atStableTime > 0 ? Math.min((Date.now() - atStableTime) / 1000, 60) : 0;
+  return { rot: peakRot, acc: peakAcc, stable };
+}
+
+function atAdaptiveTrig() {
+  if (atLearnData.shots.length < 3) return AT_PRETRIG_DPS;
+  const minShot = Math.min(...atLearnData.shots.map(s => s.rot));
+  return Math.max(minShot * 0.75, 80);
+}
+
+function atIsTrained() {
+  return atLearnData.shots.length >= AT_TRAIN_SHOTS &&
+         atLearnData.nonShots.length >= AT_TRAIN_NON;
+}
+
+function atScoreMotion(f) {
+  const { shots, nonShots } = atLearnData;
+  if (shots.length < 3) return f.rot >= AT_SWING_DPS ? 0.9 : 0.1;
+
+  const all = [...shots, ...nonShots];
+  const maxRot    = Math.max(...all.map(e => e.rot), 1);
+  const maxAcc    = Math.max(...all.map(e => e.acc), 1);
+  const maxStable = Math.max(...all.map(e => e.stable), 1);
+
+  const dist = (a, b) => Math.sqrt(
+    0.6 * ((a.rot - b.rot) / maxRot)    ** 2 +
+    0.3 * ((a.acc - b.acc) / maxAcc)    ** 2 +
+    0.1 * ((a.stable - b.stable) / maxStable) ** 2
+  );
+
+  const k = Math.min(5, Math.max(1, Math.floor(all.length / 3)));
+  const neighbors = [
+    ...shots.map(s    => ({ f: s, lbl: 1 })),
+    ...nonShots.map(s => ({ f: s, lbl: 0 }))
+  ].sort((a, b) => dist(f, a.f) - dist(f, b.f)).slice(0, k);
+
+  return neighbors.filter(n => n.lbl === 1).length / k;
+}
+
+function atSaveLearnData() {
+  try { localStorage.setItem(AT_LEARN_KEY, JSON.stringify(atLearnData)); } catch {}
+}
+
+// Called when a potential swing is detected.
+function onSwingDetected(features) {
   const now = Date.now();
-  if (now - atLastSwing < AT_SWING_DEBOUNCE_MS) return; // debounce
-  if (atPhase !== 'ready') return;                       // must be stable first
+  if (now - atLastSwing < AT_SWING_DEBOUNCE_MS) return;
+  if (atPhase !== 'ready') return;
   atLastSwing = now;
 
+  const score = atScoreMotion(features);
+  if (atIsTrained() && score >= AT_CONF_AUTO) {
+    atExecuteSwing();
+    return;
+  }
+
+  atPendingFeatures = features;
+  atPhase = 'swing_confirm';
+  vibrate([30]);
+  updateATUI();
+  clearTimeout(atConfirmTimer);
+  atConfirmTimer = setTimeout(() => {
+    if (atPhase === 'swing_confirm') {
+      atPendingFeatures = null;
+      atLastSwing = 0;
+      atPhase = 'ready';
+      updateATUI();
+    }
+  }, 10000);
+}
+
+// User taps Yes or No on the swing confirmation.
+function atLearnSwing(yes) {
+  if (atPhase !== 'swing_confirm') return;
+  clearTimeout(atConfirmTimer);
+
+  if (atPendingFeatures) {
+    if (yes) atLearnData.shots.push(atPendingFeatures);
+    else     atLearnData.nonShots.push(atPendingFeatures);
+    atSaveLearnData();
+  }
+  atPendingFeatures = null;
+
+  if (yes) {
+    atPhase = 'ready';
+    atExecuteSwing();
+  } else {
+    atLastSwing = 0;
+    atPhase = 'ready';
+    updateATUI();
+  }
+}
+
+// Executes the actual swing logic once confirmed.
+function atExecuteSwing() {
   if (!atShotStart) {
-    // ── First swing: mark shot start ──
     if (!gpsPos) { toast('No GPS fix — move to open sky'); return; }
     atShotStart = { lat: gpsPos.lat, lng: gpsPos.lng };
     atPhase     = 'mid_shot';
     atStableRef = null;
     clearTimeout(atSettleTimer);
     vibrate([30, 20, 30]);
-    toast('Start logged — walk to your ball');
     updateATUI();
   } else {
-    // ── Second swing: end the shot ──
     if (!gpsPos) { toast('No GPS fix'); return; }
     const yards = haversine(atShotStart, gpsPos);
     if (yards < AT_MIN_YDS) {
-      // Probably a practice swing at the same spot — reset shot start here
       atShotStart = { lat: gpsPos.lat, lng: gpsPos.lng };
       atPhase     = 'idle';
       atStableRef = { lat: gpsPos.lat, lng: gpsPos.lng };
       atResetTimer();
       updateATUI();
-      toast('Too close for a shot — waiting for next swing…');
       return;
     }
     atFireShot(atShotStart, gpsPos, yards);
@@ -2307,6 +2423,12 @@ function toggleAutoTrack() {
       atMotionHandler = null;
     }
     document.getElementById('auto-shot-card').style.display = 'none';
+    const _cfm = document.getElementById('auto-confirm');
+    if (_cfm) _cfm.style.display = 'none';
+    clearTimeout(atConfirmTimer);
+    atPendingFeatures = null;
+    atMotionBuf = [];
+    atStableTime = 0;
     showFAB(true);
     toast('Auto-tracking OFF');
   }
@@ -2342,7 +2464,8 @@ function atResetTimer() {
 // Called when player has stood still for AT_STILL_SECS — arm the swing detector
 function atOnStable() {
   if (!atStableRef && !gpsPos) { atResetTimer(); return; }
-  atPhase = 'ready';
+  atPhase     = 'ready';
+  atStableTime = Date.now();
   vibrate([15]);
   updateATUI();
 }
@@ -2398,15 +2521,23 @@ function confirmAutoShot(yes) {
 
 function updateATUI() {
   const btn = document.getElementById('auto-btn');
+  const cfm = document.getElementById('auto-confirm');
   if (!btn) return;
 
   if (!autoTrack) {
     btn.className   = 'auto-pill off';
     btn.textContent = 'Auto';
+    if (cfm) cfm.style.display = 'none';
     return;
   }
 
+  if (cfm) cfm.style.display = atPhase === 'swing_confirm' ? 'flex' : 'none';
+
   switch (atPhase) {
+    case 'swing_confirm':
+      btn.className   = 'auto-pill on';
+      btn.textContent = 'Swing?';
+      break;
     case 'mid_shot':
       btn.className   = 'auto-pill walk';
       btn.textContent = 'Swing detected · start logged';

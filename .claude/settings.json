@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "input=$(cat); f=$(echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"$//;s/.*[\\/\\\\]//'); cd /c/Users/preci/golf-yardage-tracker && git add -A && git diff --cached --quiet || git commit -m \"auto: ${f:-changes}\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
