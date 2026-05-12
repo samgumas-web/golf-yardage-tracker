@@ -1205,6 +1205,18 @@
       <div id="holes-list"></div>
     </div>
 
+    <!-- Data transfer -->
+    <div class="card">
+      <div class="label" style="margin-bottom:8px">Transfer All Data</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">Export everything (greens, clubs, shots, courses) to a file, then import it on another device.</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="exportAllData()" class="btn btn-s" style="flex:1;font-size:12px;padding:9px;background:var(--card2)">⬇ Export All</button>
+        <label class="btn btn-s" style="flex:1;font-size:12px;padding:9px;background:var(--card2);cursor:pointer;text-align:center">
+          ⬆ Import All<input type="file" accept=".json" style="display:none" onchange="importAllData(event)">
+        </label>
+      </div>
+    </div>
+
     <!-- Simulation -->
     <div class="card" style="border-style:dashed;opacity:.75">
       <div class="label" style="margin-bottom:8px">🎮 Shot Detection Demo</div>
@@ -1531,6 +1543,38 @@ function importHoleData(event) {
     } catch (err) {
       toast('Import failed: ' + err.message);
     }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function exportAllData() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith('gy_') || key === AT_LEARN_KEY) data[key] = localStorage.getItem(key);
+  }
+  if (!Object.keys(data).length) { toast('Nothing to export yet'); return; }
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'golfyards-data.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Data exported — send that file to your phone');
+}
+
+function importAllData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, v));
+      toast('Data imported — reloading…');
+      setTimeout(() => location.reload(), 1000);
+    } catch { toast('Import failed — invalid file'); }
     event.target.value = '';
   };
   reader.readAsText(file);
