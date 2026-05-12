@@ -1625,13 +1625,13 @@ function initUserData() {
     if (b) b.classList.toggle('on', t === selectedTee);
   });
   try {
-    const d = JSON.parse(localStorage.getItem(userKey(AT_LEARN_KEY)) || 'null');
+    const d = JSON.parse(localStorage.getItem(AT_LEARN_KEY) || 'null');
     atLearnData = (d && Array.isArray(d.shots)) ? d : { shots: [], nonShots: [] };
   } catch { atLearnData = { shots: [], nonShots: [] }; }
 }
 
 function migrateLegacyData() {
-  ['gy_clubs','gy_shots','gy_round_score','gy_tee', AT_LEARN_KEY].forEach(k => {
+  ['gy_clubs','gy_shots','gy_round_score','gy_tee'].forEach(k => {
     const old = localStorage.getItem(k);
     const nk  = userKey(k);
     if (old && nk !== k && !localStorage.getItem(nk)) localStorage.setItem(nk, old);
@@ -2538,7 +2538,7 @@ function atScoreMotion(f) {
 }
 
 function atSaveLearnData() {
-  try { localStorage.setItem(userKey(AT_LEARN_KEY), JSON.stringify(atLearnData)); } catch {}
+  try { localStorage.setItem(AT_LEARN_KEY, JSON.stringify(atLearnData)); } catch {}
 }
 
 // Called when a potential swing is detected.
