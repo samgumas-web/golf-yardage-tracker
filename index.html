@@ -1209,12 +1209,14 @@
     <div class="card">
       <div class="label" style="margin-bottom:8px">Transfer All Data</div>
       <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">Export everything (greens, clubs, shots, courses) to a file, then import it on another device.</div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <button onclick="exportAllData()" class="btn btn-s" style="flex:1;font-size:12px;padding:9px;background:var(--card2)">⬇ Export All</button>
         <label class="btn btn-s" style="flex:1;font-size:12px;padding:9px;background:var(--card2);cursor:pointer;text-align:center">
           ⬆ Import All<input type="file" accept=".json" style="display:none" onchange="importAllData(event)">
         </label>
       </div>
+      <button onclick="exportTrainingCSV()" class="btn btn-s" style="width:100%;font-size:12px;padding:9px;background:var(--card2)" id="export-training-btn">⬇ Export Swing Training Data</button>
+      <div id="training-stats" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
     </div>
 
     <!-- Simulation -->
@@ -1546,6 +1548,19 @@ function importHoleData(event) {
     event.target.value = '';
   };
   reader.readAsText(file);
+}
+
+function exportTrainingCSV() {
+  const { shots, nonShots } = atLearnData;
+  if (!shots.length && !nonShots.length) { toast('No training data yet — use Auto on the course first'); return; }
+  const rows = [['type','rot_dps','acc_ms2','stable_secs'],
+    ...shots.map(s    => ['SHOT',     s.rot.toFixed(1), s.acc.toFixed(1), s.stable.toFixed(1)]),
+    ...nonShots.map(s => ['NOT_SHOT', s.rot.toFixed(1), s.acc.toFixed(1), s.stable.toFixed(1)])];
+  const a = document.createElement('a');
+  a.href = 'data:text/csv,' + encodeURIComponent(rows.map(r => r.join(',')).join('\n'));
+  a.download = 'swing-training.csv';
+  a.click();
+  toast(`Exported ${shots.length} shots + ${nonShots.length} non-shots`);
 }
 
 function exportAllData() {
@@ -2931,7 +2946,15 @@ function openPanel(name) {
   const nb = document.getElementById('nav-' + name);
   if (nb) nb.classList.add('on');
   if (name === 'scorecard') renderScorecard();
-  if (name === 'holes') { renderHolesList(); }
+  if (name === 'holes') {
+    renderHolesList();
+    const { shots, nonShots } = atLearnData;
+    const total = shots.length + nonShots.length;
+    const el = document.getElementById('training-stats');
+    if (el) el.textContent = total
+      ? `${shots.length} confirmed swings · ${nonShots.length} non-swings · ${atIsTrained() ? 'Trained ✓' : `${AT_TRAIN_SHOTS - shots.length} more shots to fully train`}`
+      : 'No training data yet';
+  }
 }
 
 function closePanel() {
