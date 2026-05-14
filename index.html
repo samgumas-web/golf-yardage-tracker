@@ -1985,7 +1985,10 @@ async function fetchCourseTees(course) {
     const sheetData = await gsFetchCourseHoles(course.osmId);
     if (sheetData && sheetData.holes && sheetData.holes.length) {
       _cacheTees(course.osmId, sheetData.holes);
+      toast('Hole data loaded from shared sheet ✓');
       return sheetData.holes;
+    } else {
+      toast('Sheet fetch failed — using default positions');
     }
   }
 
