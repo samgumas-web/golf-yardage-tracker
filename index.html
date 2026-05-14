@@ -1273,6 +1273,20 @@
       <div id="training-stats" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
     </div>
 
+    <!-- Google Sheets Sync -->
+    <div class="card">
+      <div class="label" style="margin-bottom:6px">Google Sheets Sync</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">
+        Shots, swing training, and club data will automatically sync to your Google Sheet in real-time.
+        Paste the Apps Script URL below to connect.
+      </div>
+      <input type="url" id="gs-url-inp" placeholder="https://script.google.com/macros/s/…/exec"
+        style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:8px;font-family:inherit;outline:none"
+        oninput="gsSaveUrl()">
+      <div id="gs-status" style="font-size:11px;text-align:center;margin-bottom:8px"></div>
+      <button onclick="gsPushCourseHoles()" class="btn btn-s" style="width:100%;font-size:12px;padding:9px;background:var(--card2)">⬆ Push Current Course Holes to Sheet</button>
+    </div>
+
     <!-- Simulation -->
     <div class="card" style="border-style:dashed;opacity:.75">
       <div class="label" style="margin-bottom:8px">🎮 Shot Detection Demo</div>
@@ -1346,6 +1360,8 @@ const AT_SWING_DPS = 200;  // °/s rotationRate spike = swing
 const AT_SWING_G   = 30;   // m/s² acceleration magnitude fallback
 const AT_SWING_DEBOUNCE_MS = 2500; // ignore swings closer than this
 const AT_LEARN_KEY   = 'gy_at_learn';
+const GS_DEFAULT     = 'https://script.google.com/macros/s/AKfycbyQHumkslddpCoSL8M-pjId-q3cWIj0eFUk-5LnMTP_YAjkEnjhBFoWAoO1jSEXwWnl/exec';
+let   GS_ENDPOINT    = localStorage.getItem('gy_gs_endpoint') || GS_DEFAULT;
 const AT_TRAIN_SHOTS = 10;
 const AT_TRAIN_NON   = 3;
 const AT_CONF_AUTO   = 0.82;
@@ -1559,10 +1575,32 @@ function saveShots() { localStorage.setItem(userKey('gy_shots'), JSON.stringify(
 
 function saveTees(courseId, holes) {
   localStorage.setItem('gy_tees_' + courseId, JSON.stringify(holes));
+  const name = selectedCourse && selectedCourse.osmId === courseId ? selectedCourse.name : courseId;
+  gsSync('course_holes', { courseId, courseName: name, updatedAt: new Date().toISOString(), holesJson: JSON.stringify(holes) });
+}
+function _cacheTees(courseId, holes) {
+  localStorage.setItem('gy_tees_' + courseId, JSON.stringify(holes));
 }
 function loadSavedTees(courseId) {
   try { const s = localStorage.getItem('gy_tees_' + courseId); return s ? JSON.parse(s) : null; }
   catch { return null; }
+}
+
+async function gsFetchCourseHoles(courseId) {
+  if (!GS_ENDPOINT) return null;
+  try {
+    const url = GS_ENDPOINT + '?action=course_holes&courseId=' + encodeURIComponent(courseId);
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function gsPushCourseHoles() {
+  if (!selectedCourse || !courseHoles.length) { toast('No hole data to push — open a course first'); return; }
+  if (!GS_ENDPOINT) { toast('Add your Google Sheets URL first'); return; }
+  saveTees(selectedCourse.osmId, courseHoles);
+  toast('Pushed ' + courseHoles.length + ' holes to Google Sheet ✓');
 }
 
 function exportHoleData() {
@@ -1700,6 +1738,7 @@ async function authSubmit() {
     profiles.push(profile);
     saveProfiles(profiles);
     loginAs(profile);
+    gsSync('profile', { timestamp: new Date().toISOString(), email: profile.email, created: new Date(profile.created).toISOString() });
   } else {
     const profile = profiles.find(p => p.email === email);
     if (!profile || profile.hash !== hash) { errEl.textContent = 'Incorrect email or password'; return; }
@@ -1728,6 +1767,36 @@ function dl(filename, csv) {
   const a = document.createElement('a');
   a.href = 'data:text/csv,' + encodeURIComponent(csv);
   a.download = filename; a.click();
+}
+
+// ── Google Sheets sync ─────────────────────────────────────────
+function gsSync(type, data) {
+  if (!GS_ENDPOINT) return;
+  try {
+    const url = GS_ENDPOINT + '?action=write&type=' + encodeURIComponent(type) + '&data=' + encodeURIComponent(JSON.stringify(data));
+    fetch(url).catch(() => {});
+  } catch {}
+}
+
+function gsSaveUrl() {
+  const v = document.getElementById('gs-url-inp').value.trim();
+  GS_ENDPOINT = v;
+  const st = document.getElementById('gs-status');
+  if (v) {
+    localStorage.setItem('gy_gs_endpoint', v);
+    st.textContent = '✓ Syncing enabled'; st.style.color = 'var(--green)';
+  } else {
+    localStorage.removeItem('gy_gs_endpoint');
+    st.textContent = 'Not connected'; st.style.color = 'var(--muted)';
+  }
+}
+
+function initGSUI() {
+  const inp = document.getElementById('gs-url-inp');
+  if (!inp) return;
+  const st = document.getElementById('gs-status');
+  inp.value = GS_ENDPOINT;
+  st.textContent = '✓ Syncing enabled'; st.style.color = 'var(--green)';
 }
 
 function exportAllData() {
@@ -1910,6 +1979,15 @@ const PRESET_HOLES = {
 async function fetchCourseTees(course) {
   const saved = loadSavedTees(course.osmId);
   if (saved && saved.length) return saved;
+
+  // Pull from shared Google Sheet if endpoint is configured
+  if (GS_ENDPOINT) {
+    const sheetData = await gsFetchCourseHoles(course.osmId);
+    if (sheetData && sheetData.holes && sheetData.holes.length) {
+      _cacheTees(course.osmId, sheetData.holes);
+      return sheetData.holes;
+    }
+  }
 
   // Use preset data if available — saves a network call and always has all 18 holes
   if (PRESET_HOLES[course.osmId]) return PRESET_HOLES[course.osmId];
@@ -2578,6 +2656,14 @@ function atLearnSwing(yes) {
     if (yes) atLearnData.shots.push(atPendingFeatures);
     else     atLearnData.nonShots.push(atPendingFeatures);
     atSaveLearnData();
+    gsSync('training', {
+      timestamp: new Date().toISOString(),
+      user_email: activeProfile ? activeProfile.email : 'anonymous',
+      type: yes ? 'SHOT' : 'NOT_SHOT',
+      rot_dps: atPendingFeatures.rot.toFixed(1),
+      acc_ms2: atPendingFeatures.acc.toFixed(1),
+      stable_secs: atPendingFeatures.stable.toFixed(1)
+    });
   }
   atPendingFeatures = null;
 
@@ -3263,10 +3349,19 @@ function onSelChange() {
 }
 
 function persistShot(clubName, yards) {
-  shots.unshift({ id: Date.now(), club: clubName, yards, date: new Date().toISOString(), hole: currentHole });
+  const now = new Date().toISOString();
+  shots.unshift({ id: Date.now(), club: clubName, yards, date: now, hole: currentHole });
   saveShots();
   const c = clubs.find(c => c.name === clubName);
   if (c) { c.shots.push(yards); saveClubs(); }
+  gsSync('shot', {
+    timestamp: now,
+    user_email: activeProfile ? activeProfile.email : 'anonymous',
+    club: clubName,
+    yards,
+    hole: currentHole,
+    shot_date: now
+  });
   vibrate([30,20,30,20,100]);
   toast(`Saved! ${fmt(yards)} ${unitStr()} · ${clubName} (Hole ${currentHole})`);
 }
@@ -3345,6 +3440,14 @@ function setClubYards(i, val) {
   const p = parseFloat(val);
   clubs[i].manualYards = (!isNaN(p) && p > 0) ? (useYards ? Math.round(p) : Math.round(p / 0.9144)) : null;
   saveClubs(); render();
+  gsSync('club', {
+    timestamp: new Date().toISOString(),
+    user_email: activeProfile ? activeProfile.email : 'anonymous',
+    club_name: clubs[i].name,
+    manual_yards: clubs[i].manualYards || '',
+    avg_yards: clubs[i].shots.length ? Math.round(clubs[i].shots.reduce((a,b)=>a+b,0)/clubs[i].shots.length) : '',
+    shot_count: clubs[i].shots.length
+  });
 }
 
 // ── History ────────────────────────────────────────────────
@@ -3620,6 +3723,14 @@ function mbSetYards(i, val) {
   const p = parseFloat(val);
   clubs[i].manualYards = (!isNaN(p) && p > 0) ? (useYards ? Math.round(p) : Math.round(p / 0.9144)) : null;
   saveClubs(); renderMainBag();
+  gsSync('club', {
+    timestamp: new Date().toISOString(),
+    user_email: activeProfile ? activeProfile.email : 'anonymous',
+    club_name: clubs[i].name,
+    manual_yards: clubs[i].manualYards || '',
+    avg_yards: clubs[i].shots.length ? Math.round(clubs[i].shots.reduce((a,b)=>a+b,0)/clubs[i].shots.length) : '',
+    shot_count: clubs[i].shots.length
+  });
 }
 
 // ── Scorecard panel ────────────────────────────────────────
@@ -3899,6 +4010,7 @@ render();
 renderSavedCourses();
 initGPS();
 checkAuth();
+initGSUI();
 setTimeout(() => { if (!hasInitiatedSearch) { setStatus('GPS slow — search by name below', false); hasInitiatedSearch = true; } }, 3000);
 </script>
 </body>
