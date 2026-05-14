@@ -1145,7 +1145,7 @@
 
 <!-- PANEL: SCORECARD -->
 <div class="panel" id="panel-scorecard">
-  <div class="panel-handle"></div>
+  <div class="panel-handle" onclick="closePanel()" title="Tap to close"></div>
   <div class="panel-body">
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -3107,7 +3107,7 @@ function showScreen(id) {
 function openPanel(name) {
   closePanel();
   document.getElementById('panel-' + name).classList.add('open');
-  document.getElementById('backdrop').classList.add('on');
+  if (name !== 'scorecard') document.getElementById('backdrop').classList.add('on');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
   const nb = document.getElementById('nav-' + name);
   if (nb) nb.classList.add('on');
