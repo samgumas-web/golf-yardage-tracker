@@ -1360,7 +1360,7 @@ const AT_SWING_DPS = 200;  // °/s rotationRate spike = swing
 const AT_SWING_G   = 30;   // m/s² acceleration magnitude fallback
 const AT_SWING_DEBOUNCE_MS = 2500; // ignore swings closer than this
 const AT_LEARN_KEY   = 'gy_at_learn';
-const GS_DEFAULT     = 'https://script.google.com/macros/s/AKfycbyQHumkslddpCoSL8M-pjId-q3cWIj0eFUk-5LnMTP_YAjkEnjhBFoWAoO1jSEXwWnl/exec';
+const GS_DEFAULT     = 'https://script.google.com/macros/s/AKfycbyGROrsqxQxSVXnLZeJ3C8ibZSII26dFVFz1fe2dMYIxkzB-WO_5SR7LvQvP1AzCpc8/exec';
 let   GS_ENDPOINT    = localStorage.getItem('gy_gs_endpoint') || GS_DEFAULT;
 const AT_TRAIN_SHOTS = 10;
 const AT_TRAIN_NON   = 3;
@@ -1596,6 +1596,26 @@ async function gsFetchCourseHoles(courseId) {
   } catch { return null; }
 }
 
+async function gsFetchAccount(email) {
+  if (!GS_ENDPOINT) return null;
+  try {
+    const url = GS_ENDPOINT + '?action=get_account&email=' + encodeURIComponent(email);
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d && d.email) ? d : null;
+  } catch { return null; }
+}
+
+function gsSyncAccount(profile) {
+  if (!GS_ENDPOINT) return;
+  try {
+    const data = { email: profile.email, hash: profile.hash, createdAt: new Date(profile.created).toISOString() };
+    const url = GS_ENDPOINT + '?action=write&type=account&data=' + encodeURIComponent(JSON.stringify(data));
+    fetch(url).catch(() => {});
+  } catch {}
+}
+
 async function gsPushCourseHoles() {
   if (!selectedCourse || !courseHoles.length) { toast('No hole data to push — open a course first'); return; }
   if (!GS_ENDPOINT) { toast('Add your Google Sheets URL first'); return; }
@@ -1726,22 +1746,56 @@ async function authSubmit() {
   const pw       = document.getElementById('auth-password').value;
   const creating = document.getElementById('auth-screen').dataset.mode === 'create';
   const errEl    = document.getElementById('auth-error');
+  const btn      = document.getElementById('auth-submit-btn');
   errEl.textContent = '';
   if (!email || !pw) { errEl.textContent = 'Enter email and password'; return; }
 
   const hash     = await hashPw(pw);
   const profiles = loadProfiles();
 
+  btn.disabled = true;
+
   if (creating) {
-    if (profiles.find(p => p.email === email)) { errEl.textContent = 'Account exists — sign in instead'; return; }
+    if (profiles.find(p => p.email === email)) {
+      errEl.textContent = 'Account exists — sign in instead';
+      btn.disabled = false;
+      return;
+    }
+    btn.textContent = 'Creating…';
+    // Check sheet so the same email can't be registered twice across devices
+    const existing = await gsFetchAccount(email);
+    if (existing) {
+      errEl.textContent = 'Account exists — sign in instead';
+      btn.textContent = 'Create Account';
+      btn.disabled = false;
+      return;
+    }
     const profile = { id: genId(), email, hash, created: Date.now() };
     profiles.push(profile);
     saveProfiles(profiles);
-    loginAs(profile);
+    gsSyncAccount(profile);
     gsSync('profile', { timestamp: new Date().toISOString(), email: profile.email, created: new Date(profile.created).toISOString() });
+    btn.textContent = 'Create Account';
+    btn.disabled = false;
+    loginAs(profile);
   } else {
-    const profile = profiles.find(p => p.email === email);
-    if (!profile || profile.hash !== hash) { errEl.textContent = 'Incorrect email or password'; return; }
+    let profile = profiles.find(p => p.email === email);
+    if (!profile) {
+      // Not cached on this device — look up in the sheet
+      btn.textContent = 'Signing in…';
+      const sheetAccount = await gsFetchAccount(email);
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+      if (!sheetAccount) { errEl.textContent = 'No account found — create one first'; return; }
+      if (sheetAccount.hash !== hash) { errEl.textContent = 'Incorrect email or password'; return; }
+      // Cache locally so future sign-ins are instant
+      profile = { id: genId(), email: sheetAccount.email, hash: sheetAccount.hash, created: Date.now() };
+      profiles.push(profile);
+      saveProfiles(profiles);
+    } else {
+      btn.disabled = false;
+      if (profile.hash !== hash) { errEl.textContent = 'Incorrect email or password'; return; }
+    }
     loginAs(profile);
   }
 }

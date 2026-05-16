@@ -9,11 +9,12 @@
 //   4. Click Deploy → copy the /exec URL
 //   5. In the GolfYards app (Holes tab → Google Sheets Sync) paste the URL
 //
-// Tabs created automatically: Training Data, Profiles, Shots, Clubs, Course Holes
+// Tabs created automatically: Accounts, Training Data, Profiles, Shots, Clubs, Course Holes
 //
 // ALL traffic uses GET (works cross-origin without CORS preflight issues).
 // Writes: ?action=write&type=<type>&data=<JSON>
 // Reads:  ?action=course_holes&courseId=<id>
+//         ?action=get_account&email=<email>
 
 function doGet(e) {
   try {
@@ -24,7 +25,8 @@ function doGet(e) {
     if (action === 'write') {
       const type = e.parameter.type;
       const data = JSON.parse(e.parameter.data);
-      if      (type === 'training')     syncTraining(ss, data);
+      if      (type === 'account')      syncAccount(ss, data);
+      else if (type === 'training')     syncTraining(ss, data);
       else if (type === 'profile')      syncProfile(ss, data);
       else if (type === 'shot')         syncShot(ss, data);
       else if (type === 'club')         syncClub(ss, data);
@@ -33,6 +35,19 @@ function doGet(e) {
     }
 
     // ── Reads ─────────────────────────────────────────────────
+    if (action === 'get_account') {
+      const email = e.parameter.email;
+      const sheet = ss.getSheetByName('Accounts');
+      if (!sheet) return jsonOut(null);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === email) {
+          return jsonOut({ email: rows[i][0], hash: rows[i][1], createdAt: rows[i][2] });
+        }
+      }
+      return jsonOut(null);
+    }
+
     if (action === 'course_holes') {
       const courseId = e.parameter.courseId;
       const sheet    = ss.getSheetByName('Course Holes');
@@ -53,6 +68,23 @@ function doGet(e) {
 }
 
 // ── Tab writers ───────────────────────────────────────────────
+
+function syncAccount(ss, d) {
+  const headers = ['Email', 'Password Hash', 'Created At'];
+  let sheet = ss.getSheetByName('Accounts');
+  if (!sheet) {
+    sheet = ss.insertSheet('Accounts');
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#1a472a').setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+  }
+  // Never overwrite an existing account
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === d.email) return;
+  }
+  sheet.appendRow([d.email, d.hash, d.createdAt]);
+}
 
 function syncTraining(ss, d) {
   const headers = ['Timestamp','User Email','Type','Rot (dps)','Acc (m/s²)','Stable (s)'];
