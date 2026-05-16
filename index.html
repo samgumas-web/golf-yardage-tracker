@@ -1209,6 +1209,12 @@
   <div class="panel-handle"></div>
   <div class="panel-body">
 
+    <!-- Account header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 2px">
+      <div style="font-size:12px;color:var(--muted);font-weight:600" id="panel-user-lbl"></div>
+      <button onclick="signOut()" style="background:rgba(255,77,79,.12);border:1.5px solid rgba(255,77,79,.3);color:#ff7875;border-radius:14px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Sign Out</button>
+    </div>
+
     <!-- Tee color selector -->
     <div class="card">
       <div class="label" style="margin-bottom:10px">Playing Tee</div>
@@ -1702,6 +1708,8 @@ function loginAs(profile) {
   document.getElementById('auth-screen').style.display = 'none';
   const pi = document.getElementById('profile-pill');
   if (pi) pi.textContent = profile.email.split('@')[0];
+  const ul = document.getElementById('panel-user-lbl');
+  if (ul) ul.textContent = profile.email;
   migrateLegacyData();
   initUserData();
   render();
