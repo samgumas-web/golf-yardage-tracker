@@ -1744,6 +1744,11 @@ async function authSubmit() {
   if (!email || !pw) { errEl.textContent = 'Enter email and password'; return; }
   if (creating && pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; return; }
 
+  if (typeof firebase === 'undefined' || !fbAuth) {
+    errEl.textContent = 'App not loaded — please refresh and try again';
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = creating ? 'Creating…' : 'Signing in…';
   try {
@@ -1755,15 +1760,18 @@ async function authSubmit() {
     // onAuthStateChanged fires and handles all data loading + UI
   } catch (err) {
     const msgs = {
-      'auth/email-already-in-use': 'Account exists — sign in instead',
-      'auth/user-not-found':       'No account found — create one first',
-      'auth/wrong-password':       'Incorrect email or password',
-      'auth/invalid-credential':   'Incorrect email or password',
-      'auth/invalid-email':        'Invalid email address',
-      'auth/weak-password':        'Password must be at least 6 characters',
-      'auth/too-many-requests':    'Too many attempts — try again later',
+      'auth/email-already-in-use':  'Account exists — sign in instead',
+      'auth/user-not-found':        'No account found — create one first',
+      'auth/wrong-password':        'Incorrect email or password',
+      'auth/invalid-credential':    'Incorrect email or password',
+      'auth/invalid-email':         'Invalid email address',
+      'auth/weak-password':         'Password must be at least 6 characters',
+      'auth/too-many-requests':     'Too many attempts — try again later',
+      'auth/unauthorized-domain':   'Domain not authorized — contact support',
+      'auth/operation-not-allowed': 'Email sign-in not enabled — contact support',
+      'auth/network-request-failed':'Network error — check your connection',
     };
-    errEl.textContent = msgs[err.code] || 'Sign in failed — try again';
+    errEl.textContent = msgs[err.code] || (err.code + ': ' + err.message);
     btn.disabled = false;
     btn.textContent = creating ? 'Create Account' : 'Sign In';
   }
