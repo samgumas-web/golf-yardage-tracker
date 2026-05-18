@@ -1411,10 +1411,11 @@ fbAuth.onAuthStateChanged(async user => {
     if (pi) pi.textContent = user.email.split('@')[0];
     const ul = document.getElementById('panel-user-lbl');
     if (ul) ul.textContent = user.email;
-    await fbLoadUserData(user.uid);
+    const hadFirebaseData = await fbLoadUserData(user.uid);
     migrateLegacyData();
     initUserData();
     render();
+    if (!hadFirebaseData) fbMigrateLocalData();
   } else {
     activeProfile = null;
     clubs = []; shots = []; roundScore = {}; atLearnData = { shots: [], nonShots: [] };
@@ -1796,6 +1797,7 @@ function gsSync(type, data) {
 // ── Firebase data ──────────────────────────────────────────
 
 async function fbLoadUserData(uid) {
+  let foundData = false;
   try {
     const ref = fbDb.collection('users').doc(uid).collection('data');
     const [clubsDoc, trainDoc] = await Promise.all([
@@ -1804,9 +1806,11 @@ async function fbLoadUserData(uid) {
     ]);
     if (clubsDoc.exists && clubsDoc.data().items) {
       localStorage.setItem(userKey('gy_clubs'), JSON.stringify(clubsDoc.data().items));
+      foundData = true;
     }
     if (trainDoc.exists) {
       localStorage.setItem(AT_LEARN_KEY, JSON.stringify(trainDoc.data()));
+      foundData = true;
     }
     const shotsSnap = await fbDb.collection('users').doc(uid).collection('shots')
       .orderBy('id', 'desc').limit(500).get();
@@ -1814,8 +1818,45 @@ async function fbLoadUserData(uid) {
       const loaded = [];
       shotsSnap.forEach(d => loaded.push(d.data()));
       localStorage.setItem(userKey('gy_shots'), JSON.stringify(loaded));
+      foundData = true;
     }
   } catch (e) { console.warn('fbLoadUserData:', e); }
+  return foundData;
+}
+
+async function fbMigrateLocalData() {
+  if (!activeProfile) return;
+  const localClubs = loadClubs();
+  const localShots = loadShots();
+  try {
+    const d = JSON.parse(localStorage.getItem(AT_LEARN_KEY) || 'null');
+    if (d && Array.isArray(d.shots)) atLearnData = d;
+  } catch {}
+
+  const promises = [];
+  const uid = activeProfile.id;
+
+  if (localClubs.length) {
+    promises.push(
+      fbDb.collection('users').doc(uid).collection('data').doc('clubs')
+        .set({ items: localClubs, updatedAt: new Date().toISOString() })
+    );
+  }
+  if (atLearnData.shots.length || atLearnData.nonShots.length) {
+    promises.push(
+      fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
+        .set(atLearnData)
+    );
+  }
+  const batch = fbDb.batch();
+  for (const shot of localShots) {
+    const ref = fbDb.collection('users').doc(uid).collection('shots').doc(String(shot.id));
+    batch.set(ref, shot);
+  }
+  promises.push(batch.commit());
+
+  await Promise.all(promises).catch(e => console.warn('fbMigrateLocalData:', e));
+  toast(`Synced ${localClubs.length} clubs + ${localShots.length} shots to Firebase ✓`);
 }
 
 function fbSaveClubs() {
