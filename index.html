@@ -1311,6 +1311,9 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
 
@@ -1387,6 +1390,48 @@ let atLearnData      = { shots: [], nonShots: [] };
 
 // ── Scorecard ───────────────────────────────────────────────
 let roundScore = {};  // { [holeNum]: { score: null|int, putts: 0 } }
+
+// ── Firebase ───────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey:            'AIzaSyCrOToPLYqbDnknhcWcVlQrOchs8YGTB9g',
+  authDomain:        'golfyards-16f37.firebaseapp.com',
+  projectId:         'golfyards-16f37',
+  storageBucket:     'golfyards-16f37.firebasestorage.app',
+  messagingSenderId: '172351445870',
+  appId:             '1:172351445870:web:11772be91aeb54d1dfbf7f'
+});
+const fbAuth = firebase.auth();
+const fbDb   = firebase.firestore();
+
+fbAuth.onAuthStateChanged(async user => {
+  if (user) {
+    activeProfile = { id: user.uid, email: user.email };
+    document.getElementById('auth-screen').style.display = 'none';
+    const pi = document.getElementById('profile-pill');
+    if (pi) pi.textContent = user.email.split('@')[0];
+    const ul = document.getElementById('panel-user-lbl');
+    if (ul) ul.textContent = user.email;
+    await fbLoadUserData(user.uid);
+    migrateLegacyData();
+    initUserData();
+    render();
+  } else {
+    activeProfile = null;
+    clubs = []; shots = []; roundScore = {}; atLearnData = { shots: [], nonShots: [] };
+    const s = document.getElementById('auth-screen');
+    if (s) { s.style.display = 'flex'; s.dataset.mode = 'signin'; }
+    const pi = document.getElementById('profile-pill');
+    if (pi) pi.textContent = '';
+    const ul = document.getElementById('panel-user-lbl');
+    if (ul) ul.textContent = '';
+    document.getElementById('auth-email').value    = '';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-error').textContent = '';
+    document.getElementById('auth-submit-btn').textContent  = 'Sign In';
+    document.getElementById('auth-toggle-btn').textContent  = 'Create account instead';
+    document.getElementById('auth-mode-lbl').textContent    = 'SIGN IN';
+  }
+});
 
 function saveRoundScore() { localStorage.setItem(userKey('gy_round_score'), JSON.stringify(roundScore)); }
 function loadRoundScore() {
@@ -1571,7 +1616,7 @@ function loadClubs() {
     return DEFAULT_CLUBS.map(n => ({ name: n, shots: [], manualYards: null }));
   } catch { return DEFAULT_CLUBS.map(n => ({ name: n, shots: [], manualYards: null })); }
 }
-function saveClubs() { localStorage.setItem(userKey('gy_clubs'), JSON.stringify(clubs)); }
+function saveClubs() { localStorage.setItem(userKey('gy_clubs'), JSON.stringify(clubs)); fbSaveClubs(); }
 
 function loadShots() {
   try { const s = localStorage.getItem(userKey('gy_shots')); return s ? JSON.parse(s) : []; }
@@ -1582,6 +1627,7 @@ function saveShots() { localStorage.setItem(userKey('gy_shots'), JSON.stringify(
 function saveTees(courseId, holes) {
   localStorage.setItem('gy_tees_' + courseId, JSON.stringify(holes));
   const name = selectedCourse && selectedCourse.osmId === courseId ? selectedCourse.name : courseId;
+  fbSaveCourseHoles(courseId, name, holes);
   gsSync('course_holes', { courseId, courseName: name, updatedAt: new Date().toISOString(), holesJson: JSON.stringify(holes) });
 }
 function _cacheTees(courseId, holes) {
@@ -1602,25 +1648,6 @@ async function gsFetchCourseHoles(courseId) {
   } catch { return null; }
 }
 
-async function gsFetchAccount(email) {
-  if (!GS_ENDPOINT) return null;
-  try {
-    const url = GS_ENDPOINT + '?action=get_account&email=' + encodeURIComponent(email);
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const d = await r.json();
-    return (d && d.email) ? d : null;
-  } catch { return null; }
-}
-
-function gsSyncAccount(profile) {
-  if (!GS_ENDPOINT) return;
-  try {
-    const data = { email: profile.email, hash: profile.hash, createdAt: new Date(profile.created).toISOString() };
-    const url = GS_ENDPOINT + '?action=write&type=account&data=' + encodeURIComponent(JSON.stringify(data));
-    fetch(url).catch(() => {});
-  } catch {}
-}
 
 async function gsPushCourseHoles() {
   if (!selectedCourse || !courseHoles.length) { toast('No hole data to push — open a course first'); return; }
@@ -1667,17 +1694,7 @@ function importHoleData(event) {
   reader.readAsText(file);
 }
 
-// ── Auth & Profiles ────────────────────────────────────────
-function loadProfiles() {
-  try { return JSON.parse(localStorage.getItem('gy_profiles') || '[]'); } catch { return []; }
-}
-function saveProfiles(p) { localStorage.setItem('gy_profiles', JSON.stringify(p)); }
-function genId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-
-async function hashPw(pw) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
+// ── Auth ───────────────────────────────────────────────────
 
 function initUserData() {
   clubs      = loadClubs();
@@ -1702,42 +1719,9 @@ function migrateLegacyData() {
   });
 }
 
-function loginAs(profile) {
-  activeProfile = profile;
-  localStorage.setItem('gy_active_profile', profile.id);
-  document.getElementById('auth-screen').style.display = 'none';
-  const pi = document.getElementById('profile-pill');
-  if (pi) pi.textContent = profile.email.split('@')[0];
-  const ul = document.getElementById('panel-user-lbl');
-  if (ul) ul.textContent = profile.email;
-  migrateLegacyData();
-  initUserData();
-  render();
-}
+function signOut() { fbAuth.signOut(); }
 
-function signOut() {
-  activeProfile = null;
-  localStorage.removeItem('gy_active_profile');
-  clubs = []; shots = []; roundScore = {}; atLearnData = { shots: [], nonShots: [] };
-  const s = document.getElementById('auth-screen');
-  s.style.display = 'flex';
-  s.dataset.mode  = 'signin';
-  document.getElementById('auth-email').value    = '';
-  document.getElementById('auth-password').value = '';
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-submit-btn').textContent  = 'Sign In';
-  document.getElementById('auth-toggle-btn').textContent  = 'Create account instead';
-  document.getElementById('auth-mode-lbl').textContent    = 'SIGN IN';
-}
-
-function checkAuth() {
-  const id = localStorage.getItem('gy_active_profile');
-  if (id) {
-    const p = loadProfiles().find(p => p.id === id);
-    if (p) { loginAs(p); return; }
-  }
-  document.getElementById('auth-screen').style.display = 'flex';
-}
+function checkAuth() { /* handled by Firebase onAuthStateChanged */ }
 
 function authToggle() {
   const s = document.getElementById('auth-screen');
@@ -1757,54 +1741,30 @@ async function authSubmit() {
   const btn      = document.getElementById('auth-submit-btn');
   errEl.textContent = '';
   if (!email || !pw) { errEl.textContent = 'Enter email and password'; return; }
-
-  const hash     = await hashPw(pw);
-  const profiles = loadProfiles();
+  if (creating && pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; return; }
 
   btn.disabled = true;
-
-  if (creating) {
-    if (profiles.find(p => p.email === email)) {
-      errEl.textContent = 'Account exists — sign in instead';
-      btn.disabled = false;
-      return;
-    }
-    btn.textContent = 'Creating…';
-    // Check sheet so the same email can't be registered twice across devices
-    const existing = await gsFetchAccount(email);
-    if (existing) {
-      errEl.textContent = 'Account exists — sign in instead';
-      btn.textContent = 'Create Account';
-      btn.disabled = false;
-      return;
-    }
-    const profile = { id: genId(), email, hash, created: Date.now() };
-    profiles.push(profile);
-    saveProfiles(profiles);
-    gsSyncAccount(profile);
-    gsSync('profile', { timestamp: new Date().toISOString(), email: profile.email, created: new Date(profile.created).toISOString() });
-    btn.textContent = 'Create Account';
-    btn.disabled = false;
-    loginAs(profile);
-  } else {
-    let profile = profiles.find(p => p.email === email);
-    if (!profile) {
-      // Not cached on this device — look up in the sheet
-      btn.textContent = 'Signing in…';
-      const sheetAccount = await gsFetchAccount(email);
-      btn.textContent = 'Sign In';
-      btn.disabled = false;
-      if (!sheetAccount) { errEl.textContent = 'No account found — create one first'; return; }
-      if (sheetAccount.hash !== hash) { errEl.textContent = 'Incorrect email or password'; return; }
-      // Cache locally so future sign-ins are instant
-      profile = { id: genId(), email: sheetAccount.email, hash: sheetAccount.hash, created: Date.now() };
-      profiles.push(profile);
-      saveProfiles(profiles);
+  btn.textContent = creating ? 'Creating…' : 'Signing in…';
+  try {
+    if (creating) {
+      await fbAuth.createUserWithEmailAndPassword(email, pw);
     } else {
-      btn.disabled = false;
-      if (profile.hash !== hash) { errEl.textContent = 'Incorrect email or password'; return; }
+      await fbAuth.signInWithEmailAndPassword(email, pw);
     }
-    loginAs(profile);
+    // onAuthStateChanged fires and handles all data loading + UI
+  } catch (err) {
+    const msgs = {
+      'auth/email-already-in-use': 'Account exists — sign in instead',
+      'auth/user-not-found':       'No account found — create one first',
+      'auth/wrong-password':       'Incorrect email or password',
+      'auth/invalid-credential':   'Incorrect email or password',
+      'auth/invalid-email':        'Invalid email address',
+      'auth/weak-password':        'Password must be at least 6 characters',
+      'auth/too-many-requests':    'Too many attempts — try again later',
+    };
+    errEl.textContent = msgs[err.code] || 'Sign in failed — try again';
+    btn.disabled = false;
+    btn.textContent = creating ? 'Create Account' : 'Sign In';
   }
 }
 
@@ -1815,13 +1775,6 @@ function exportTrainingCSV() {
     ...shots.map(s    => ['SHOT',     s.rot.toFixed(1), s.acc.toFixed(1), s.stable.toFixed(1)]),
     ...nonShots.map(s => ['NOT_SHOT', s.rot.toFixed(1), s.acc.toFixed(1), s.stable.toFixed(1)])];
   dl('swing-training.csv', rows.map(r => r.join(',')).join('\n'));
-
-  // Also download profiles sheet
-  const profiles = loadProfiles();
-  const pRows = [['email','created','password_hash'],
-    ...profiles.map(p => [p.email, new Date(p.created).toLocaleDateString(), p.hash])];
-  dl('profiles.csv', pRows.map(r => r.join(',')).join('\n'));
-
   toast(`Exported ${shots.length} shots + ${nonShots.length} non-shots`);
 }
 
@@ -1838,6 +1791,62 @@ function gsSync(type, data) {
     const url = GS_ENDPOINT + '?action=write&type=' + encodeURIComponent(type) + '&data=' + encodeURIComponent(JSON.stringify(data));
     fetch(url).catch(() => {});
   } catch {}
+}
+
+// ── Firebase data ──────────────────────────────────────────
+
+async function fbLoadUserData(uid) {
+  try {
+    const ref = fbDb.collection('users').doc(uid).collection('data');
+    const [clubsDoc, trainDoc] = await Promise.all([
+      ref.doc('clubs').get(),
+      ref.doc('trainingModel').get()
+    ]);
+    if (clubsDoc.exists && clubsDoc.data().items) {
+      localStorage.setItem(userKey('gy_clubs'), JSON.stringify(clubsDoc.data().items));
+    }
+    if (trainDoc.exists) {
+      localStorage.setItem(AT_LEARN_KEY, JSON.stringify(trainDoc.data()));
+    }
+    const shotsSnap = await fbDb.collection('users').doc(uid).collection('shots')
+      .orderBy('id', 'desc').limit(500).get();
+    if (!shotsSnap.empty) {
+      const loaded = [];
+      shotsSnap.forEach(d => loaded.push(d.data()));
+      localStorage.setItem(userKey('gy_shots'), JSON.stringify(loaded));
+    }
+  } catch (e) { console.warn('fbLoadUserData:', e); }
+}
+
+function fbSaveClubs() {
+  if (!activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('data').doc('clubs')
+    .set({ items: clubs, updatedAt: new Date().toISOString() }).catch(() => {});
+}
+
+function fbSaveShot(shot) {
+  if (!activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('shots').doc(String(shot.id))
+    .set(shot).catch(() => {});
+}
+
+function fbSaveTrainingModel() {
+  if (!activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('data').doc('trainingModel')
+    .set(atLearnData).catch(() => {});
+}
+
+function fbSaveCourseHoles(courseId, courseName, holes) {
+  const docId = courseId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  fbDb.collection('courses').doc(docId)
+    .set({ courseId, courseName, updatedAt: new Date().toISOString(), holes }).catch(() => {});
+}
+
+async function fbFetchCourseHoles(courseId) {
+  try {
+    const doc = await fbDb.collection('courses').doc(courseId.replace(/[^a-zA-Z0-9_-]/g, '_')).get();
+    return (doc.exists && doc.data().holes) ? doc.data() : null;
+  } catch { return null; }
 }
 
 function gsSaveUrl() {
@@ -2042,16 +2051,11 @@ async function fetchCourseTees(course) {
   const saved = loadSavedTees(course.osmId);
   if (saved && saved.length) return saved;
 
-  // Pull from shared Google Sheet if endpoint is configured
-  if (GS_ENDPOINT) {
-    const sheetData = await gsFetchCourseHoles(course.osmId);
-    if (sheetData && sheetData.holes && sheetData.holes.length) {
-      _cacheTees(course.osmId, sheetData.holes);
-      toast('Hole data loaded from shared sheet ✓');
-      return sheetData.holes;
-    } else {
-      toast('Sheet fetch failed — using default positions');
-    }
+  // Pull from Firebase (shared across all users)
+  const fbData = await fbFetchCourseHoles(course.osmId);
+  if (fbData && fbData.holes && fbData.holes.length) {
+    _cacheTees(course.osmId, fbData.holes);
+    return fbData.holes;
   }
 
   // Use preset data if available — saves a network call and always has all 18 holes
@@ -2681,6 +2685,7 @@ function atScoreMotion(f) {
 
 function atSaveLearnData() {
   try { localStorage.setItem(AT_LEARN_KEY, JSON.stringify(atLearnData)); } catch {}
+  fbSaveTrainingModel();
 }
 
 // Called when a potential swing is detected.
@@ -3414,8 +3419,10 @@ function onSelChange() {
 
 function persistShot(clubName, yards) {
   const now = new Date().toISOString();
-  shots.unshift({ id: Date.now(), club: clubName, yards, date: now, hole: currentHole });
+  const shot = { id: Date.now(), club: clubName, yards, date: now, hole: currentHole };
+  shots.unshift(shot);
   saveShots();
+  fbSaveShot(shot);
   const c = clubs.find(c => c.name === clubName);
   if (c) { c.shots.push(yards); saveClubs(); }
   gsSync('shot', {
