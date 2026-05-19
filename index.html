@@ -915,6 +915,10 @@
       <span id="search-status-text">Sign in to get started</span>
     </div>
 
+    <button id="gps-enable-btn" onclick="requestGPS()" style="display:none;width:100%;margin-top:8px;padding:14px;background:var(--green-dark);border:1.5px solid var(--green-mid);color:var(--green-light);border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
+      📍 Tap to Enable Location
+    </button>
+
     <div class="card" id="course-list-card" style="display:none">
       <div class="card-head">
         <span class="label">Nearby Courses</span>
@@ -1963,9 +1967,30 @@ function initGPS() {
   if (gpsWatchId !== null) return; // already watching
   if (!navigator.geolocation) { setGPSUI('error', 'GPS not supported'); return; }
   setGPSUI('searching', 'Searching for GPS…');
-  gpsWatchId = navigator.geolocation.watchPosition(onGPSPos, onGPSErr, {
-    enableHighAccuracy: true, maximumAge: 0, timeout: 15000
-  });
+  // getCurrentPosition forces iOS to show the per-site permission prompt immediately
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      document.getElementById('gps-enable-btn').style.display = 'none';
+      onGPSPos(pos);
+      if (gpsWatchId === null) {
+        gpsWatchId = navigator.geolocation.watchPosition(onGPSPos, onGPSErr, {
+          enableHighAccuracy: true, maximumAge: 0, timeout: 15000
+        });
+      }
+    },
+    err => {
+      onGPSErr(err);
+      if (err.code === 1) document.getElementById('gps-enable-btn').style.display = '';
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+
+function requestGPS() {
+  gpsWatchId = null;
+  document.getElementById('gps-enable-btn').style.display = 'none';
+  setGPSUI('searching', 'Requesting location…');
+  initGPS();
 }
 
 function onGPSPos(pos) {
@@ -1998,15 +2023,14 @@ function onGPSPos(pos) {
 
 function onGPSErr(err) {
   const m = {
-    1: 'Location denied — tap to fix',
+    1: 'Location blocked — tap the button below',
     2: 'GPS unavailable — move to open sky',
-    3: 'GPS timed out — tap to retry'
+    3: 'GPS timed out — tap below to retry'
   };
   setGPSUI('error', m[err.code] || 'GPS error');
   gpsWatchId = null; // allow retry
-  if (err.code === 1) {
-    toast('Tap the GPS status bar to re-request location, or enable it in Settings → Safari → Location');
-  }
+  const btn = document.getElementById('gps-enable-btn');
+  if (btn) btn.style.display = '';
   if (!hasInitiatedSearch) { hasInitiatedSearch = true; startCourseSearch(); }
 }
 
