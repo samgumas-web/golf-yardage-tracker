@@ -2994,16 +2994,13 @@ function atFireShot(start, end, yards) {
     cn.textContent = atSuggestedClub;
     const range = sugg.range;
     cr.textContent = range ? `avg ${Math.round(range.mean)} yds` : sugg.club.manualYards ? `${sugg.club.manualYards} yds` : '';
-    document.getElementById('auto-shot-question').style.display = 'block';
-    document.getElementById('auto-shot-btns').style.display = 'flex';
-    document.getElementById('auto-club-picker').style.display = 'none';
   } else {
-    // No club match — go straight to picker
-    document.getElementById('auto-shot-question').style.display = 'none';
-    document.getElementById('auto-shot-btns').style.display = 'none';
-    document.getElementById('auto-club-picker').style.display = 'block';
-    _buildClubList();
+    cn.textContent = 'Unknown';
+    cr.textContent = '';
   }
+  document.getElementById('auto-shot-question').style.display = 'block';
+  document.getElementById('auto-shot-btns').style.display = 'flex';
+  document.getElementById('auto-club-picker').style.display = 'none';
   card.style.display = 'block';
   showFAB(false);
   vibrate([40, 20, 80]);
