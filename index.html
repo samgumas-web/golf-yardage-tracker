@@ -2858,6 +2858,8 @@ function atExecuteSwing() {
 
 function toggleAutoTrack() {
   autoTrack = !autoTrack;
+  // Blur all inputs so iOS shake-to-undo dialog never appears during a swing
+  if (autoTrack) document.querySelectorAll('input, textarea').forEach(el => el.blur());
   if (autoTrack) {
     atPhase     = 'idle';
     atShotStart = null;
