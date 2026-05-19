@@ -783,6 +783,39 @@
   .club-chip:active { opacity: .7; }
   .club-chip.selected { border-color: var(--green); color: var(--green-light); background: rgba(82,196,26,.12); }
 
+  /* ── Round summary / detail maps ────────────────────────── */
+  .shot-map-wrap { border-radius: 12px; overflow: hidden; height: 300px; position: relative; }
+  .shot-map-wrap .no-gps-msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px; color: var(--muted); font-size: 13px; text-align: center; padding: 20px;
+  }
+
+  /* ── Past rounds list ────────────────────────────────────── */
+  .round-item {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer;
+  }
+  .round-item:active { opacity: .75; }
+  .round-item-score {
+    font-size: 32px; font-weight: 900; line-height: 1; min-width: 52px; text-align: center;
+  }
+  .round-item-meta { flex: 1; min-width: 0; }
+  .round-item-course { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .round-item-date   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .round-item-putts  { font-size: 11px; color: var(--blue); margin-top: 2px; font-weight: 700; }
+
+  /* ── Club dist rows in summary ───────────────────────────── */
+  .sum-club-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .sum-club-row:last-child { border-bottom: none; }
+  .sum-club-shots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .sum-club-shot-tag {
+    background: rgba(82,196,26,.1); border: 1px solid rgba(82,196,26,.25);
+    border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700; color: var(--green-light);
+  }
+
   /* ── Track FAB ───────────────────────────────────────── */
   .track-fab {
     position: absolute;
@@ -984,6 +1017,15 @@
     <div style="height:20px"></div>
   </div>
 
+  <!-- ── TAB: ROUNDS ── -->
+  <div class="scroll" id="tab-rounds" style="display:none">
+    <div style="font-size:13px;color:var(--muted);padding:4px 2px 14px;line-height:1.5">
+      Tap any round to see your scorecard, club distances, and shot map.
+    </div>
+    <div id="rounds-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div style="height:20px"></div>
+  </div>
+
   <!-- Main bottom nav -->
   <nav class="nav">
     <button class="nav-btn on" id="mnav-courses" onclick="mainTab('courses')">
@@ -994,6 +1036,9 @@
     </button>
     <button class="nav-btn" id="mnav-stats" onclick="mainTab('stats')">
       <span class="nav-icon">📊</span><span class="nav-label">Stats</span>
+    </button>
+    <button class="nav-btn" id="mnav-rounds" onclick="mainTab('rounds')">
+      <span class="nav-icon">🏆</span><span class="nav-label">Rounds</span>
     </button>
   </nav>
 </div>
@@ -1157,8 +1202,73 @@
       </div>
     </div>
     <div class="card" id="sum-hole-grid"></div>
-    <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="showScreen('scr-round')">Back to Course</button>
-    <button class="btn btn-d" style="padding:12px;font-size:13px" onclick="resetScorecard();showScreen('scr-round')">New Round</button>
+    <div class="card" id="sum-club-dist-card">
+      <div class="label" style="margin-bottom:14px">Clubs Used This Round</div>
+      <div id="sum-club-dist"><div style="color:var(--muted);font-size:13px">No shots logged this round.</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between">
+        <span class="label">Shot Map</span>
+        <span style="font-size:11px;color:var(--muted)">GPS shots only</span>
+      </div>
+      <div class="shot-map-wrap" id="sum-map-wrap">
+        <div id="sum-map" style="height:300px"></div>
+        <div class="no-gps-msg" id="sum-map-msg" style="display:none">
+          <div style="font-size:28px">📍</div>
+          <div>No GPS shot data yet.<br>Enable GPS and use Auto-Track to see shots on the map.</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-p" style="flex:1;padding:14px;font-size:15px" onclick="showScreen('scr-round')">Back to Course</button>
+      <button class="btn btn-d" style="flex:1;padding:14px;font-size:15px" onclick="startNewRound()">New Round</button>
+    </div>
+    <div style="height:10px"></div>
+  </div>
+</div>
+
+<!-- SCREEN: ROUND DETAIL (past round) -->
+<div class="scr" id="scr-round-detail">
+  <div class="hdr">
+    <button class="hdr-btn" onclick="showScreen('scr-courses');mainTab('rounds')" style="padding:7px 10px;flex-shrink:0">← Rounds</button>
+    <div style="flex:1;text-align:center">
+      <div class="app-name" style="font-size:16px" id="rd-title">Past Round</div>
+    </div>
+    <div style="width:60px"></div>
+  </div>
+  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 16px;display:flex;flex-direction:column;gap:18px">
+    <div style="text-align:center;padding:16px 0 4px">
+      <div style="font-size:68px;font-weight:900;line-height:1;letter-spacing:-4px" id="rd-score">—</div>
+      <div style="font-size:14px;color:var(--muted);font-weight:700;margin-top:6px" id="rd-score-label">Total Score</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="card" style="text-align:center;padding:16px 12px">
+        <div style="font-size:32px;font-weight:900;color:var(--blue)" id="rd-putts">—</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-top:4px">Total Putts</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px 12px">
+        <div style="font-size:32px;font-weight:900;color:var(--green-light)" id="rd-avg-putts">—</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-top:4px">Avg Putts/Hole</div>
+      </div>
+    </div>
+    <div class="card" id="rd-hole-grid"></div>
+    <div class="card">
+      <div class="label" style="margin-bottom:14px">Club Distances</div>
+      <div id="rd-club-dist"></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between">
+        <span class="label">Shot Map</span>
+        <span style="font-size:11px;color:var(--muted)">GPS shots only</span>
+      </div>
+      <div class="shot-map-wrap">
+        <div id="rd-map" style="height:300px"></div>
+        <div class="no-gps-msg" id="rd-map-msg" style="display:none">
+          <div style="font-size:28px">📍</div>
+          <div>No GPS shot data for this round.</div>
+        </div>
+      </div>
+    </div>
     <div style="height:10px"></div>
   </div>
 </div>
@@ -1414,7 +1524,18 @@ let atStableTime     = 0;    // timestamp when current stable phase began
 let atLearnData      = { shots: [], nonShots: [] };
 
 // ── Scorecard ───────────────────────────────────────────────
-let roundScore = {};  // { [holeNum]: { score: null|int, putts: 0 } }
+let roundScore     = {};
+let roundStartedAt = null;   // ISO string — set on first stroke entry
+
+// ── Past rounds ─────────────────────────────────────────────
+let pastRounds     = [];
+let sumMap         = null;   // Leaflet map instance in summary screen
+let detailMap      = null;   // Leaflet map instance in round-detail screen
+let viewingRoundId = null;   // id of the past round currently open
+
+// ── Auto-shot GPS capture ────────────────────────────────────
+let atShotStartPos = null;   // {lat,lng} — start GPS of last auto shot
+let atShotEndPos   = null;   // {lat,lng} — end GPS of last auto shot
 
 // ── Firebase ───────────────────────────────────────────────
 firebase.initializeApp({
@@ -1437,6 +1558,7 @@ fbAuth.onAuthStateChanged(async user => {
     const ul = document.getElementById('panel-user-lbl');
     if (ul) ul.textContent = user.email;
     const hadFirebaseShots = await fbLoadUserData(user.uid);
+    await fbLoadRounds(user.uid);
     migrateLegacyData();
     initUserData();
     render();
@@ -1729,6 +1851,7 @@ function initUserData() {
   clubs      = loadClubs();
   shots      = loadShots();
   roundScore = loadRoundScore();
+  pastRounds = loadPastRounds();
   selectedTee = localStorage.getItem(userKey('gy_tee')) || 'blue';
   ['black','blue','white','yellow'].forEach(t => {
     const b = document.getElementById('tbtn-' + t);
@@ -1895,6 +2018,233 @@ async function fbSyncOnLogin(hadFirebaseShots) {
   }
 
   await Promise.all(promises).catch(e => console.warn('fbSyncOnLogin:', e));
+}
+
+// ── Past rounds storage ───────────────────────────────────────
+function loadPastRounds() {
+  try { return JSON.parse(localStorage.getItem(userKey('gy_past_rounds')) || '[]'); } catch { return []; }
+}
+function savePastRounds() {
+  localStorage.setItem(userKey('gy_past_rounds'), JSON.stringify(pastRounds));
+}
+
+function fbSaveRound(round) {
+  if (!activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('rounds').doc(String(round.id))
+    .set(round).catch(() => {});
+}
+
+async function fbLoadRounds(uid) {
+  try {
+    const snap = await fbDb.collection('users').doc(uid).collection('rounds')
+      .orderBy('id', 'desc').limit(100).get();
+    if (!snap.empty) {
+      const loaded = [];
+      snap.forEach(d => loaded.push(d.data()));
+      localStorage.setItem(userKey('gy_past_rounds'), JSON.stringify(loaded));
+    }
+  } catch (e) { console.warn('fbLoadRounds:', e); }
+}
+
+function saveCurrentRound() {
+  const { totalVsPar, holesPlayed, totalPutts } = _scTotals();
+  if (!holesPlayed) return null;
+  const totalPar = Array.from({ length: 18 }, (_, i) => {
+    const hd = getHoleData(i + 1); return hd ? hd.par : 4;
+  }).reduce((a, b) => a + b, 0);
+  const roundDate = roundStartedAt || new Date().toISOString();
+  const roundShots = shots.filter(s => s.date >= roundDate);
+  const round = {
+    id: Date.now(),
+    date: roundDate,
+    courseName: selectedCourse ? selectedCourse.name : 'Unknown Course',
+    courseId:   selectedCourse ? selectedCourse.osmId : null,
+    grossScore: totalPar + totalVsPar,
+    relScore:   totalVsPar,
+    holesPlayed,
+    totalPutts,
+    avgPutts:   holesPlayed ? parseFloat((totalPutts / holesPlayed).toFixed(1)) : 0,
+    roundScore: JSON.parse(JSON.stringify(roundScore)),
+    shots:      roundShots,
+    courseHoles: JSON.parse(JSON.stringify(courseHoles))
+  };
+  // Deduplicate — replace if same roundStartedAt date already saved
+  pastRounds = pastRounds.filter(r => r.date !== roundDate);
+  pastRounds.unshift(round);
+  savePastRounds();
+  fbSaveRound(round);
+  return round;
+}
+
+// ── Club distances helper (shared by summary + detail) ────────
+function _renderClubDist(roundShots) {
+  if (!roundShots.length) return '<div style="color:var(--muted);font-size:13px">No shots logged.</div>';
+  const byClub = {};
+  for (const s of roundShots) {
+    if (!byClub[s.club]) byClub[s.club] = [];
+    byClub[s.club].push(s.yards);
+  }
+  return Object.entries(byClub)
+    .sort((a, b) => {
+      const avg = arr => arr.reduce((x, y) => x + y, 0) / arr.length;
+      return avg(b[1]) - avg(a[1]);
+    })
+    .map(([club, yardsArr]) => {
+      const avg = Math.round(yardsArr.reduce((a, b) => a + b, 0) / yardsArr.length);
+      const tags = yardsArr.map(y => `<span class="sum-club-shot-tag">${y}</span>`).join('');
+      return `<div class="sum-club-row">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:800;color:var(--text)">${x(club)}</div>
+          <div class="sum-club-shots">${tags}</div>
+        </div>
+        <div style="font-size:20px;font-weight:900;color:var(--green-light);margin-left:12px">${avg}<span style="font-size:11px;color:var(--muted);font-weight:700"> avg</span></div>
+      </div>`;
+    }).join('');
+}
+
+// ── Shot map helper (shared by summary + detail) ──────────────
+const SHOT_COLORS = ['#52c41a','#1890ff','#fa8c16','#eb2f96','#722ed1','#13c2c2','#a0d911','#f5222d'];
+
+function _renderShotMap(mapDivId, msgDivId, roundShots, holesData) {
+  const validShots = roundShots.filter(s => s.sLat && s.sLng && s.eLat && s.eLng);
+  const msgEl = document.getElementById(msgDivId);
+  if (!validShots.length) {
+    if (msgEl) msgEl.style.display = 'flex';
+    return null;
+  }
+  if (msgEl) msgEl.style.display = 'none';
+
+  const container = document.getElementById(mapDivId);
+  if (!container) return null;
+
+  const m = L.map(container, { zoomControl: false, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19 }).addTo(m);
+
+  const allBounds = [];
+  const holeNums = [...new Set(validShots.map(s => s.hole))].sort((a, b) => a - b);
+
+  for (const s of validShots) {
+    const color = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
+    const start = [s.sLat, s.sLng], end = [s.eLat, s.eLng];
+    allBounds.push(start, end);
+    L.polyline([start, end], { color, weight: 3, opacity: .85 }).addTo(m);
+    L.circleMarker(end, { radius: 6, color: '#000', fillColor: color, fillOpacity: 1, weight: 1.5 })
+      .bindPopup(`<b>H${s.hole} · ${x(s.club)}</b><br>${s.yards} yds`)
+      .addTo(m);
+  }
+
+  // Putt markers at green positions
+  for (const hd of holesData) {
+    if (!hd.green) continue;
+    const rs = roundShots.find(s => false); // roundScore not available here — handled by caller
+    allBounds.push([hd.green.lat, hd.green.lng]);
+  }
+
+  if (allBounds.length) m.fitBounds(allBounds, { padding: [24, 24] });
+  return m;
+}
+
+function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roundScoreData) {
+  const m = _renderShotMap(mapDivId, msgDivId, roundShots, holesData);
+  if (!m) return;
+  // Add putt markers at greens
+  for (const hd of holesData) {
+    if (!hd.green) continue;
+    const entry = roundScoreData[hd.number];
+    const putts = entry ? (entry.putts || 0) : 0;
+    if (!putts) continue;
+    const icon = L.divIcon({
+      html: `<div style="background:#1890ff;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">+${putts}</div>`,
+      iconSize: [26, 26], iconAnchor: [13, 13], className: ''
+    });
+    L.marker([hd.green.lat, hd.green.lng], { icon })
+      .bindPopup(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`)
+      .addTo(m);
+  }
+}
+
+// ── Past rounds list rendering ────────────────────────────────
+function renderRoundsList() {
+  const el = document.getElementById('rounds-list');
+  if (!el) return;
+  if (!pastRounds.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">🏆</div><div class="empty-txt">No rounds saved yet.<br>Complete 18 holes to save your first round.</div></div>`;
+    return;
+  }
+  const REL_COLOR = { neg: 'var(--blue)', zero: 'var(--green-light)', pos: '#ff7875' };
+  el.innerHTML = pastRounds.map(r => {
+    const rel = r.relScore;
+    const relTxt = rel === 0 ? 'E' : (rel > 0 ? `+${rel}` : String(rel));
+    const color = rel < 0 ? REL_COLOR.neg : rel === 0 ? REL_COLOR.zero : REL_COLOR.pos;
+    const d = new Date(r.date);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `<div class="round-item" onclick="openRoundDetail(${r.id})">
+      <div class="round-item-score" style="color:${color}">${relTxt}</div>
+      <div class="round-item-meta">
+        <div class="round-item-course">${x(r.courseName)}</div>
+        <div class="round-item-date">${dateStr} · ${r.grossScore} gross · ${r.holesPlayed} holes</div>
+        <div class="round-item-putts">${r.totalPutts} putts · ${r.avgPutts} avg/hole</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px">›</div>
+    </div>`;
+  }).join('');
+}
+
+function openRoundDetail(roundId) {
+  const round = pastRounds.find(r => r.id === roundId);
+  if (!round) return;
+  viewingRoundId = roundId;
+
+  const REL_LABEL = { '-2':'Eagle','-1':'Birdie','0':'Par','1':'+1','2':'+2','3':'+3' };
+  const REL_BG    = { '-2':'#ffd700','-1':'var(--blue)','0':'var(--green-dark)','1':'#7a4000','2':'#5c0000','3':'#3a0000' };
+  const REL_COLOR_MAP = { '-2':'#000' };
+
+  const rel = round.relScore;
+  const relTxt = rel === 0 ? 'E' : (rel > 0 ? `+${rel}` : String(rel));
+  const relColor = rel < 0 ? 'var(--blue)' : rel === 0 ? 'var(--green-light)' : '#ff7875';
+  const d = new Date(round.date);
+  const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  document.getElementById('rd-title').textContent = round.courseName;
+  const scoreEl = document.getElementById('rd-score');
+  scoreEl.textContent = relTxt;
+  scoreEl.style.color = relColor;
+  document.getElementById('rd-score-label').textContent = `${round.grossScore} gross · ${round.holesPlayed} holes · ${dateStr}`;
+  document.getElementById('rd-putts').textContent = round.totalPutts || '0';
+  document.getElementById('rd-avg-putts').textContent = round.avgPutts || '—';
+
+  // Hole grid
+  document.getElementById('rd-hole-grid').innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+    ${Array.from({ length: 18 }, (_, i) => {
+      const h = i + 1;
+      const e = round.roundScore[h];
+      const strokes = e ? e.strokes : null;
+      const par = 4; // fallback
+      const rel2 = strokes !== null ? strokes - par : null;
+      const rk = rel2 !== null ? String(Math.max(-2, Math.min(3, rel2))) : null;
+      const bg = rk !== null ? (REL_BG[rk] || '#5c0000') : 'transparent';
+      const color = rk !== null ? (REL_COLOR_MAP[rk] || '#fff') : 'var(--muted)';
+      const label = rk !== null ? (REL_LABEL[rk] || `+${rel2}`) : '—';
+      return `<div style="background:var(--card2);border-radius:8px;padding:8px 6px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);font-weight:700">H${h}</div>
+        <div style="font-size:12px;font-weight:800;margin-top:4px;background:${bg};color:${color};border-radius:4px;padding:3px 0">${label}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${e ? e.putts||0 : 0} putts</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  document.getElementById('rd-club-dist').innerHTML = _renderClubDist(round.shots || []);
+
+  // Tear down old map
+  if (detailMap) { detailMap.remove(); detailMap = null; }
+
+  showScreen('scr-round-detail');
+  setTimeout(() => {
+    detailMap = null;
+    _renderShotMapWithPutts('rd-map', 'rd-map-msg', round.shots || [], round.courseHoles || [], round.roundScore || {});
+    detailMap = true; // mark as initialized
+  }, 200);
 }
 
 function fbSaveClubs() {
@@ -2980,6 +3330,8 @@ function atFireShot(start, end, yards) {
 
   atSuggestedClub = sugg ? sugg.club.name : null;
   atSuggestedDist = dist;
+  atShotStartPos  = { lat: start.lat, lng: start.lng };
+  atShotEndPos    = { lat: end.lat,   lng: end.lng   };
   atShotStart = null;
   atLastSwing = 0;
   atStableRef = { lat: end.lat, lng: end.lng };
@@ -3027,14 +3379,14 @@ function _buildClubList() {
 }
 
 function pickClubAndLog(clubName) {
-  persistShot(clubName, atSuggestedDist);
+  persistShot(clubName, atSuggestedDist, atShotStartPos, atShotEndPos);
   render();
   _closeAutoCard();
 }
 
 function confirmAutoShot(yes) {
   if (yes && atSuggestedClub) {
-    persistShot(atSuggestedClub, atSuggestedDist);
+    persistShot(atSuggestedClub, atSuggestedDist, atShotStartPos, atShotEndPos);
     render();
   }
   _closeAutoCard();
@@ -3608,9 +3960,12 @@ function onSelChange() {
   document.getElementById('save-btn').disabled = !(startMark && endMark && document.getElementById('club-sel').value);
 }
 
-function persistShot(clubName, yards) {
+function persistShot(clubName, yards, gpsStart, gpsEnd) {
+  if (!roundStartedAt) roundStartedAt = new Date().toISOString();
   const now = new Date().toISOString();
   const shot = { id: Date.now(), club: clubName, yards, date: now, hole: currentHole };
+  if (gpsStart) { shot.sLat = gpsStart.lat; shot.sLng = gpsStart.lng; }
+  if (gpsEnd)   { shot.eLat = gpsEnd.lat;   shot.eLng = gpsEnd.lng;   }
   shots.unshift(shot);
   saveShots();
   fbSaveShot(shot);
@@ -3632,13 +3987,13 @@ function saveShot() {
   const name = document.getElementById('club-sel').value;
   if (!startMark || !endMark) { toast('Mark start and end first'); return; }
   if (!name) { toast('Select a club'); return; }
-  persistShot(name, Math.round(haversine(startMark, endMark)));
+  persistShot(name, Math.round(haversine(startMark, endMark)), startMark, endMark);
   resetMarkers(); render();
 }
 
 function acceptSuggestion() {
   if (!currentSuggestion || !startMark || !endMark) return;
-  persistShot(currentSuggestion.club.name, Math.round(haversine(startMark, endMark)));
+  persistShot(currentSuggestion.club.name, Math.round(haversine(startMark, endMark)), startMark, endMark);
   resetMarkers(); render();
 }
 
@@ -3925,13 +4280,14 @@ function hideAC() {
 }
 
 // ── Main tabs (home screen) ────────────────────────────────
-const MAIN_TABS = ['courses', 'bag', 'stats'];
+const MAIN_TABS = ['courses', 'bag', 'stats', 'rounds'];
 
 function mainTab(name) {
   MAIN_TABS.forEach(t => {
     document.getElementById('tab-' + t).style.display = t === name ? 'flex' : 'none';
     document.getElementById('mnav-' + t).classList.toggle('on', t === name);
   });
+  if (name === 'rounds') renderRoundsList();
   const subs = { courses: 'Select your course to start', bag: 'My Bag', stats: 'Shot Stats' };
   document.getElementById('main-hdr-sub').textContent = subs[name];
   if (name === 'bag')   renderMainBag();
@@ -4088,6 +4444,7 @@ function renderScorecard() {
 }
 
 function setStrokes(strokes) {
+  if (!roundStartedAt) roundStartedAt = new Date().toISOString();
   const h = currentHole;
   if (!roundScore[h]) roundScore[h] = { strokes: null, putts: 0 };
   roundScore[h].strokes = strokes;
@@ -4114,7 +4471,13 @@ function scNav(delta) {
 
 function resetScorecard() {
   if (!confirm('Clear the scorecard for this round?')) return;
-  roundScore = {}; saveRoundScore(); renderScorecard();
+  roundScore = {}; roundStartedAt = null; saveRoundScore(); renderScorecard();
+}
+
+function startNewRound() {
+  if (!confirm('Start a new round? The current scorecard will be cleared.')) return;
+  roundScore = {}; roundStartedAt = null; saveRoundScore();
+  showScreen('scr-round');
 }
 
 function showRoundSummary() {
@@ -4159,7 +4522,21 @@ function showRoundSummary() {
     }).join('')}
   </div>`;
 
+  // Club distances
+  const roundDate = roundStartedAt || new Date(Date.now() - 86400000).toISOString();
+  const roundShots = shots.filter(s => s.date >= roundDate);
+  document.getElementById('sum-club-dist').innerHTML = _renderClubDist(roundShots);
+
+  // Auto-save round
+  saveCurrentRound();
+
+  // Show screen then init map (needs visible container)
   showScreen('scr-summary');
+  if (sumMap) { sumMap.remove(); sumMap = null; }
+  setTimeout(() => {
+    _renderShotMapWithPutts('sum-map', 'sum-map-msg', roundShots, courseHoles, roundScore);
+    sumMap = true;
+  }, 200);
 }
 
 // ── Stats tab ──────────────────────────────────────────────
