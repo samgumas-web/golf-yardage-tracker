@@ -3656,141 +3656,155 @@ async function simulateAutoShot() {
 async function simulateFullRound() {
   closePanel();
 
-  // Load Rancho Park
+  // ── Load Rancho Park ────────────────────────────────────────
   if (!selectedCourse || selectedCourse.osmId !== 'preset_rancho_park') {
     const rp = loadSavedCourses().find(c => c.osmId === 'preset_rancho_park') || SEED_COURSES[0];
     await selectCourse(rp);
-    await _simWait(600);
+    await _simWait(500);
   }
   if (!courseHoles.length) courseHoles = (PRESET_HOLES['preset_rancho_park'] || []).slice();
 
-  showScreen('scr-round');
+  // ── CRITICAL: stop the live GPS watch so it can't fight simulated positions ──
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
 
-  // Fresh round
-  roundScore     = {};
-  roundStartedAt = new Date().toISOString();
-  saveRoundScore();
-
-  // Speed up still-timer: 1 s instead of normal 6 s
   const origSecs = AT_STILL_SECS, origM = AT_STABLE_M;
-  AT_STILL_SECS = 1;  AT_STABLE_M = 14;
 
-  // Reset + enable auto-track
-  if (autoTrack) {
-    autoTrack = false; clearTimeout(atSettleTimer);
-    if (atMotionHandler) { window.removeEventListener('devicemotion', atMotionHandler); atMotionHandler = null; }
-  }
-  atPhase = 'idle'; atShotStart = null; atStableRef = null; atLastSwing = 0;
-  toggleAutoTrack();
+  try {
+    showScreen('scr-round');
+    roundScore = {}; roundStartedAt = new Date().toISOString(); saveRoundScore();
 
-  const jit  = () => (Math.random() - 0.5) * 0.00006; // ±~3 m
-
-  // Bearing from A to B (radians)
-  const bear = (la1, lo1, la2, lo2) =>
-    Math.atan2((lo2 - lo1) * Math.cos(la1 * Math.PI / 180), la2 - la1);
-
-  // Move from (lat,lng) along bearing b by metres
-  const moveM = (lat, lng, b, m) => {
-    const r = m / 6371000;
-    return { lat: lat + r * Math.cos(b) * (180 / Math.PI),
-             lng: lng + r * Math.sin(b) / Math.cos(lat * Math.PI / 180) * (180 / Math.PI) };
-  };
-
-  // Stand still long enough for detector to arm (> AT_STILL_SECS = 1 s real time)
-  const stand = async (lat, lng) => {
-    for (let i = 0; i < 3; i++) { _simInjectGPS(lat + jit(), lng + jit()); await _simWait(450); }
-  };
-
-  // Walk from A to B in small GPS steps
-  const walk = async (la1, lo1, la2, lo2, steps = 7) => {
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      _simInjectGPS(la1 + (la2 - la1) * t + jit(), lo1 + (lo2 - lo1) * t + jit());
-      await _simWait(85);
+    // Kill any running auto-track then re-enable cleanly
+    if (autoTrack) {
+      autoTrack = false; clearTimeout(atSettleTimer);
+      if (atMotionHandler) { window.removeEventListener('devicemotion', atMotionHandler); atMotionHandler = null; }
     }
-  };
+    atPhase = 'idle'; atShotStart = null; atStableRef = null; atLastSwing = 0;
+    // No need to speed up AT_STILL_SECS — _simForceSwing bypasses the arm timer entirely
+    toggleAutoTrack();
 
-  // Auto-confirm whichever club the app suggested (or pick nearest by dist if none)
-  const HCP10 = { Driver:235, '3 Wood':210, Hybrid:185, '5 Iron':165, '6 Iron':155,
-                  '7 Iron':145, '8 Iron':135, '9 Iron':125, PW:115, GW:100, SW:85 };
-  const simConfirm = () => {
-    const card = document.getElementById('auto-shot-card');
-    if (!card || card.style.display === 'none') return;
-    if (atSuggestedClub) { confirmAutoShot(true); return; }
-    // No club match — pick nearest heuristically
-    let best = 'PW', bestDiff = Infinity;
-    const pool = clubs.length
-      ? clubs.map(c => ({ name: c.name, avg: c.manualYards || (c.shots.length ? Math.round(c.shots.reduce((a,b)=>a+b,0)/c.shots.length) : 0) }))
-      : Object.entries(HCP10).map(([name, avg]) => ({ name, avg }));
-    for (const { name, avg } of pool) {
-      if (!avg) continue;
-      const d = Math.abs(avg - atSuggestedDist);
-      if (d < bestDiff) { bestDiff = d; best = name; }
-    }
-    persistShot(best, atSuggestedDist, atShotStartPos, atShotEndPos);
-    render();
-    _closeAutoCard();
-  };
+    const jit = () => (Math.random() - 0.5) * 0.00006; // ±~3 m GPS jitter
 
-  // Simulate one auto-tracked shot: stand → swing → walk → stand → swing → confirm
-  const simShot = async (from, to) => {
-    await stand(from.lat, from.lng);
-    _simSwing(); await _simWait(280);
-    await walk(from.lat, from.lng, to.lat, to.lng);
-    await stand(to.lat, to.lng);
-    _simSwing(); await _simWait(650);
-    simConfirm(); await _simWait(180);
-  };
+    const bear = (la1, lo1, la2, lo2) =>
+      Math.atan2((lo2 - lo1) * Math.cos(la1 * Math.PI / 180), la2 - la1);
 
-  // ── 18-hole plan: [strokes, putts] — 83 total (12-over par 71) ──
-  //   front: 5,4,3,6,5,4,5,4,5 = 41  back: 5,3,4,5,4,6,3,6,6 = 42
-  const PLAN = [
-    [5,2],[4,2],[3,2],[6,2],[5,2],[4,2],[5,3],[4,2],[5,2],
-    [5,2],[3,1],[4,2],[5,2],[4,2],[6,3],[3,1],[6,2],[6,2]
-  ];
+    const moveM = (lat, lng, b, m) => {
+      const r = m / 6371000;
+      return { lat: lat + r * Math.cos(b) * (180 / Math.PI),
+               lng: lng + r * Math.sin(b) / Math.cos(lat * Math.PI / 180) * (180 / Math.PI) };
+    };
 
-  for (let i = 0; i < 18; i++) {
-    const hNum = i + 1;
-    const [strokes, putts] = PLAN[i];
-    const fullShots = strokes - putts; // non-putt swings to simulate via GPS
-
-    const hd = courseHoles.find(h => h.number === hNum);
-    currentHole = hNum;
-    updateHoleDisplay(); refreshHoleMarkers();
-    if (hd) zoomToHole(hNum);
-    toast(`⛳ Hole ${hNum} of 18`);
-    await _simWait(250);
-
-    if (hd) {
-      const tLat = hd.lat, tLng = hd.lng;
-      const gLat = hd.green ? hd.green.lat : tLat;
-      const gLng = hd.green ? hd.green.lng : tLng;
-      const b    = bear(tLat, tLng, gLat, gLng);
-      const dist = haversineM(tLat, tLng, gLat, gLng);
-
-      // Build waypoints along the tee→green corridor
-      const perp = b + Math.PI / 2;
-      const wpts = [{ lat: tLat, lng: tLng }];
-      for (let s = 1; s < fullShots; s++) {
-        const frac = s / fullShots;
-        const mid  = moveM(tLat, tLng, b, dist * frac);
-        const off  = (Math.random() - 0.5) * 18; // ±9 m lateral miss
-        const wp   = moveM(mid.lat, mid.lng, perp, off);
-        wpts.push(wp);
+    // Walk GPS smoothly A → B (moves the map blue dot and resets atStableRef)
+    const walk = async (la1, lo1, la2, lo2, steps = 9) => {
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        _simInjectGPS(la1 + (la2 - la1) * t + jit(), lo1 + (lo2 - lo1) * t + jit());
+        await _simWait(90);
       }
-      wpts.push({ lat: gLat, lng: gLng });
+    };
 
-      for (let s = 0; s < wpts.length - 1; s++) await simShot(wpts[s], wpts[s + 1]);
+    // Auto-confirm swing-train prompt ("Was that a swing? Yes/No") if it appeared
+    const simConfirmSwingPrompt = () => {
+      if (atPhase === 'swing_confirm') atLearnSwing(true);
+    };
+
+    // Auto-confirm the club suggestion card after a shot is detected
+    const HCP10 = { Driver:235,'3 Wood':210,Hybrid:185,'5 Iron':165,'6 Iron':155,
+                    '7 Iron':145,'8 Iron':135,'9 Iron':125,PW:115,GW:100,SW:85 };
+    const simConfirmShot = () => {
+      const card = document.getElementById('auto-shot-card');
+      if (!card || card.style.display === 'none') return;
+      if (atSuggestedClub) { confirmAutoShot(true); return; }
+      // No clubs in bag — pick nearest HCP10 club by distance
+      let best = 'PW', bestDiff = Infinity;
+      const pool = clubs.length
+        ? clubs.map(c => ({ name: c.name,
+            avg: c.manualYards || (c.shots.length ? Math.round(c.shots.reduce((a,b)=>a+b,0)/c.shots.length) : 0) }))
+        : Object.entries(HCP10).map(([name, avg]) => ({ name, avg }));
+      for (const { name, avg } of pool) {
+        if (!avg) continue;
+        const d = Math.abs(avg - atSuggestedDist);
+        if (d < bestDiff) { bestDiff = d; best = name; }
+      }
+      persistShot(best, atSuggestedDist, atShotStartPos, atShotEndPos);
+      render(); _closeAutoCard();
+    };
+
+    // One simulated shot: inject start GPS → force swing (marks start) → walk → inject end GPS → force swing (fires atFireShot) → confirm
+    const simShot = async (from, to) => {
+      // Plant GPS at shot origin and force-swing to mark the start
+      _simInjectGPS(from.lat + jit(), from.lng + jit());
+      await _simWait(100);
+      simConfirmSwingPrompt();
+      _simForceSwing(); // marks atShotStart
+      await _simWait(300);
+
+      // Walk the blue dot to the ball landing — this is what the real player does
+      await walk(from.lat, from.lng, to.lat, to.lng);
+
+      // Plant GPS at landing and force-swing to record the distance
+      _simInjectGPS(to.lat + jit(), to.lng + jit());
+      await _simWait(100);
+      simConfirmSwingPrompt();
+      _simForceSwing(); // triggers atFireShot → shows club confirm card
+      await _simWait(700);
+
+      simConfirmShot(); // confirm the club
+      await _simWait(200);
+    };
+
+    // ── 18-hole scorecard: [strokes, putts] — 83 gross, 34 putts ──
+    const PLAN = [
+      [5,2],[4,2],[3,2],[6,2],[5,2],[4,2],[5,3],[4,2],[5,2],
+      [5,2],[3,1],[4,2],[5,2],[4,2],[6,3],[3,1],[6,2],[6,2]
+    ];
+
+    for (let i = 0; i < 18; i++) {
+      const hNum = i + 1;
+      const [strokes, putts] = PLAN[i];
+      const fullShots = strokes - putts; // swings to simulate through auto-track
+
+      const hd = courseHoles.find(h => h.number === hNum);
+      currentHole = hNum;
+      updateHoleDisplay(); refreshHoleMarkers();
+      if (hd) zoomToHole(hNum);
+      toast(`⛳ Hole ${hNum} of 18`);
+      await _simWait(300);
+
+      if (hd) {
+        const tLat = hd.lat, tLng = hd.lng;
+        const gLat = hd.green ? hd.green.lat : tLat;
+        const gLng = hd.green ? hd.green.lng : tLng;
+        const b    = bear(tLat, tLng, gLat, gLng);
+        const dist = haversineM(tLat, tLng, gLat, gLng);
+        const perp = b + Math.PI / 2;
+
+        // Waypoints: tee → (intermediate landings with slight sideways miss) → green
+        const wpts = [{ lat: tLat, lng: tLng }];
+        for (let s = 1; s < fullShots; s++) {
+          const frac = s / fullShots;
+          const mid  = moveM(tLat, tLng, b, dist * frac);
+          const off  = (Math.random() - 0.5) * 20; // ±10 m lateral dispersion
+          wpts.push(moveM(mid.lat, mid.lng, perp, off));
+        }
+        wpts.push({ lat: gLat, lng: gLng });
+
+        for (let s = 0; s < wpts.length - 1; s++) await simShot(wpts[s], wpts[s + 1]);
+      }
+
+      // Enter score — setStrokes on hole 18 auto-triggers showRoundSummary
+      setPutts(hNum, putts);
+      setStrokes(strokes);
+      if (hNum < 18) await _simWait(200);
     }
 
-    // Score entry (setStrokes on H18 auto-triggers showRoundSummary)
-    setPutts(hNum, putts);
-    setStrokes(strokes);
-    if (hNum < 18) await _simWait(200);
+  } finally {
+    AT_STILL_SECS = origSecs;
+    AT_STABLE_M   = origM;
+    initGPS(); // restart live GPS after sim
   }
-
-  AT_STILL_SECS = origSecs;
-  AT_STABLE_M   = origM;
 }
 
 function _simInjectGPS(lat, lng) {
@@ -3803,6 +3817,15 @@ function _simInjectGPS(lat, lng) {
 function _simSwing() {
   atLastSwing = 0;
   onSwingDetected();
+}
+
+// Force-execute a swing regardless of atPhase — used by the full-round sim
+// so it works even before the GPS still-timer has fired
+function _simForceSwing() {
+  atLastSwing = 0;
+  if (atPhase === 'swing_confirm') { atLearnSwing(true); return; }
+  atPhase = 'ready'; // arm the detector right now
+  atExecuteSwing();
 }
 
 function _simWait(ms) { return new Promise(r => setTimeout(r, ms)); }
