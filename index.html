@@ -2118,6 +2118,12 @@ function _renderShotMap(mapDivId, msgDivId, roundShots, holesData) {
   const container = document.getElementById(mapDivId);
   if (!container) return null;
 
+  // If Leaflet already owns this container, wipe it so we can re-init cleanly
+  if (container._leaflet_id) {
+    container.innerHTML = '';
+    delete container._leaflet_id;
+  }
+
   const m = L.map(container, { zoomControl: false, attributionControl: false });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     { maxZoom: 19 }).addTo(m);
@@ -2148,8 +2154,8 @@ function _renderShotMap(mapDivId, msgDivId, roundShots, holesData) {
 
 function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roundScoreData) {
   const m = _renderShotMap(mapDivId, msgDivId, roundShots, holesData);
-  if (!m) return;
-  // Add putt markers at greens
+  if (!m) return null;
+  // Add putt count bubbles at each green
   for (const hd of holesData) {
     if (!hd.green) continue;
     const entry = roundScoreData[hd.number];
@@ -2163,6 +2169,7 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
       .bindPopup(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`)
       .addTo(m);
   }
+  return m;
 }
 
 // ── Past rounds list rendering ────────────────────────────────
@@ -2237,15 +2244,14 @@ function openRoundDetail(roundId) {
 
   document.getElementById('rd-club-dist').innerHTML = _renderClubDist(round.shots || []);
 
-  // Tear down old map
-  if (detailMap) { detailMap.remove(); detailMap = null; }
+  // Tear down previous map safely (detailMap may be null, a Leaflet instance, or stale)
+  if (detailMap && typeof detailMap.remove === 'function') { detailMap.remove(); }
+  detailMap = null;
 
   showScreen('scr-round-detail');
   setTimeout(() => {
-    detailMap = null;
-    _renderShotMapWithPutts('rd-map', 'rd-map-msg', round.shots || [], round.courseHoles || [], round.roundScore || {});
-    detailMap = true; // mark as initialized
-  }, 200);
+    detailMap = _renderShotMapWithPutts('rd-map', 'rd-map-msg', round.shots || [], round.courseHoles || [], round.roundScore || {});
+  }, 250);
 }
 
 function fbSaveClubs() {
@@ -4695,13 +4701,13 @@ function showRoundSummary() {
   // Auto-save round
   saveCurrentRound();
 
-  // Show screen then init map (needs visible container)
+  // Show screen then init map (needs visible container to get dimensions)
   showScreen('scr-summary');
-  if (sumMap) { sumMap.remove(); sumMap = null; }
+  if (sumMap && typeof sumMap.remove === 'function') { sumMap.remove(); }
+  sumMap = null;
   setTimeout(() => {
-    _renderShotMapWithPutts('sum-map', 'sum-map-msg', roundShots, courseHoles, roundScore);
-    sumMap = true;
-  }, 200);
+    sumMap = _renderShotMapWithPutts('sum-map', 'sum-map-msg', roundShots, courseHoles, roundScore);
+  }, 250);
 }
 
 // ── Stats tab ──────────────────────────────────────────────
