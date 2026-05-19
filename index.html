@@ -1889,6 +1889,19 @@ function fbSaveShot(shot) {
     .set(shot).catch(() => {});
 }
 
+function fbDeleteShot(id) {
+  if (!activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('shots').doc(String(id))
+    .delete().catch(() => {});
+}
+
+function fbClearShots() {
+  if (!activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('shots').get()
+    .then(snap => { const b = fbDb.batch(); snap.forEach(d => b.delete(d.ref)); return b.commit(); })
+    .catch(() => {});
+}
+
 function fbSaveTrainingModel() {
   if (!activeProfile) return;
   fbDb.collection('users').doc(activeProfile.id).collection('data').doc('trainingModel')
@@ -3620,6 +3633,7 @@ function deleteShot(id) {
   if (!s) return;
   shots = shots.filter(s=>s.id!==id);
   saveShots();
+  fbDeleteShot(id);
   const c = clubs.find(c=>c.name===s.club);
   if (c) { const i = c.shots.indexOf(s.yards); if (i>-1) c.shots.splice(i,1); saveClubs(); }
   render();
@@ -3628,6 +3642,7 @@ function deleteShot(id) {
 function clearHistory() {
   if (!confirm('Clear all shot history? Club averages will reset.')) return;
   shots = []; saveShots();
+  fbClearShots();
   clubs.forEach(c => c.shots = []); saveClubs();
   filter = 'All'; render(); toast('History cleared');
 }
