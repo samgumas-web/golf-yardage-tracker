@@ -767,6 +767,21 @@
     animation: slideUp .2s ease;
     display: none;
   }
+  .club-chip {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: border-color .15s, background .15s;
+  }
+  .club-chip:active { opacity: .7; }
+  .club-chip.selected { border-color: var(--green); color: var(--green-light); background: rgba(82,196,26,.12); }
 
   /* ── Track FAB ───────────────────────────────────────── */
   .track-fab {
@@ -1074,21 +1089,26 @@
 
     <!-- Auto shot detected card -->
     <div id="auto-shot-card">
-      <button class="tgt-clear" onclick="confirmAutoShot(false)">×</button>
+      <button class="tgt-clear" onclick="dismissAutoShot()">×</button>
       <div class="label" style="color:var(--green-light);margin-bottom:4px">⚡ Shot Detected</div>
       <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:10px">
         <div style="font-size:52px;font-weight:900;line-height:1;letter-spacing:-3px;color:var(--text)" id="auto-shot-dist">—</div>
-        <div style="padding-bottom:7px;font-size:14px;font-weight:700;color:var(--muted)" id="auto-shot-unit">YDS</div>
+        <div style="padding-bottom:7px;font-size:14px;font-weight:700;color:var(--muted)">YDS</div>
       </div>
       <div id="auto-shot-question" style="margin-bottom:12px">
-        <div style="font-size:14px;color:var(--text);line-height:1.4">
-          Did you hit your <strong id="auto-shot-club-name" style="color:var(--green-light)">—</strong>?
+        <div style="font-size:15px;color:var(--text);line-height:1.4">
+          Did you use your <strong id="auto-shot-club-name" style="color:var(--green-light)">—</strong>?
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px" id="auto-shot-club-range"></div>
       </div>
-      <div style="display:flex;gap:8px">
+      <div id="auto-shot-btns" style="display:flex;gap:8px">
         <button class="btn btn-p" style="flex:1;padding:13px;font-size:15px;font-weight:900" onclick="confirmAutoShot(true)">✓ Yes</button>
-        <button class="btn btn-d" style="flex:1;padding:13px;font-size:15px;font-weight:900" onclick="confirmAutoShot(false)">✗ No</button>
+        <button class="btn btn-d" style="flex:1;padding:13px;font-size:15px;font-weight:900" onclick="showClubPicker()">✗ No</button>
+      </div>
+      <div id="auto-club-picker" style="display:none;margin-top:12px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Which club did you use?</div>
+        <div id="auto-club-list" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+        <button class="btn btn-d" style="width:100%;margin-top:12px;padding:11px;font-size:14px" onclick="dismissAutoShot()">Don't log this shot</button>
       </div>
     </div>
 
@@ -2957,21 +2977,85 @@ function atFireShot(start, end, yards) {
 
   const dist = Math.round(yards);
   const sugg = findBestClubForDistance(dist);
-  if (sugg) { persistShot(sugg.club.name, dist); render(); }
 
-  vibrate([40, 20, 80]);
+  atSuggestedClub = sugg ? sugg.club.name : null;
+  atSuggestedDist = dist;
   atShotStart = null;
   atLastSwing = 0;
   atStableRef = { lat: end.lat, lng: end.lng };
-  atPhase = 'shot_saved';
-  updateATUI();
+  atPhase = 'awaiting_confirm';
 
-  setTimeout(() => {
-    if (!autoTrack) return;
-    atPhase = 'idle';
-    atResetTimer();
-    updateATUI();
-  }, 2000);
+  // Populate and show the confirmation card
+  const card = document.getElementById('auto-shot-card');
+  document.getElementById('auto-shot-dist').textContent = dist;
+  const cn = document.getElementById('auto-shot-club-name');
+  const cr = document.getElementById('auto-shot-club-range');
+  if (atSuggestedClub) {
+    cn.textContent = atSuggestedClub;
+    const range = sugg.range;
+    cr.textContent = range ? `avg ${Math.round(range.mean)} yds` : sugg.club.manualYards ? `${sugg.club.manualYards} yds` : '';
+    document.getElementById('auto-shot-question').style.display = 'block';
+    document.getElementById('auto-shot-btns').style.display = 'flex';
+    document.getElementById('auto-club-picker').style.display = 'none';
+  } else {
+    // No club match — go straight to picker
+    document.getElementById('auto-shot-question').style.display = 'none';
+    document.getElementById('auto-shot-btns').style.display = 'none';
+    document.getElementById('auto-club-picker').style.display = 'block';
+    _buildClubList();
+  }
+  card.style.display = 'block';
+  showFAB(false);
+  vibrate([40, 20, 80]);
+  updateATUI();
+}
+
+function showClubPicker() {
+  document.getElementById('auto-shot-btns').style.display = 'none';
+  document.getElementById('auto-shot-question').style.display = 'none';
+  _buildClubList();
+  document.getElementById('auto-club-picker').style.display = 'block';
+}
+
+function _buildClubList() {
+  const list = document.getElementById('auto-club-list');
+  list.innerHTML = clubs.map(c => {
+    const avg = c.shots && c.shots.length
+      ? Math.round(c.shots.reduce((a, b) => a + b, 0) / c.shots.length)
+      : c.manualYards || 0;
+    const label = avg ? `${c.name} · ${avg}y` : c.name;
+    const safe = c.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<button class="club-chip" onclick="pickClubAndLog('${safe}')">${label}</button>`;
+  }).join('');
+}
+
+function pickClubAndLog(clubName) {
+  persistShot(clubName, atSuggestedDist);
+  render();
+  _closeAutoCard();
+}
+
+function confirmAutoShot(yes) {
+  if (yes && atSuggestedClub) {
+    persistShot(atSuggestedClub, atSuggestedDist);
+    render();
+  }
+  _closeAutoCard();
+}
+
+function dismissAutoShot() {
+  _closeAutoCard();
+}
+
+function _closeAutoCard() {
+  document.getElementById('auto-shot-card').style.display = 'none';
+  document.getElementById('auto-shot-question').style.display = 'block';
+  document.getElementById('auto-shot-btns').style.display = 'flex';
+  document.getElementById('auto-club-picker').style.display = 'none';
+  showFAB(true);
+  atPhase = 'idle';
+  atResetTimer();
+  updateATUI();
 }
 
 function findBestClubForDistance(yards) {
@@ -3019,6 +3103,10 @@ function updateATUI() {
     case 'swing_confirm':
       btn.className   = 'auto-pill on';
       btn.textContent = 'Swing?';
+      break;
+    case 'awaiting_confirm':
+      btn.className   = 'auto-pill saved';
+      btn.textContent = 'Confirm shot ↓';
       break;
     case 'mid_shot':
       btn.className   = 'auto-pill walk';
