@@ -455,6 +455,7 @@
     transition: opacity .3s;
   }
   #backdrop.on { opacity: 1; pointer-events: all; }
+  #backdrop.on-silent { opacity: 0; pointer-events: all; }
 
   .panel {
     position: fixed;
@@ -3346,7 +3347,9 @@ function showScreen(id) {
 function openPanel(name) {
   closePanel();
   document.getElementById('panel-' + name).classList.add('open');
-  if (name !== 'scorecard') document.getElementById('backdrop').classList.add('on');
+  const bd = document.getElementById('backdrop');
+  if (name === 'scorecard') bd.classList.add('on-silent');
+  else bd.classList.add('on');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
   const nb = document.getElementById('nav-' + name);
   if (nb) nb.classList.add('on');
@@ -3364,7 +3367,9 @@ function openPanel(name) {
 
 function closePanel() {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
-  document.getElementById('backdrop').classList.remove('on');
+  const bd = document.getElementById('backdrop');
+  bd.classList.remove('on');
+  bd.classList.remove('on-silent');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
 }
 
