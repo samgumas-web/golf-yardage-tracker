@@ -912,7 +912,7 @@
 
     <div class="status-bar" id="search-status-bar">
       <div class="spin" id="search-spin"></div>
-      <span id="search-status-text">Getting your location…</span>
+      <span id="search-status-text">Sign in to get started</span>
     </div>
 
     <div class="card" id="course-list-card" style="display:none">
@@ -1416,6 +1416,9 @@ fbAuth.onAuthStateChanged(async user => {
     initUserData();
     render();
     if (!hadFirebaseData) fbMigrateLocalData();
+    setStatus('Tap "Allow" when asked for your location…', true);
+    initGPS();
+    startGPSTimeout();
   } else {
     activeProfile = null;
     clubs = []; shots = []; roundScore = {}; atLearnData = { shots: [], nonShots: [] };
@@ -1955,10 +1958,12 @@ let clubs = [];
 let shots = [];
 
 // ── GPS ────────────────────────────────────────────────────
+let gpsWatchId = null;
 function initGPS() {
+  if (gpsWatchId !== null) return; // already watching
   if (!navigator.geolocation) { setGPSUI('error', 'GPS not supported'); return; }
   setGPSUI('searching', 'Searching for GPS…');
-  navigator.geolocation.watchPosition(onGPSPos, onGPSErr, {
+  gpsWatchId = navigator.geolocation.watchPosition(onGPSPos, onGPSErr, {
     enableHighAccuracy: true, maximumAge: 0, timeout: 15000
   });
 }
@@ -1993,12 +1998,15 @@ function onGPSPos(pos) {
 
 function onGPSErr(err) {
   const m = {
-    1: 'Location denied — enable in browser/phone settings',
+    1: 'Location denied — tap to fix',
     2: 'GPS unavailable — move to open sky',
     3: 'GPS timed out — tap to retry'
   };
   setGPSUI('error', m[err.code] || 'GPS error');
-  if (err.code === 1) toast('Enable location for this site in your browser settings, then reload');
+  gpsWatchId = null; // allow retry
+  if (err.code === 1) {
+    toast('Tap the GPS status bar to re-request location, or enable it in Settings → Safari → Location');
+  }
   if (!hasInitiatedSearch) { hasInitiatedSearch = true; startCourseSearch(); }
 }
 
@@ -2013,12 +2021,10 @@ function updateGPSStatus() {
 }
 
 function setGPSUI(state, label, acc) {
-  const dot = document.getElementById('gps-dot');
-  if (dot) dot.className = 'dot ' + state;
-  const lbl = document.getElementById('gps-lbl');
-  if (lbl) lbl.textContent = label;
-  const accEl = document.getElementById('gps-acc');
-  if (accEl) { if (acc) { accEl.textContent = acc; accEl.style.display = ''; } else accEl.style.display = 'none'; }
+  // Mirror GPS state into the course selection status bar
+  const spinning = state === 'searching';
+  const fullLabel = acc ? `${label} (${acc})` : label;
+  setStatus(fullLabel, spinning);
 }
 
 // ── Distance math ──────────────────────────────────────────
@@ -4133,10 +4139,12 @@ document.getElementById('course-search-inp').addEventListener('keypress', e => {
 // ── Init ───────────────────────────────────────────────────
 render();
 renderSavedCourses();
-initGPS();
 checkAuth();
 initGSUI();
-setTimeout(() => { if (!hasInitiatedSearch) { setStatus('GPS slow — search by name below', false); hasInitiatedSearch = true; } }, 3000);
+// After login, give GPS 8 seconds to get a fix before suggesting manual search
+function startGPSTimeout() {
+  setTimeout(() => { if (!hasInitiatedSearch) { setStatus('GPS slow — tap Allow or search by name below', false); hasInitiatedSearch = true; } }, 8000);
+}
 </script>
 </body>
 </html>
