@@ -1992,8 +1992,13 @@ function onGPSPos(pos) {
 }
 
 function onGPSErr(err) {
-  const m = { 1:'Location permission denied', 2:'GPS unavailable', 3:'GPS timed out' };
+  const m = {
+    1: 'Location denied — enable in browser/phone settings',
+    2: 'GPS unavailable — move to open sky',
+    3: 'GPS timed out — tap to retry'
+  };
   setGPSUI('error', m[err.code] || 'GPS error');
+  if (err.code === 1) toast('Enable location for this site in your browser settings, then reload');
   if (!hasInitiatedSearch) { hasInitiatedSearch = true; startCourseSearch(); }
 }
 
@@ -2636,7 +2641,7 @@ function updateTgtLine() {
 function updateTgtOverlay() {
   const overlay = document.getElementById('tgt-overlay');
   if (!tgtMapPos) { overlay.style.display = 'none'; return; }
-  overlay.style.display = '';
+  overlay.style.display = 'block';
   const numEl  = document.getElementById('tgt-dist-num');
   const unitEl = document.getElementById('tgt-dist-unit');
   const hint   = document.getElementById('tgt-dist-hint');
@@ -2649,7 +2654,7 @@ function updateTgtOverlay() {
   } else {
     numEl.textContent  = '—';
     unitEl.textContent = unitStr();
-    hint.textContent   = 'Waiting for GPS…';
+    hint.textContent   = 'No GPS fix — allow location in browser settings';
   }
 }
 
