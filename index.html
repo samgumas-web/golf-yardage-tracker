@@ -1206,7 +1206,7 @@
       <div class="label" style="margin-bottom:14px">Clubs Used This Round</div>
       <div id="sum-club-dist"><div style="color:var(--muted);font-size:13px">No shots logged this round.</div></div>
     </div>
-    <div class="card" style="padding:0;overflow:hidden">
+    <div class="card" style="padding:0;overflow:hidden;flex-shrink:0">
       <div style="padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between">
         <span class="label">Shot Map</span>
         <span style="font-size:11px;color:var(--muted)">GPS shots only</span>
@@ -1236,7 +1236,7 @@
     </div>
     <div style="width:60px"></div>
   </div>
-  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 16px;display:flex;flex-direction:column;gap:18px">
+  <div class="scroll-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 16px;display:flex;flex-direction:column;gap:18px">
     <div style="text-align:center;padding:16px 0 4px">
       <div style="font-size:68px;font-weight:900;line-height:1;letter-spacing:-4px" id="rd-score">—</div>
       <div style="font-size:14px;color:var(--muted);font-weight:700;margin-top:6px" id="rd-score-label">Total Score</div>
@@ -1251,23 +1251,23 @@
         <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-top:4px">Avg Putts/Hole</div>
       </div>
     </div>
+    <div class="card" style="padding:0;overflow:hidden;flex-shrink:0">
+      <div style="padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between">
+        <span class="label">Shot Map</span>
+        <span id="rd-map-sub" style="font-size:11px;color:var(--muted)">loading...</span>
+      </div>
+      <div style="position:relative;height:300px;overflow:hidden;border-radius:0 0 14px 14px;background:#1a2e1a">
+        <div id="rd-map" style="width:100%;height:300px"></div>
+        <div id="rd-map-msg" style="display:none;position:absolute;inset:0;background:var(--card);align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:13px;text-align:center;padding:20px">
+          <div style="font-size:28px">📍</div>
+          <div id="rd-map-msg-text">No course data for this round.</div>
+        </div>
+      </div>
+    </div>
     <div class="card" id="rd-hole-grid"></div>
     <div class="card">
       <div class="label" style="margin-bottom:14px">Club Distances</div>
       <div id="rd-club-dist"></div>
-    </div>
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between">
-        <span class="label">Shot Map</span>
-        <span style="font-size:11px;color:var(--muted)">GPS shots only</span>
-      </div>
-      <div class="shot-map-wrap">
-        <div id="rd-map" style="height:300px"></div>
-        <div class="no-gps-msg" id="rd-map-msg" style="display:none">
-          <div style="font-size:28px">📍</div>
-          <div>No GPS shot data for this round.</div>
-        </div>
-      </div>
     </div>
     <div style="height:10px"></div>
   </div>
@@ -2106,68 +2106,102 @@ function _renderClubDist(roundShots) {
 // ── Shot map helper (shared by summary + detail) ──────────────
 const SHOT_COLORS = ['#52c41a','#1890ff','#fa8c16','#eb2f96','#722ed1','#13c2c2','#a0d911','#f5222d'];
 
-function _renderShotMap(mapDivId, msgDivId, roundShots, holesData) {
-  const validShots = roundShots.filter(s => s.sLat && s.sLng && s.eLat && s.eLng);
-  const msgEl = document.getElementById(msgDivId);
-  if (!validShots.length) {
-    if (msgEl) msgEl.style.display = 'flex';
-    return null;
+// Generate quadratic bezier arc points between two lat/lng coords
+function _arcPoints(lat1, lng1, lat2, lng2, nPts) {
+  const mlat = (lat1 + lat2) / 2, mlng = (lng1 + lng2) / 2;
+  const cosLat = Math.cos(mlat * Math.PI / 180) || 1e-9;
+  const dlat = lat2 - lat1, dlng = (lng2 - lng1) * cosLat;
+  const len = Math.sqrt(dlat * dlat + dlng * dlng) || 1e-9;
+  const bow = len * 0.22;
+  const clat = mlat + (-dlng / len) * bow;
+  const clng = mlng + (dlat / len / cosLat) * bow;
+  const pts = [];
+  for (let i = 0; i <= nPts; i++) {
+    const t = i / nPts, u = 1 - t;
+    pts.push([u*u*lat1 + 2*u*t*clat + t*t*lat2, u*u*lng1 + 2*u*t*clng + t*t*lng2]);
   }
-  if (msgEl) msgEl.style.display = 'none';
-
-  const container = document.getElementById(mapDivId);
-  if (!container) return null;
-
-  // If Leaflet already owns this container, wipe it so we can re-init cleanly
-  if (container._leaflet_id) {
-    container.innerHTML = '';
-    delete container._leaflet_id;
-  }
-
-  const m = L.map(container, { zoomControl: false, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    { maxZoom: 19 }).addTo(m);
-
-  const allBounds = [];
-  const holeNums = [...new Set(validShots.map(s => s.hole))].sort((a, b) => a - b);
-
-  for (const s of validShots) {
-    const color = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
-    const start = [s.sLat, s.sLng], end = [s.eLat, s.eLng];
-    allBounds.push(start, end);
-    L.polyline([start, end], { color, weight: 3, opacity: .85 }).addTo(m);
-    L.circleMarker(end, { radius: 6, color: '#000', fillColor: color, fillOpacity: 1, weight: 1.5 })
-      .bindPopup(`<b>H${s.hole} · ${x(s.club)}</b><br>${s.yards} yds`)
-      .addTo(m);
-  }
-
-  // Putt markers at green positions
-  for (const hd of holesData) {
-    if (!hd.green) continue;
-    const rs = roundShots.find(s => false); // roundScore not available here — handled by caller
-    allBounds.push([hd.green.lat, hd.green.lng]);
-  }
-
-  if (allBounds.length) m.fitBounds(allBounds, { padding: [24, 24] });
-  return m;
+  return pts;
 }
 
 function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roundScoreData) {
-  const m = _renderShotMap(mapDivId, msgDivId, roundShots, holesData);
-  if (!m) return null;
-  // Add putt count bubbles at each green
-  for (const hd of holesData) {
-    if (!hd.green) continue;
-    const entry = roundScoreData[hd.number];
-    const putts = entry ? (entry.putts || 0) : 0;
-    if (!putts) continue;
-    const icon = L.divIcon({
-      html: `<div style="background:#1890ff;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">+${putts}</div>`,
-      iconSize: [26, 26], iconAnchor: [13, 13], className: ''
-    });
-    L.marker([hd.green.lat, hd.green.lng], { icon })
-      .bindPopup(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`)
-      .addTo(m);
+  const container = document.getElementById(mapDivId);
+  if (!container) { toast('Map container not found: ' + mapDivId); return null; }
+
+  if (typeof L === 'undefined') {
+    container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;flex-direction:column;gap:6px"><div style="font-size:24px">🗺️</div><div>Map unavailable (offline?)</div></div>';
+    return null;
+  }
+
+  // Clean up any prior Leaflet instance on this container
+  if (container._leaflet_id) {
+    try { container._leaflet.remove(); } catch(e) {}
+    container.innerHTML = '';
+    delete container._leaflet_id;
+    delete container._leaflet;
+  }
+
+  const validShots = (roundShots || []).filter(s => s.sLat && s.sLng && s.eLat && s.eLng);
+
+  let m;
+  try {
+    m = L.map(container, { zoomControl: false, attributionControl: false });
+  } catch (e) {
+    container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;flex-direction:column;gap:6px"><div style="font-size:24px">🗺️</div><div>Map error: ' + e.message + '</div></div>';
+    return null;
+  }
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
+
+  const allBounds = [];
+
+  for (const s of validShots) {
+    const color = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
+    const pts = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 20);
+    allBounds.push(...pts);
+    L.polyline(pts, { color, weight: 3, opacity: 0.9 }).addTo(m);
+    L.circleMarker([s.sLat, s.sLng], { radius: 4, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2 }).addTo(m);
+    L.circleMarker([s.eLat, s.eLng], { radius: 5, color: '#000', fillColor: color, fillOpacity: 1, weight: 1.5 })
+      .bindPopup(`<b>H${s.hole} · ${x(s.club)}</b><br>${s.yards} yds`).addTo(m);
+    const mid = pts[Math.floor(pts.length / 2)];
+    L.marker(mid, {
+      icon: L.divIcon({
+        html: `<div style="background:rgba(0,0,0,.7);color:#fff;padding:1px 5px;border-radius:8px;font-size:10px;white-space:nowrap;font-weight:700">${s.yards}y</div>`,
+        className: '', iconAnchor: [16, 10]
+      }), interactive: false
+    }).addTo(m);
+  }
+
+  for (const hd of (holesData || [])) {
+    const teeLat = hd.tee ? hd.tee.lat : hd.lat;
+    const teeLng = hd.tee ? hd.tee.lng : hd.lng;
+    if (teeLat && teeLng) {
+      allBounds.push([teeLat, teeLng]);
+      L.circleMarker([teeLat, teeLng], { radius: 4, color: '#fff', fillColor: '#555', fillOpacity: 0.8, weight: 2 })
+        .bindTooltip(`H${hd.number}`, { permanent: false }).addTo(m);
+    }
+    if (hd.green) {
+      const pos = [hd.green.lat, hd.green.lng];
+      allBounds.push(pos);
+      const entry = (roundScoreData || {})[hd.number];
+      const putts = entry ? (entry.putts || 0) : 0;
+      if (putts) {
+        const pColor = putts <= 1 ? '#52c41a' : putts === 2 ? '#1890ff' : '#ff4d4f';
+        L.marker(pos, {
+          icon: L.divIcon({
+            html: `<div style="background:${pColor};color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">+${putts}</div>`,
+            iconSize: [26,26], iconAnchor: [13,13], className: ''
+          })
+        }).bindPopup(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`).addTo(m);
+      } else {
+        L.circleMarker(pos, { radius: 6, color: '#228b22', fillColor: '#5cb85c', fillOpacity: 0.7, weight: 2 }).addTo(m);
+      }
+    }
+  }
+
+  if (allBounds.length) {
+    m.fitBounds(allBounds, { padding: [24, 24] });
+    setTimeout(() => { m.invalidateSize(); m.fitBounds(allBounds, { padding: [24, 24] }); }, 200);
+  } else {
+    m.setView([34.045, -118.418], 15);
   }
   return m;
 }
@@ -2249,9 +2283,25 @@ function openRoundDetail(roundId) {
   detailMap = null;
 
   showScreen('scr-round-detail');
+
+  // Scroll content pane back to top each time
+  const rdScroll = document.querySelector('#scr-round-detail .scroll-content');
+  if (rdScroll) rdScroll.scrollTop = 0;
+
   setTimeout(() => {
-    detailMap = _renderShotMapWithPutts('rd-map', 'rd-map-msg', round.shots || [], round.courseHoles || [], round.roundScore || {});
-  }, 250);
+    const rShots = round.shots || [];
+    // Fallback: use preset course holes if round didn't save its own
+    let rHoles = (round.courseHoles && round.courseHoles.length) ? round.courseHoles
+                  : (round.courseId && PRESET_HOLES[round.courseId]) ? PRESET_HOLES[round.courseId]
+                  : [];
+    const gpsShots = rShots.filter(s => s.sLat && s.sLng);
+
+    // Update map subtitle with data counts
+    const mapSub = document.getElementById('rd-map-sub');
+    if (mapSub) mapSub.textContent = gpsShots.length + ' GPS shots · ' + rHoles.length + ' holes';
+
+    detailMap = _renderShotMapWithPutts('rd-map', 'rd-map-msg', rShots, rHoles, round.roundScore || {});
+  }, 400);
 }
 
 function fbSaveClubs() {
@@ -3432,14 +3482,6 @@ function findBestClubForDistance(yards) {
   return best;
 }
 
-function confirmAutoShot(yes) {
-  if (yes && atSuggestedClub) {
-    persistShot(atSuggestedClub, atSuggestedDist);
-    render();
-  }
-  document.getElementById('auto-shot-card').style.display = 'none';
-  showFAB(true);
-}
 
 function updateATUI() {
   const btn = document.getElementById('auto-btn');
