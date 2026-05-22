@@ -9,6 +9,7 @@
   <title>GolfYards v2</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
   <style>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
@@ -1447,6 +1448,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -2125,153 +2127,197 @@ function _arcPoints(lat1, lng1, lat2, lng2, nPts) {
 
 function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roundScoreData) {
   const container = document.getElementById(mapDivId);
-  if (!container) { toast('Map container not found: ' + mapDivId); return null; }
+  if (!container) return null;
 
-  if (typeof L === 'undefined') {
-    container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;flex-direction:column;gap:6px"><div style="font-size:24px">🗺️</div><div>Map unavailable (offline?)</div></div>';
-    return null;
+  // Clean up any prior map instance on this container
+  if (container._mlMap) {
+    try { container._mlMap.remove(); } catch(e) {}
+    delete container._mlMap;
   }
-
-  // Clean up any prior Leaflet instance on this container
   if (container._leaflet_id) {
     try { container._leaflet.remove(); } catch(e) {}
-    container.innerHTML = '';
-    delete container._leaflet_id;
-    delete container._leaflet;
+    delete container._leaflet_id; delete container._leaflet;
+  }
+  container.innerHTML = '';
+
+  if (typeof maplibregl === 'undefined') {
+    container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;flex-direction:column;gap:8px"><div style="font-size:28px">🗺️</div><div>Map unavailable — check connection</div></div>';
+    return null;
   }
 
   const validShots = (roundShots || []).filter(s => s.sLat && s.sLng && s.eLat && s.eLng);
 
-  let m;
+  // Collect all coordinates to fit the viewport
+  const allLngLat = [];
+  for (const h of (holesData || [])) {
+    const lat = h.tee ? h.tee.lat : h.lat, lng = h.tee ? h.tee.lng : h.lng;
+    if (lat && lng) allLngLat.push([lng, lat]);
+    if (h.green) allLngLat.push([h.green.lng, h.green.lat]);
+  }
+  for (const s of validShots) {
+    allLngLat.push([s.sLng, s.sLat]);
+    allLngLat.push([s.eLng, s.eLat]);
+  }
+
+  const centerLng = allLngLat.length ? allLngLat.reduce((a,p)=>a+p[0],0)/allLngLat.length : -118.418;
+  const centerLat = allLngLat.length ? allLngLat.reduce((a,p)=>a+p[1],0)/allLngLat.length :  34.045;
+
+  // ── MapLibre GL map with 3D pitch ──────────────────────────
+  let ml;
   try {
-    m = L.map(container, { zoomControl: false, attributionControl: false });
-  } catch (e) {
-    container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;flex-direction:column;gap:6px"><div style="font-size:24px">🗺️</div><div>Map error: ' + e.message + '</div></div>';
+    ml = new maplibregl.Map({
+      container,
+      style: {
+        version: 8,
+        sources: {
+          sat: {
+            type: 'raster',
+            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256, maxzoom: 20
+          },
+          lbl: {
+            type: 'raster',
+            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256, maxzoom: 20
+          }
+        },
+        layers: [
+          { id: 'sat', type: 'raster', source: 'sat' },
+          { id: 'lbl', type: 'raster', source: 'lbl', paint: { 'raster-opacity': 0.55 } }
+        ]
+      },
+      center: [centerLng, centerLat],
+      zoom: 15,
+      pitch: 52,
+      bearing: -18,
+      attributionControl: false
+    });
+  } catch(e) {
+    container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;flex-direction:column;gap:8px"><div style="font-size:28px">🗺️</div><div>Map error: ' + e.message + '</div></div>';
     return null;
   }
 
-  // Satellite imagery base layer (ESRI World Imagery — free, no API key)
-  L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    { maxZoom: 20, attribution: '' }
-  ).addTo(m);
+  container._mlMap = ml;
 
-  // Thin labels layer on top so hole names / streets are still readable
-  L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-    { maxZoom: 20, opacity: 0.5, attribution: '' }
-  ).addTo(m);
-
-  const allBounds = [];
-
-  // ── Shot arcs ───────────────────────────────────────────────
-  // Group shots by hole so we can number them sequentially per hole
+  // Group shots by hole for sequential numbering
   const shotsByHole = {};
   for (const s of validShots) {
-    if (!shotsByHole[s.hole]) shotsByHole[s.hole] = [];
-    shotsByHole[s.hole].push(s);
+    (shotsByHole[s.hole] = shotsByHole[s.hole] || []).push(s);
   }
 
-  for (const s of validShots) {
-    const holeShots = shotsByHole[s.hole] || [];
-    const shotNum   = holeShots.indexOf(s) + 1;
-    const color     = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
-    const pts       = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 30);
-    allBounds.push(...pts);
-
-    // Shadow/glow pass for depth
-    L.polyline(pts, { color: '#000', weight: 9, opacity: 0.25, lineCap: 'round', lineJoin: 'round' }).addTo(m);
-    // Main arc
-    L.polyline(pts, { color, weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(m);
-
-    // Start dot (small white-filled circle)
-    L.circleMarker([s.sLat, s.sLng], {
-      radius: 5, color: '#fff', fillColor: color, fillOpacity: 1, weight: 2
-    }).addTo(m);
-
-    // End dot with shot-number badge
-    L.marker([s.eLat, s.eLng], {
-      icon: L.divIcon({
-        html: `<div style="
-          background:${color};color:#fff;border-radius:50%;
-          width:22px;height:22px;display:flex;align-items:center;justify-content:center;
-          font-size:11px;font-weight:900;border:2px solid #fff;
-          box-shadow:0 2px 6px rgba(0,0,0,.55);line-height:1">${shotNum}</div>`,
-        iconSize: [22, 22], iconAnchor: [11, 11], className: ''
-      })
-    }).bindPopup(`<b>H${s.hole} Shot ${shotNum} · ${x(s.club)}</b><br>${s.yards} yds`).addTo(m);
-
-    // Yardage label at arc midpoint
-    const mid = pts[Math.floor(pts.length / 2)];
-    L.marker(mid, {
-      icon: L.divIcon({
-        html: `<div style="
-          background:rgba(0,0,0,.72);color:#fff;
-          padding:2px 6px;border-radius:10px;font-size:10px;
-          white-space:nowrap;font-weight:800;
-          box-shadow:0 1px 4px rgba(0,0,0,.5)">${s.yards}y</div>`,
-        className: '', iconAnchor: [18, 10]
-      }), interactive: false
-    }).addTo(m);
-  }
-
-  // ── Course layout markers ───────────────────────────────────
-  for (const hd of (holesData || [])) {
-    const teeLat = hd.tee ? hd.tee.lat : hd.lat;
-    const teeLng = hd.tee ? hd.tee.lng : hd.lng;
-    if (teeLat && teeLng) {
-      allBounds.push([teeLat, teeLng]);
-      // Tee flag marker
-      L.marker([teeLat, teeLng], {
-        icon: L.divIcon({
-          html: `<div style="
-            background:#fff;color:#111;border-radius:4px;
-            padding:2px 5px;font-size:10px;font-weight:900;
-            box-shadow:0 1px 5px rgba(0,0,0,.6);white-space:nowrap">H${hd.number}</div>`,
-          className: '', iconAnchor: [16, 8]
-        })
-      }).addTo(m);
+  ml.on('load', () => {
+    // ── Build arc GeoJSON ──────────────────────────────────────
+    const arcShadowFeatures = [], arcLineFeatures = [];
+    for (const s of validShots) {
+      const color = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
+      const pts   = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 40)
+                      .map(p => [p[1], p[0]]); // [lat,lng] → [lng,lat]
+      const feat  = (id, props) => ({ type: 'Feature', properties: { color, ...props }, geometry: { type: 'LineString', coordinates: pts } });
+      arcShadowFeatures.push(feat('sh', {}));
+      arcLineFeatures.push(feat('ln', { yards: s.yards, hole: s.hole, club: s.club }));
     }
-    if (hd.green) {
-      const pos = [hd.green.lat, hd.green.lng];
-      allBounds.push(pos);
-      const entry = (roundScoreData || {})[hd.number];
-      const putts = entry ? (entry.putts || 0) : 0;
-      if (putts) {
-        const pColor = putts <= 1 ? '#52c41a' : putts === 2 ? '#1890ff' : '#ff4d4f';
-        L.marker(pos, {
-          icon: L.divIcon({
-            html: `<div style="
-              background:${pColor};color:#fff;border-radius:50%;
-              width:28px;height:28px;display:flex;align-items:center;justify-content:center;
-              font-size:12px;font-weight:900;border:2.5px solid #fff;
-              box-shadow:0 2px 8px rgba(0,0,0,.5)">${putts}🏌️</div>`,
-            iconSize: [28, 28], iconAnchor: [14, 14], className: ''
-          })
-        }).bindPopup(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`).addTo(m);
-      } else {
-        // Unflagged green: small flag icon
-        L.marker(pos, {
-          icon: L.divIcon({
-            html: `<div style="
-              background:rgba(255,255,255,.85);border-radius:50%;
-              width:18px;height:18px;display:flex;align-items:center;
-              justify-content:center;font-size:11px;
-              box-shadow:0 1px 4px rgba(0,0,0,.4)">⛳</div>`,
-            iconSize: [18, 18], iconAnchor: [9, 9], className: ''
-          })
-        }).addTo(m);
+
+    const arcGeoJSON = feats => ({ type: 'FeatureCollection', features: feats });
+
+    ml.addSource('arc-shadow-src', { type: 'geojson', data: arcGeoJSON(arcShadowFeatures) });
+    ml.addSource('arc-line-src',   { type: 'geojson', data: arcGeoJSON(arcLineFeatures) });
+
+    // Outer glow
+    ml.addLayer({ id: 'arc-glow', type: 'line', source: 'arc-line-src',
+      paint: { 'line-color': ['get','color'], 'line-width': 14, 'line-opacity': 0.18, 'line-blur': 6 },
+      layout: { 'line-cap': 'round', 'line-join': 'round' }
+    });
+    // Dark shadow for depth
+    ml.addLayer({ id: 'arc-shadow', type: 'line', source: 'arc-shadow-src',
+      paint: { 'line-color': '#000', 'line-width': 8, 'line-opacity': 0.35 },
+      layout: { 'line-cap': 'round', 'line-join': 'round' }
+    });
+    // Main colored arc
+    ml.addLayer({ id: 'arc-line', type: 'line', source: 'arc-line-src',
+      paint: { 'line-color': ['get','color'], 'line-width': 5, 'line-opacity': 1 },
+      layout: { 'line-cap': 'round', 'line-join': 'round' }
+    });
+    // White highlight stripe on top for 3D tube effect
+    ml.addLayer({ id: 'arc-shine', type: 'line', source: 'arc-line-src',
+      paint: { 'line-color': '#fff', 'line-width': 1.5, 'line-opacity': 0.45, 'line-offset': -1.5 },
+      layout: { 'line-cap': 'round', 'line-join': 'round' }
+    });
+
+    // ── HTML markers (shot numbers, tees, putts) ──────────────
+    const mk = (lngLat, html, anchor = [0, 0]) => {
+      const el = document.createElement('div');
+      el.innerHTML = html;
+      new maplibregl.Marker({ element: el.firstElementChild, anchor: 'center' })
+        .setLngLat(lngLat)
+        .addTo(ml);
+    };
+
+    for (const s of validShots) {
+      const color   = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
+      const shotNum = (shotsByHole[s.hole] || []).indexOf(s) + 1;
+
+      // Start dot
+      mk([s.sLng, s.sLat], `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6)"></div>`);
+
+      // Numbered landing badge
+      const popup = new maplibregl.Popup({ offset: 14, closeButton: false })
+        .setHTML(`<b>H${s.hole} Shot ${shotNum} · ${x(s.club)}</b><br>${s.yards} yds`);
+      const el = document.createElement('div');
+      el.innerHTML = `<div style="background:${color};color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6);cursor:pointer">${shotNum}</div>`;
+      new maplibregl.Marker({ element: el.firstElementChild, anchor: 'center' })
+        .setLngLat([s.eLng, s.eLat])
+        .setPopup(popup)
+        .addTo(ml);
+
+      // Yardage label at arc midpoint
+      const arc2d = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 40);
+      const midPt = arc2d[Math.floor(arc2d.length / 2)];
+      mk([midPt[1], midPt[0]],
+        `<div style="background:rgba(0,0,0,.75);color:#fff;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5)">${s.yards}y</div>`
+      );
+    }
+
+    // Tee markers and green markers
+    for (const hd of (holesData || [])) {
+      const tLat = hd.tee ? hd.tee.lat : hd.lat;
+      const tLng = hd.tee ? hd.tee.lng : hd.lng;
+      if (tLat && tLng) {
+        mk([tLng, tLat],
+          `<div style="background:rgba(0,0,0,.72);color:#fff;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:900;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.6)">H${hd.number}</div>`
+        );
+      }
+      if (hd.green) {
+        const entry = (roundScoreData || {})[hd.number];
+        const putts = entry ? (entry.putts || 0) : 0;
+        if (putts) {
+          const pColor = putts <= 1 ? '#52c41a' : putts === 2 ? '#1890ff' : '#ff4d4f';
+          const pPopup = new maplibregl.Popup({ offset: 14, closeButton: false })
+            .setHTML(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`);
+          const pe = document.createElement('div');
+          pe.innerHTML = `<div style="background:${pColor};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer">${putts}⛳</div>`;
+          new maplibregl.Marker({ element: pe.firstElementChild, anchor: 'center' })
+            .setLngLat([hd.green.lng, hd.green.lat])
+            .setPopup(pPopup)
+            .addTo(ml);
+        } else {
+          mk([hd.green.lng, hd.green.lat],
+            `<div style="background:rgba(255,255,255,.8);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.4)">⛳</div>`
+          );
+        }
       }
     }
-  }
 
-  if (allBounds.length) {
-    m.fitBounds(allBounds, { padding: [28, 28] });
-    setTimeout(() => { m.invalidateSize(); m.fitBounds(allBounds, { padding: [28, 28] }); }, 200);
-  } else {
-    m.setView([34.045, -118.418], 16);
-  }
-  return m;
+    // Fit viewport to all course/shot points
+    if (allLngLat.length > 1) {
+      const bounds = allLngLat.reduce(
+        (b, c) => b.extend(c),
+        new maplibregl.LngLatBounds(allLngLat[0], allLngLat[0])
+      );
+      ml.fitBounds(bounds, { padding: 52, pitch: 52, bearing: -18, duration: 600, maxZoom: 18 });
+    }
+  });
+
+  return ml;
 }
 
 // ── Past rounds list rendering ────────────────────────────────
