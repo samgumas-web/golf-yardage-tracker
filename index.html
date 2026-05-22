@@ -1566,11 +1566,11 @@ fbAuth.onAuthStateChanged(async user => {
     const hadFirebaseShots = await fbLoadUserData(user.uid);
     await fbLoadRounds(user.uid);
     fbLoadTrainingPool();
-    const poolBtn = document.getElementById('force-pool-btn');
-    if (poolBtn) poolBtn.style.display = user.uid === 'SoLiL4NCAcRCpnq74ekdFQvXbG13' ? '' : 'none';
     migrateLegacyData();
     initUserData();
     render();
+    const poolBtn = document.getElementById('force-pool-btn');
+    if (poolBtn) poolBtn.style.display = user.uid === 'SoLiL4NCAcRCpnq74ekdFQvXbG13' ? '' : 'none';
     fbSyncOnLogin(hadFirebaseShots);
     setStatus('Tap "Allow" when asked for your location…', true);
     initGPS();
