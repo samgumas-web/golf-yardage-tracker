@@ -2582,22 +2582,26 @@ async function fbSeedUserToPool(uid, trainData) {
   }
   // Firestore batch limit is 500 writes
   const pool = fbDb.collection('trainingPool');
-  for (let i = 0; i < all.length; i += 499) {
-    const batch = fbDb.batch();
-    all.slice(i, i + 499).forEach(s => {
-      batch.set(pool.doc(), {
-        type:   s.type,
-        rot:    parseFloat((s.rot   || 0).toFixed(3)),
-        acc:    parseFloat((s.acc   || 0).toFixed(3)),
-        stable: parseFloat((s.stable|| 0).toFixed(3)),
-        ts:     Date.now()
+  try {
+    for (let i = 0; i < all.length; i += 499) {
+      const batch = fbDb.batch();
+      all.slice(i, i + 499).forEach(s => {
+        batch.set(pool.doc(), {
+          type:   s.type,
+          rot:    parseFloat((s.rot   || 0).toFixed(3)),
+          acc:    parseFloat((s.acc   || 0).toFixed(3)),
+          stable: parseFloat((s.stable|| 0).toFixed(3)),
+          ts:     Date.now()
+        });
       });
-    });
-    await batch.commit().catch(() => {});
+      await batch.commit();
+    }
+    // Only mark seeded if all batches succeeded
+    await fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
+      .update({ poolSeeded: true });
+  } catch (e) {
+    console.warn('fbSeedUserToPool failed — will retry on next login:', e);
   }
-  // Mark seeded so this never reruns for this user
-  fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
-    .update({ poolSeeded: true }).catch(() => {});
 }
 
 function fbSaveCourseHoles(courseId, courseName, holes) {
