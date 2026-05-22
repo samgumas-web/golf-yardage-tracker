@@ -2548,6 +2548,18 @@ function fbSaveTrainingModel() {
     .set(atLearnData).catch(() => {});
 }
 
+function fbPoolTrainingSample(features, type) {
+  // Write one anonymized sample to the shared pool for global model training
+  if (!fbDb) return;
+  fbDb.collection('trainingPool').add({
+    type,                          // 'SHOT' or 'NOT_SHOT'
+    rot:    parseFloat(features.rot.toFixed(3)),
+    acc:    parseFloat(features.acc.toFixed(3)),
+    stable: parseFloat(features.stable.toFixed(3)),
+    ts:     Date.now()
+  }).catch(() => {});
+}
+
 function fbSaveCourseHoles(courseId, courseName, holes) {
   const docId = courseId.replace(/[^a-zA-Z0-9_-]/g, '_');
   fbDb.collection('courses').doc(docId)
@@ -3462,9 +3474,11 @@ function atLearnSwing(yes) {
   clearTimeout(atConfirmTimer);
 
   if (atPendingFeatures) {
+    const sampleType = yes ? 'SHOT' : 'NOT_SHOT';
     if (yes) atLearnData.shots.push(atPendingFeatures);
     else     atLearnData.nonShots.push(atPendingFeatures);
     atSaveLearnData();
+    fbPoolTrainingSample(atPendingFeatures, sampleType);
     gsSync('training', {
       timestamp: new Date().toISOString(),
       user_email: activeProfile ? activeProfile.email : 'anonymous',
