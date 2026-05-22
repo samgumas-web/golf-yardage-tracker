@@ -1606,17 +1606,22 @@ const DEFAULT_CLUBS = [
 
 // ── Saved / recent courses ─────────────────────────────────
 const SEED_COURSES = [
-  { osmId: 'preset_rancho_park', type: 'way', name: 'Rancho Park Golf Course', lat: 34.0494, lng: -118.4188 }
+  { osmId: 'preset_rancho_park',    type: 'way', name: 'Rancho Park Golf Course',    lat: 34.0494,      lng: -118.4188     },
+  { osmId: 'preset_el_camino_cc',   type: 'way', name: 'El Camino Country Club',     lat: 33.1849,      lng: -117.3229     }
 ];
 
 function loadSavedCourses() {
   try {
     const s = localStorage.getItem('gy_saved_courses');
-    if (s) return JSON.parse(s);
-    // First launch — seed with Rancho Park
-    localStorage.setItem('gy_saved_courses', JSON.stringify(SEED_COURSES));
-    return SEED_COURSES;
-  } catch { return []; }
+    const saved = s ? JSON.parse(s) : [];
+    // Always ensure seed/pinned courses are present for all users
+    const merged = [...saved];
+    for (const sc of SEED_COURSES) {
+      if (!merged.find(c => c.osmId === sc.osmId)) merged.push(sc);
+    }
+    localStorage.setItem('gy_saved_courses', JSON.stringify(merged));
+    return merged;
+  } catch { return SEED_COURSES; }
 }
 
 function persistSavedCourse(course) {
@@ -1634,6 +1639,29 @@ function removeSavedCourse(osmId) {
 
 // ── Course scorecards ──────────────────────────────────────
 const COURSE_SCORECARDS = {
+  'preset_el_camino_cc': {
+    tees: ['black','blue'],
+    holes: [
+      { n:1,  par:4, black:359, blue:352 },
+      { n:2,  par:3, black:160, blue:145 },
+      { n:3,  par:4, black:394, blue:374 },
+      { n:4,  par:3, black:208, blue:199 },
+      { n:5,  par:5, black:512, blue:505 },
+      { n:6,  par:4, black:431, blue:403 },
+      { n:7,  par:3, black:131, blue:125 },
+      { n:8,  par:5, black:557, blue:540 },
+      { n:9,  par:4, black:396, blue:374 },
+      { n:10, par:5, black:503, blue:490 },
+      { n:11, par:4, black:375, blue:354 },
+      { n:12, par:4, black:445, blue:424 },
+      { n:13, par:4, black:381, blue:375 },
+      { n:14, par:4, black:423, blue:408 },
+      { n:15, par:3, black:166, blue:161 },
+      { n:16, par:5, black:538, blue:531 },
+      { n:17, par:4, black:426, blue:392 },
+      { n:18, par:4, black:435, blue:415 },
+    ]
+  },
   'preset_rancho_park': {
     tees: ['black','blue','white','yellow'],
     holes: [
