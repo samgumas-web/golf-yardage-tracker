@@ -5011,6 +5011,7 @@ function renderScorecard() {
       <div style="text-align:center">
         <div style="font-size:15px;font-weight:800;color:var(--text)">Hole ${h}</div>
         <div style="font-size:12px;color:var(--green);font-weight:700;margin-top:1px;cursor:pointer" onclick="scNav(1)">${h < 18 ? 'Next Hole' : 'Finish Round'}</div>
+        ${h === 9 ? `<div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:6px;cursor:pointer;text-decoration:underline" onclick="finishNineHoles()">Finish Front 9</div>` : ''}
       </div>
       <button class="hdr-btn" onclick="scNav(1)" ${h>=18?'disabled style="opacity:.3"':''}>›</button>
     </div>`;
@@ -5042,6 +5043,12 @@ function scNav(delta) {
   renderScorecard();
 }
 
+function finishNineHoles() {
+  if (!confirm('Finish round after 9 holes? Your scorecard and shots will be saved.')) return;
+  closePanel();
+  setTimeout(showRoundSummary, 400);
+}
+
 function resetScorecard() {
   if (!confirm('Clear the scorecard for this round?')) return;
   roundScore = {}; roundStartedAt = null; saveRoundScore(); renderScorecard();
@@ -5061,7 +5068,7 @@ function showRoundSummary() {
   scoreEl.textContent = badge.text;
   scoreEl.style.color = badge.color;
 
-  const totalPar = Array.from({ length: 18 }, (_, i) => {
+  const totalPar = Array.from({ length: holesPlayed }, (_, i) => {
     const hd = getHoleData(i + 1); return hd ? hd.par : 4;
   }).reduce((a, b) => a + b, 0);
   document.getElementById('sum-score-label').textContent =
@@ -5077,7 +5084,7 @@ function showRoundSummary() {
 
   const grid = document.getElementById('sum-hole-grid');
   grid.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-    ${Array.from({ length: 18 }, (_, i) => {
+    ${Array.from({ length: holesPlayed }, (_, i) => {
       const h = i + 1;
       const hd = getHoleData(h);
       const par = hd ? hd.par : 4;
