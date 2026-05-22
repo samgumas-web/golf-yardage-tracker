@@ -3795,6 +3795,20 @@ function atGPSTick(pos) {
     atResetTimer();
   }
   // else: within stability radius — timer keeps counting toward stable
+
+  // Auto-finish last shot when player reaches the green
+  if (atPhase === 'mid_shot' && atShotStart) {
+    const hd = courseHoles.find(h => h.number === currentHole);
+    if (hd && hd.green) {
+      const distToGreen = haversineM(pos.lat, pos.lng, hd.green.lat, hd.green.lng);
+      if (distToGreen < 25) {
+        const yards = haversine(atShotStart, pos);
+        if (yards >= AT_MIN_YDS) {
+          atFireShot(atShotStart, { lat: pos.lat, lng: pos.lng }, yards);
+        }
+      }
+    }
+  }
 }
 
 function atResetTimer() {
