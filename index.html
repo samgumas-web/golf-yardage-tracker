@@ -1971,7 +1971,12 @@ async function fbLoadUserData(uid) {
       localStorage.setItem(userKey('gy_clubs'), JSON.stringify(clubsDoc.data().items));
     }
     if (trainDoc.exists) {
-      localStorage.setItem(AT_LEARN_KEY, JSON.stringify(trainDoc.data()));
+      const trainData = trainDoc.data();
+      localStorage.setItem(AT_LEARN_KEY, JSON.stringify(trainData));
+      // One-time seed: push all existing samples to the shared pool if not done yet
+      if (!trainData.poolSeeded) {
+        fbSeedUserToPool(uid, trainData);
+      }
     }
     const shotsSnap = await fbDb.collection('users').doc(uid).collection('shots')
       .orderBy('id', 'desc').limit(500).get();
@@ -2552,12 +2557,47 @@ function fbPoolTrainingSample(features, type) {
   // Write one anonymized sample to the shared pool for global model training
   if (!fbDb) return;
   fbDb.collection('trainingPool').add({
-    type,                          // 'SHOT' or 'NOT_SHOT'
+    type,
     rot:    parseFloat(features.rot.toFixed(3)),
     acc:    parseFloat(features.acc.toFixed(3)),
     stable: parseFloat(features.stable.toFixed(3)),
     ts:     Date.now()
   }).catch(() => {});
+}
+
+async function fbSeedUserToPool(uid, trainData) {
+  // Batch-write all of a user's existing training samples to trainingPool (runs once per user)
+  if (!fbDb) return;
+  const shots    = Array.isArray(trainData.shots)    ? trainData.shots    : [];
+  const nonShots = Array.isArray(trainData.nonShots) ? trainData.nonShots : [];
+  const all = [
+    ...shots.map(s    => ({ type: 'SHOT',     ...s })),
+    ...nonShots.map(s => ({ type: 'NOT_SHOT', ...s }))
+  ];
+  if (!all.length) {
+    // Nothing to seed but mark done anyway
+    fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
+      .update({ poolSeeded: true }).catch(() => {});
+    return;
+  }
+  // Firestore batch limit is 500 writes
+  const pool = fbDb.collection('trainingPool');
+  for (let i = 0; i < all.length; i += 499) {
+    const batch = fbDb.batch();
+    all.slice(i, i + 499).forEach(s => {
+      batch.set(pool.doc(), {
+        type:   s.type,
+        rot:    parseFloat((s.rot   || 0).toFixed(3)),
+        acc:    parseFloat((s.acc   || 0).toFixed(3)),
+        stable: parseFloat((s.stable|| 0).toFixed(3)),
+        ts:     Date.now()
+      });
+    });
+    await batch.commit().catch(() => {});
+  }
+  // Mark seeded so this never reruns for this user
+  fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
+    .update({ poolSeeded: true }).catch(() => {});
 }
 
 function fbSaveCourseHoles(courseId, courseName, holes) {
