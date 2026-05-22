@@ -1412,6 +1412,7 @@
         </label>
       </div>
       <button onclick="exportTrainingCSV()" class="btn btn-s" style="width:100%;font-size:12px;padding:9px;background:var(--card2)" id="export-training-btn">⬇ Export Swing Training Data</button>
+      <button onclick="forceUploadToPool()" class="btn btn-s" id="force-pool-btn" style="display:none;width:100%;font-size:12px;padding:9px;background:#1a472a;margin-top:6px">⬆ Upload Swing Data Now</button>
       <div id="training-stats" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
     </div>
 
@@ -1565,6 +1566,8 @@ fbAuth.onAuthStateChanged(async user => {
     const hadFirebaseShots = await fbLoadUserData(user.uid);
     await fbLoadRounds(user.uid);
     fbLoadTrainingPool();
+    const poolBtn = document.getElementById('force-pool-btn');
+    if (poolBtn) poolBtn.style.display = user.uid === 'SoLiL4NCAcRCpnq74ekdFQvXbG13' ? '' : 'none';
     migrateLegacyData();
     initUserData();
     render();
@@ -2553,6 +2556,23 @@ function fbSaveTrainingModel() {
   if (!activeProfile) return;
   fbDb.collection('users').doc(activeProfile.id).collection('data').doc('trainingModel')
     .set(atLearnData).catch(() => {});
+}
+
+async function forceUploadToPool() {
+  if (!activeProfile) return;
+  const btn = document.getElementById('force-pool-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+  // Clear poolSeeded flag so fbSeedUserToPool runs again
+  try {
+    await fbDb.collection('users').doc(activeProfile.id).collection('data')
+      .doc('trainingModel').update({ poolSeeded: false });
+  } catch {}
+  await fbSeedUserToPool(activeProfile.id, atLearnData);
+  // Bust the local cache so fbLoadTrainingPool fetches fresh data immediately
+  localStorage.removeItem(AT_POOL_CACHE_KEY);
+  await fbLoadTrainingPool();
+  if (btn) { btn.disabled = false; btn.textContent = '⬆ Upload Swing Data Now'; }
+  toast(`Uploaded ${atLearnData.shots.length} shots + ${atLearnData.nonShots.length} non-shots to pool`);
 }
 
 function fbPoolTrainingSample(features, type) {
