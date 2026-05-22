@@ -2178,10 +2178,10 @@ function _rdMapGoToHole(idx) {
 
   // Offset -65° from straight-down so camera views from the LEFT side
   // of the fairway — the diagonal angle that looks most 3D
-  const bearing = fairwayBearing - 65;
+  const bearing = fairwayBearing + 65;
 
   const dist = haversineM(tLat, tLng, gLat, gLng);
-  const zoom = Math.max(14, 17.2 - Math.log2(Math.max(dist / 55, 1)));
+  const zoom = Math.max(16, 18.8 - Math.log2(Math.max(dist / 55, 1)));
 
   // Center midway between tee and green
   const cLat = (tLat + gLat) / 2;
