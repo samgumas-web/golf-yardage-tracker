@@ -2576,13 +2576,17 @@ async function forceUploadToPool() {
 }
 
 function fbPoolTrainingSample(features, type) {
-  // Write one anonymized sample to the shared pool for global model training
   if (!fbDb) return;
+  const f = features;
   fbDb.collection('trainingPool').add({
     type,
-    rot:    parseFloat(features.rot.toFixed(3)),
-    acc:    parseFloat(features.acc.toFixed(3)),
-    stable: parseFloat(features.stable.toFixed(3)),
+    rot:    parseFloat((f.rot    || 0).toFixed(3)),
+    acc:    parseFloat((f.acc    || 0).toFixed(3)),
+    accY:   parseFloat((f.accY   || 0).toFixed(3)),
+    rotA:   parseFloat((f.rotA   || 0).toFixed(3)),
+    rotB:   parseFloat((f.rotB   || 0).toFixed(3)),
+    rotG:   parseFloat((f.rotG   || 0).toFixed(3)),
+    stable: parseFloat((f.stable || 0).toFixed(3)),
     ts:     Date.now()
   }).catch(() => {});
 }
@@ -2610,9 +2614,13 @@ async function fbSeedUserToPool(uid, trainData) {
       all.slice(i, i + 499).forEach(s => {
         batch.set(pool.doc(), {
           type:   s.type,
-          rot:    parseFloat((s.rot   || 0).toFixed(3)),
-          acc:    parseFloat((s.acc   || 0).toFixed(3)),
-          stable: parseFloat((s.stable|| 0).toFixed(3)),
+          rot:    parseFloat((s.rot    || 0).toFixed(3)),
+          acc:    parseFloat((s.acc    || 0).toFixed(3)),
+          accY:   parseFloat((s.accY   || 0).toFixed(3)),
+          rotA:   parseFloat((s.rotA   || 0).toFixed(3)),
+          rotB:   parseFloat((s.rotB   || 0).toFixed(3)),
+          rotG:   parseFloat((s.rotG   || 0).toFixed(3)),
+          stable: parseFloat((s.stable || 0).toFixed(3)),
           ts:     Date.now()
         });
       });
@@ -2626,7 +2634,7 @@ async function fbSeedUserToPool(uid, trainData) {
   }
 }
 
-const AT_POOL_CACHE_KEY = 'gy_pool_cache';
+const AT_POOL_CACHE_KEY = 'gy_pool_cache_v2'; // v2: added per-axis features
 const AT_POOL_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 async function fbLoadTrainingPool() {
@@ -2645,7 +2653,7 @@ async function fbLoadTrainingPool() {
     const shots = [], nonShots = [];
     snap.forEach(doc => {
       const d = doc.data();
-      const s = { rot: d.rot || 0, acc: d.acc || 0, stable: d.stable || 0 };
+      const s = { rot: d.rot || 0, acc: d.acc || 0, stable: d.stable || 0, accY: d.accY || 0, rotA: d.rotA || 0, rotB: d.rotB || 0, rotG: d.rotG || 0 };
       if (d.type === 'SHOT') shots.push(s);
       else nonShots.push(s);
     });
@@ -3471,16 +3479,23 @@ function showFAB(v) {
 
 function atMotionTick(e) {
   const now = Date.now();
-  const rr = e.rotationRate;
-  const ai = e.accelerationIncludingGravity;
+  const rr  = e.rotationRate;
+  const ai  = e.accelerationIncludingGravity;
+  const a   = e.acceleration; // without gravity — best signal for vertical pull-out
 
-  let rot = 0;
-  if (rr) rot = Math.max(Math.abs(rr.alpha||0), Math.abs(rr.beta||0), Math.abs(rr.gamma||0));
+  const rotA = rr ? Math.abs(rr.alpha || 0) : 0;
+  const rotB = rr ? Math.abs(rr.beta  || 0) : 0;
+  const rotG = rr ? Math.abs(rr.gamma || 0) : 0;
+  const rot  = Math.max(rotA, rotB, rotG);
+
   let acc = 0;
   if (ai) acc = Math.sqrt((ai.x||0)**2 + (ai.y||0)**2 + (ai.z||0)**2);
 
-  atMotionBuf.push({t: now, rot, acc});
-  const cutoff = now - 600;
+  // accY: vertical motion without gravity — high when phone moves upward (pull-out), low during swing
+  const accY = a ? Math.abs(a.y || 0) : (ai ? Math.abs((ai.y||0) - 9.8) : 0);
+
+  atMotionBuf.push({ t: now, rot, acc, accY, rotA, rotB, rotG });
+  const cutoff = now - 1500; // 1.5s window captures the full swing arc
   while (atMotionBuf.length && atMotionBuf[0].t < cutoff) atMotionBuf.shift();
 
   const trig = atIsTrained() ? atAdaptiveTrig() : AT_PRETRIG_DPS;
@@ -3490,10 +3505,15 @@ function atMotionTick(e) {
 }
 
 function atExtractFeatures(buf) {
-  const peakRot = buf.length ? Math.max(...buf.map(s => s.rot)) : 0;
-  const peakAcc = buf.length ? Math.max(...buf.map(s => s.acc)) : 0;
-  const stable  = atStableTime > 0 ? Math.min((Date.now() - atStableTime) / 1000, 60) : 0;
-  return { rot: peakRot, acc: peakAcc, stable };
+  if (!buf.length) return { rot: 0, acc: 0, accY: 0, rotA: 0, rotB: 0, rotG: 0, stable: 0 };
+  const peakRot  = Math.max(...buf.map(s => s.rot),        0);
+  const peakAcc  = Math.max(...buf.map(s => s.acc),        0);
+  const peakAccY = Math.max(...buf.map(s => s.accY || 0),  0);
+  const peakRotA = Math.max(...buf.map(s => s.rotA || 0),  0);
+  const peakRotB = Math.max(...buf.map(s => s.rotB || 0),  0);
+  const peakRotG = Math.max(...buf.map(s => s.rotG || 0),  0);
+  const stable   = atStableTime > 0 ? Math.min((Date.now() - atStableTime) / 1000, 60) : 0;
+  return { rot: peakRot, acc: peakAcc, accY: peakAccY, rotA: peakRotA, rotB: peakRotB, rotG: peakRotG, stable };
 }
 
 function atMergedData() {
@@ -3523,14 +3543,20 @@ function atScoreMotion(f) {
   if (shots.length < 3) return f.rot >= AT_SWING_DPS ? 0.9 : 0.1;
 
   const all = [...shots, ...nonShots];
-  const maxRot    = Math.max(...all.map(e => e.rot), 1);
-  const maxAcc    = Math.max(...all.map(e => e.acc), 1);
-  const maxStable = Math.max(...all.map(e => e.stable), 1);
+  const maxRot    = Math.max(...all.map(e => e.rot),        1);
+  const maxAcc    = Math.max(...all.map(e => e.acc),        1);
+  const maxAccY   = Math.max(...all.map(e => e.accY || 0),  1);
+  const maxRotG   = Math.max(...all.map(e => e.rotG || 0),  1);
+  const maxRotB   = Math.max(...all.map(e => e.rotB || 0),  1);
+  const maxStable = Math.max(...all.map(e => e.stable),     1);
 
   const dist = (a, b) => Math.sqrt(
-    0.6 * ((a.rot - b.rot) / maxRot)    ** 2 +
-    0.3 * ((a.acc - b.acc) / maxAcc)    ** 2 +
-    0.1 * ((a.stable - b.stable) / maxStable) ** 2
+    0.25 * ((a.rot            - b.rot)            / maxRot)    ** 2 +
+    0.10 * ((a.acc            - b.acc)            / maxAcc)    ** 2 +
+    0.30 * (((a.accY||0)      - (b.accY||0))      / maxAccY)   ** 2 + // pull-out = high vertical acc
+    0.25 * (((a.rotG||0)      - (b.rotG||0))      / maxRotG)   ** 2 + // swing = high Y-axis rotation
+    0.05 * (((a.rotB||0)      - (b.rotB||0))      / maxRotB)   ** 2 +
+    0.05 * ((a.stable         - b.stable)          / maxStable) ** 2
   );
 
   const k = Math.min(7, Math.max(1, Math.floor(all.length / 10)));
