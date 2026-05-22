@@ -1720,6 +1720,23 @@ function getHoleData(holeNum) {
   return sc.holes.find(h => h.n === holeNum) || null;
 }
 
+// Returns selectedTee if the current course has it, otherwise the first available tee
+function effectiveTee() {
+  if (!selectedCourse) return selectedTee;
+  const sc = COURSE_SCORECARDS[selectedCourse.osmId];
+  if (!sc) return selectedTee;
+  if (sc.tees.includes(selectedTee)) return selectedTee;
+  return sc.tees[0] || selectedTee;
+}
+
+// Call after selecting a course to snap selectedTee to one the course actually has
+function reconcileTee() {
+  if (!selectedCourse) return;
+  const sc = COURSE_SCORECARDS[selectedCourse.osmId];
+  if (!sc) return;
+  if (!sc.tees.includes(selectedTee)) setTee(sc.tees[0]);
+}
+
 function setTee(tee) {
   selectedTee = tee;
   localStorage.setItem(userKey('gy_tee'), tee);
@@ -1735,11 +1752,12 @@ function updateHoleHUD() {
   const hud = document.getElementById('hole-hud');
   const data = getHoleData(currentHole);
   if (!data) { hud.style.display = 'none'; return; }
-  const yds = data[selectedTee];
+  const tee = effectiveTee();
+  const yds = data[tee];
   hud.style.display = '';
-  hud.className = 'tee-' + selectedTee;
-  document.getElementById('hud-yds').textContent = yds;
-  document.getElementById('hud-tee-lbl').textContent = selectedTee.toUpperCase() + ' TEE';
+  hud.className = 'tee-' + tee;
+  document.getElementById('hud-yds').textContent = yds || '—';
+  document.getElementById('hud-tee-lbl').textContent = tee.toUpperCase() + ' TEE';
   document.getElementById('hud-par').textContent = 'Par ' + data.par;
 }
 
@@ -1750,23 +1768,24 @@ function renderScorecard() {
   if (!sc) { card.style.display = 'none'; return; }
   card.style.display = '';
 
-  const totalYds = sc.holes.reduce((s, h) => s + h[selectedTee], 0);
+  const tee = effectiveTee();
+  const totalYds = sc.holes.reduce((s, h) => s + (h[tee] || 0), 0);
   const totalPar = sc.holes.reduce((s, h) => s + h.par, 0);
   document.getElementById('sc-total-yds').textContent =
     `Par ${totalPar} · ${totalYds.toLocaleString()} yds`;
 
-  const teeClass = 'sc-yds tee-' + selectedTee;
+  const teeClass = 'sc-yds tee-' + tee;
   const frontRows = sc.holes.slice(0, 9).map(h => scorecardRow(h, teeClass)).join('');
-  const frontTot  = sc.holes.slice(0, 9).reduce((s,h) => s + h[selectedTee], 0);
+  const frontTot  = sc.holes.slice(0, 9).reduce((s,h) => s + (h[tee] || 0), 0);
   const frontPar  = sc.holes.slice(0, 9).reduce((s,h) => s + h.par, 0);
   const backRows  = sc.holes.slice(9).map(h => scorecardRow(h, teeClass)).join('');
-  const backTot   = sc.holes.slice(9).reduce((s,h) => s + h[selectedTee], 0);
+  const backTot   = sc.holes.slice(9).reduce((s,h) => s + (h[tee] || 0), 0);
   const backPar   = sc.holes.slice(9).reduce((s,h) => s + h.par, 0);
 
   document.getElementById('scorecard-table').innerHTML = `
     <table class="sc-table">
       <thead><tr>
-        <th>Hole</th><th>Par</th><th>${selectedTee.charAt(0).toUpperCase() + selectedTee.slice(1)}</th>
+        <th>Hole</th><th>Par</th><th>${tee.charAt(0).toUpperCase() + tee.slice(1)}</th>
       </tr></thead>
       <tbody>
         <tr class="sc-nine-hdr"><td colspan="3">Front Nine</td></tr>
@@ -1797,7 +1816,7 @@ function scorecardRow(h, teeClass) {
   return `<tr${isNow ? ' class="active-hole"' : ''}>
     <td class="sc-hole">${h.n}${isNow ? ' ●' : ''}</td>
     <td class="sc-par">${h.par}</td>
-    <td class="${teeClass}">${h[selectedTee]}</td>
+    <td class="${teeClass}">${h[tee] || '—'}</td>
   </tr>`;
 }
 
@@ -3050,6 +3069,7 @@ async function selectCourse(idxOrObj) {
                : idxOrObj;
   selectedCourse = course;
   persistSavedCourse(course);
+  reconcileTee();
   currentHole = 1;
   lastHolePrompt = null;
   courseHoles = [];
@@ -3225,7 +3245,7 @@ function updateHoleDisplay() {
   const sub = document.getElementById('round-hole-sub');
   if (sub) {
     sub.textContent = data
-      ? `Par ${data.par} · ${data[selectedTee]} yds · ${selectedTee.charAt(0).toUpperCase()+selectedTee.slice(1)}`
+      ? `Par ${data.par} · ${data[effectiveTee()] || '—'} yds · ${effectiveTee().charAt(0).toUpperCase()+effectiveTee().slice(1)}`
       : '';
   }
   updateHoleHUD();
