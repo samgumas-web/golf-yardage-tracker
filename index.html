@@ -1607,7 +1607,8 @@ const DEFAULT_CLUBS = [
 // ── Saved / recent courses ─────────────────────────────────
 const SEED_COURSES = [
   { osmId: 'preset_rancho_park',    type: 'way', name: 'Rancho Park Golf Course',    lat: 34.0494,      lng: -118.4188     },
-  { osmId: 'preset_el_camino_cc',   type: 'way', name: 'El Camino Country Club',     lat: 33.1849,      lng: -117.3229     }
+  { osmId: 'preset_el_camino_cc',   type: 'way', name: 'El Camino Country Club',     lat: 33.1849,      lng: -117.3229     },
+  { osmId: 'preset_woodley_lakes',  type: 'way', name: 'Woodley Lakes Golf Course',  lat: 34.183,       lng: -118.488      }
 ];
 
 function loadSavedCourses() {
@@ -1639,6 +1640,29 @@ function removeSavedCourse(osmId) {
 
 // ── Course scorecards ──────────────────────────────────────
 const COURSE_SCORECARDS = {
+  'preset_woodley_lakes': {
+    tees: ['black'],
+    holes: [
+      { n:1,  par:4, black:371 },
+      { n:2,  par:4, black:332 },
+      { n:3,  par:3, black:219 },
+      { n:4,  par:5, black:533 },
+      { n:5,  par:4, black:391 },
+      { n:6,  par:4, black:386 },
+      { n:7,  par:3, black:167 },
+      { n:8,  par:5, black:500 },
+      { n:9,  par:4, black:449 },
+      { n:10, par:4, black:453 },
+      { n:11, par:4, black:331 },
+      { n:12, par:3, black:166 },
+      { n:13, par:5, black:513 },
+      { n:14, par:4, black:395 },
+      { n:15, par:3, black:192 },
+      { n:16, par:4, black:428 },
+      { n:17, par:4, black:441 },
+      { n:18, par:5, black:549 },
+    ]
+  },
   'preset_el_camino_cc': {
     tees: ['black','blue'],
     holes: [
