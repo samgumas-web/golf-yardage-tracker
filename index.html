@@ -2149,34 +2149,88 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
     container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;flex-direction:column;gap:6px"><div style="font-size:24px">🗺️</div><div>Map error: ' + e.message + '</div></div>';
     return null;
   }
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
+
+  // Satellite imagery base layer (ESRI World Imagery — free, no API key)
+  L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 20, attribution: '' }
+  ).addTo(m);
+
+  // Thin labels layer on top so hole names / streets are still readable
+  L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 20, opacity: 0.5, attribution: '' }
+  ).addTo(m);
 
   const allBounds = [];
 
+  // ── Shot arcs ───────────────────────────────────────────────
+  // Group shots by hole so we can number them sequentially per hole
+  const shotsByHole = {};
   for (const s of validShots) {
-    const color = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
-    const pts = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 20);
+    if (!shotsByHole[s.hole]) shotsByHole[s.hole] = [];
+    shotsByHole[s.hole].push(s);
+  }
+
+  for (const s of validShots) {
+    const holeShots = shotsByHole[s.hole] || [];
+    const shotNum   = holeShots.indexOf(s) + 1;
+    const color     = SHOT_COLORS[(s.hole - 1) % SHOT_COLORS.length];
+    const pts       = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 30);
     allBounds.push(...pts);
-    L.polyline(pts, { color, weight: 3, opacity: 0.9 }).addTo(m);
-    L.circleMarker([s.sLat, s.sLng], { radius: 4, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2 }).addTo(m);
-    L.circleMarker([s.eLat, s.eLng], { radius: 5, color: '#000', fillColor: color, fillOpacity: 1, weight: 1.5 })
-      .bindPopup(`<b>H${s.hole} · ${x(s.club)}</b><br>${s.yards} yds`).addTo(m);
+
+    // Shadow/glow pass for depth
+    L.polyline(pts, { color: '#000', weight: 9, opacity: 0.25, lineCap: 'round', lineJoin: 'round' }).addTo(m);
+    // Main arc
+    L.polyline(pts, { color, weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(m);
+
+    // Start dot (small white-filled circle)
+    L.circleMarker([s.sLat, s.sLng], {
+      radius: 5, color: '#fff', fillColor: color, fillOpacity: 1, weight: 2
+    }).addTo(m);
+
+    // End dot with shot-number badge
+    L.marker([s.eLat, s.eLng], {
+      icon: L.divIcon({
+        html: `<div style="
+          background:${color};color:#fff;border-radius:50%;
+          width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+          font-size:11px;font-weight:900;border:2px solid #fff;
+          box-shadow:0 2px 6px rgba(0,0,0,.55);line-height:1">${shotNum}</div>`,
+        iconSize: [22, 22], iconAnchor: [11, 11], className: ''
+      })
+    }).bindPopup(`<b>H${s.hole} Shot ${shotNum} · ${x(s.club)}</b><br>${s.yards} yds`).addTo(m);
+
+    // Yardage label at arc midpoint
     const mid = pts[Math.floor(pts.length / 2)];
     L.marker(mid, {
       icon: L.divIcon({
-        html: `<div style="background:rgba(0,0,0,.7);color:#fff;padding:1px 5px;border-radius:8px;font-size:10px;white-space:nowrap;font-weight:700">${s.yards}y</div>`,
-        className: '', iconAnchor: [16, 10]
+        html: `<div style="
+          background:rgba(0,0,0,.72);color:#fff;
+          padding:2px 6px;border-radius:10px;font-size:10px;
+          white-space:nowrap;font-weight:800;
+          box-shadow:0 1px 4px rgba(0,0,0,.5)">${s.yards}y</div>`,
+        className: '', iconAnchor: [18, 10]
       }), interactive: false
     }).addTo(m);
   }
 
+  // ── Course layout markers ───────────────────────────────────
   for (const hd of (holesData || [])) {
     const teeLat = hd.tee ? hd.tee.lat : hd.lat;
     const teeLng = hd.tee ? hd.tee.lng : hd.lng;
     if (teeLat && teeLng) {
       allBounds.push([teeLat, teeLng]);
-      L.circleMarker([teeLat, teeLng], { radius: 4, color: '#fff', fillColor: '#555', fillOpacity: 0.8, weight: 2 })
-        .bindTooltip(`H${hd.number}`, { permanent: false }).addTo(m);
+      // Tee flag marker
+      L.marker([teeLat, teeLng], {
+        icon: L.divIcon({
+          html: `<div style="
+            background:#fff;color:#111;border-radius:4px;
+            padding:2px 5px;font-size:10px;font-weight:900;
+            box-shadow:0 1px 5px rgba(0,0,0,.6);white-space:nowrap">H${hd.number}</div>`,
+          className: '', iconAnchor: [16, 8]
+        })
+      }).addTo(m);
     }
     if (hd.green) {
       const pos = [hd.green.lat, hd.green.lng];
@@ -2187,21 +2241,35 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
         const pColor = putts <= 1 ? '#52c41a' : putts === 2 ? '#1890ff' : '#ff4d4f';
         L.marker(pos, {
           icon: L.divIcon({
-            html: `<div style="background:${pColor};color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">+${putts}</div>`,
-            iconSize: [26,26], iconAnchor: [13,13], className: ''
+            html: `<div style="
+              background:${pColor};color:#fff;border-radius:50%;
+              width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+              font-size:12px;font-weight:900;border:2.5px solid #fff;
+              box-shadow:0 2px 8px rgba(0,0,0,.5)">${putts}🏌️</div>`,
+            iconSize: [28, 28], iconAnchor: [14, 14], className: ''
           })
         }).bindPopup(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`).addTo(m);
       } else {
-        L.circleMarker(pos, { radius: 6, color: '#228b22', fillColor: '#5cb85c', fillOpacity: 0.7, weight: 2 }).addTo(m);
+        // Unflagged green: small flag icon
+        L.marker(pos, {
+          icon: L.divIcon({
+            html: `<div style="
+              background:rgba(255,255,255,.85);border-radius:50%;
+              width:18px;height:18px;display:flex;align-items:center;
+              justify-content:center;font-size:11px;
+              box-shadow:0 1px 4px rgba(0,0,0,.4)">⛳</div>`,
+            iconSize: [18, 18], iconAnchor: [9, 9], className: ''
+          })
+        }).addTo(m);
       }
     }
   }
 
   if (allBounds.length) {
-    m.fitBounds(allBounds, { padding: [24, 24] });
-    setTimeout(() => { m.invalidateSize(); m.fitBounds(allBounds, { padding: [24, 24] }); }, 200);
+    m.fitBounds(allBounds, { padding: [28, 28] });
+    setTimeout(() => { m.invalidateSize(); m.fitBounds(allBounds, { padding: [28, 28] }); }, 200);
   } else {
-    m.setView([34.045, -118.418], 15);
+    m.setView([34.045, -118.418], 16);
   }
   return m;
 }
