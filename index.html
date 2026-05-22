@@ -1495,6 +1495,8 @@ const HOLE_RADIUS_M = 38;
 let autoTrack     = false;
 let atPhase       = 'idle';  // 'idle' | 'ready' | 'mid_shot'
 let atShotStart   = null;    // {lat,lng} — GPS position when first swing fired
+let atOnGreen     = false;   // true after green auto-trigger until player leaves green area
+let atGreenPos    = null;    // green center used for the current atOnGreen check
 let atStableRef   = null;    // {lat,lng} — GPS reference for stability check
 let atSettleTimer = null;
 let atSuggestedClub = null;
@@ -3708,6 +3710,7 @@ function atLearnSwing(yes) {
 // Executes the actual swing logic once confirmed.
 function atExecuteSwing() {
   if (!atShotStart) {
+    if (atOnGreen) return; // ignore swings (putts) while player is on the green
     if (!gpsPos) { toast('No GPS fix — move to open sky'); return; }
     atShotStart = { lat: gpsPos.lat, lng: gpsPos.lng };
     atPhase     = 'mid_shot';
@@ -3759,6 +3762,8 @@ function toggleAutoTrack() {
     atStableRef = null;
     atPhase     = 'idle';
     atLastSwing = 0;
+    atOnGreen   = false;
+    atGreenPos  = null;
     if (atMotionHandler) {
       window.removeEventListener('devicemotion', atMotionHandler);
       atMotionHandler = null;
@@ -3801,12 +3806,23 @@ function atGPSTick(pos) {
     const hd = courseHoles.find(h => h.number === currentHole);
     if (hd && hd.green) {
       const distToGreen = haversineM(pos.lat, pos.lng, hd.green.lat, hd.green.lng);
-      if (distToGreen < 25) {
+      if (distToGreen < 15) {
         const yards = haversine(atShotStart, pos);
         if (yards >= AT_MIN_YDS) {
+          atOnGreen  = true;
+          atGreenPos = { lat: hd.green.lat, lng: hd.green.lng };
           atFireShot(atShotStart, { lat: pos.lat, lng: pos.lng }, yards);
         }
       }
+    }
+  }
+
+  // Exit green-lock once player has walked far enough away (heading to next tee)
+  if (atOnGreen && atGreenPos) {
+    const distFromGreen = haversineM(pos.lat, pos.lng, atGreenPos.lat, atGreenPos.lng);
+    if (distFromGreen > 45) {
+      atOnGreen  = false;
+      atGreenPos = null;
     }
   }
 }
