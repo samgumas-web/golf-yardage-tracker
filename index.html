@@ -1525,6 +1525,7 @@ let atPendingFeatures= null; // features of swing awaiting confirmation
 let atConfirmTimer   = null; // auto-dismiss timer for confirm UI
 let atStableTime     = 0;    // timestamp when current stable phase began
 let atLearnData      = { shots: [], nonShots: [] };
+let atPoolData       = { shots: [], nonShots: [] }; // global training pool from all users
 
 // ── Scorecard ───────────────────────────────────────────────
 let roundScore     = {};
@@ -1563,6 +1564,7 @@ fbAuth.onAuthStateChanged(async user => {
     if (ul) ul.textContent = user.email;
     const hadFirebaseShots = await fbLoadUserData(user.uid);
     await fbLoadRounds(user.uid);
+    fbLoadTrainingPool();
     migrateLegacyData();
     initUserData();
     render();
@@ -2604,6 +2606,36 @@ async function fbSeedUserToPool(uid, trainData) {
   }
 }
 
+const AT_POOL_CACHE_KEY = 'gy_pool_cache';
+const AT_POOL_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+async function fbLoadTrainingPool() {
+  // Try localStorage cache first
+  try {
+    const cached = JSON.parse(localStorage.getItem(AT_POOL_CACHE_KEY) || 'null');
+    if (cached && (Date.now() - cached.ts) < AT_POOL_CACHE_TTL) {
+      atPoolData = { shots: cached.shots, nonShots: cached.nonShots };
+      return;
+    }
+  } catch {}
+
+  // Fetch from Firestore (up to 500 docs)
+  try {
+    const snap = await fbDb.collection('trainingPool').limit(500).get();
+    const shots = [], nonShots = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const s = { rot: d.rot || 0, acc: d.acc || 0, stable: d.stable || 0 };
+      if (d.type === 'SHOT') shots.push(s);
+      else nonShots.push(s);
+    });
+    atPoolData = { shots, nonShots };
+    localStorage.setItem(AT_POOL_CACHE_KEY, JSON.stringify({ shots, nonShots, ts: Date.now() }));
+  } catch (e) {
+    console.warn('fbLoadTrainingPool:', e);
+  }
+}
+
 function fbSaveCourseHoles(courseId, courseName, holes) {
   const docId = courseId.replace(/[^a-zA-Z0-9_-]/g, '_');
   fbDb.collection('courses').doc(docId)
@@ -3444,19 +3476,30 @@ function atExtractFeatures(buf) {
   return { rot: peakRot, acc: peakAcc, stable };
 }
 
+function atMergedData() {
+  // Personal data weighted 2x over pool data so the model stays personalised
+  const personal = atLearnData;
+  const pool     = atPoolData;
+  return {
+    shots:    [...personal.shots, ...personal.shots, ...pool.shots],
+    nonShots: [...personal.nonShots, ...personal.nonShots, ...pool.nonShots]
+  };
+}
+
 function atAdaptiveTrig() {
-  if (atLearnData.shots.length < 3) return AT_PRETRIG_DPS;
-  const minShot = Math.min(...atLearnData.shots.map(s => s.rot));
+  const { shots } = atMergedData();
+  if (shots.length < 3) return AT_PRETRIG_DPS;
+  const minShot = Math.min(...shots.map(s => s.rot));
   return Math.max(minShot * 0.75, 80);
 }
 
 function atIsTrained() {
-  return atLearnData.shots.length >= AT_TRAIN_SHOTS &&
-         atLearnData.nonShots.length >= AT_TRAIN_NON;
+  const { shots, nonShots } = atMergedData();
+  return shots.length >= AT_TRAIN_SHOTS && nonShots.length >= AT_TRAIN_NON;
 }
 
 function atScoreMotion(f) {
-  const { shots, nonShots } = atLearnData;
+  const { shots, nonShots } = atMergedData();
   if (shots.length < 3) return f.rot >= AT_SWING_DPS ? 0.9 : 0.1;
 
   const all = [...shots, ...nonShots];
@@ -3470,7 +3513,7 @@ function atScoreMotion(f) {
     0.1 * ((a.stable - b.stable) / maxStable) ** 2
   );
 
-  const k = Math.min(5, Math.max(1, Math.floor(all.length / 3)));
+  const k = Math.min(7, Math.max(1, Math.floor(all.length / 10)));
   const neighbors = [
     ...shots.map(s    => ({ f: s, lbl: 1 })),
     ...nonShots.map(s => ({ f: s, lbl: 0 }))
