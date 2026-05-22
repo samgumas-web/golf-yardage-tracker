@@ -2136,7 +2136,7 @@ function _rdMapGoToHole(idx) {
   const hNum = state.holeNums[state.curIdx];
   const hd   = (state.holes || []).find(h => h.number === hNum);
 
-  // Update header text
+  // Update header
   const titleEl = document.getElementById('rd-map-hole-title');
   const subEl   = document.getElementById('rd-map-sub');
   const prevBtn = document.getElementById('rd-map-prev');
@@ -2149,6 +2149,19 @@ function _rdMapGoToHole(idx) {
   if (prevBtn) prevBtn.style.opacity = state.curIdx === 0       ? '0.25' : '1';
   if (nextBtn) nextBtn.style.opacity = state.curIdx === len - 1 ? '0.25' : '1';
 
+  // ── Filter arc layers to current hole only ─────────────────
+  if (state.ml) {
+    const holeFilter = ['==', ['get', 'hole'], hNum];
+    ['arc-glow','arc-shadow','arc-line','arc-shine'].forEach(id => {
+      if (state.ml.getLayer(id)) state.ml.setFilter(id, holeFilter);
+    });
+  }
+
+  // ── Show only current hole's HTML markers ──────────────────
+  for (const { el, hole } of (state.markers || [])) {
+    el.style.display = hole === hNum ? '' : 'none';
+  }
+
   if (!hd || !state.ml) return;
 
   const tLat = hd.tee ? hd.tee.lat : hd.lat;
@@ -2157,26 +2170,28 @@ function _rdMapGoToHole(idx) {
   const gLng = hd.green ? hd.green.lng : tLng;
   if (!tLat || !tLng) return;
 
-  // Bearing: direction from tee to green (camera looks "down the fairway")
-  const bearing = Math.atan2(
+  // Fairway bearing (tee → green direction)
+  const fairwayBearing = Math.atan2(
     (gLng - tLng) * Math.cos(tLat * Math.PI / 180),
     gLat - tLat
   ) * 180 / Math.PI;
 
-  const dist = haversineM(tLat, tLng, gLat, gLng);
-  // Zoom out enough to see the whole hole; pitch compresses the far end
-  const zoom = Math.max(14.5, 17.5 - Math.log2(Math.max(dist / 55, 1)));
+  // Offset -65° from straight-down so camera views from the LEFT side
+  // of the fairway — the diagonal angle that looks most 3D
+  const bearing = fairwayBearing - 65;
 
-  // Place center 55% of the way from tee to green so tee appears in
-  // the lower foreground and green in the upper distance
-  const cLat = tLat * 0.45 + gLat * 0.55;
-  const cLng = tLng * 0.45 + gLng * 0.55;
+  const dist = haversineM(tLat, tLng, gLat, gLng);
+  const zoom = Math.max(14, 17.2 - Math.log2(Math.max(dist / 55, 1)));
+
+  // Center midway between tee and green
+  const cLat = (tLat + gLat) / 2;
+  const cLng = (tLng + gLng) / 2;
 
   state.ml.flyTo({
     center: [cLng, cLat],
     zoom,
     bearing,
-    pitch: 60,
+    pitch: 58,
     duration: 750,
     essential: true
   });
@@ -2273,7 +2288,7 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
       const pts   = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 40)
                       .map(p => [p[1], p[0]]); // [lat,lng] → [lng,lat]
       const feat  = (id, props) => ({ type: 'Feature', properties: { color, ...props }, geometry: { type: 'LineString', coordinates: pts } });
-      arcShadowFeatures.push(feat('sh', {}));
+      arcShadowFeatures.push(feat('sh', { hole: s.hole }));
       arcLineFeatures.push(feat('ln', { yards: s.yards, hole: s.hole, club: s.club }));
     }
 
@@ -2304,12 +2319,15 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
     });
 
     // ── HTML markers (shot numbers, tees, putts) ──────────────
-    const mk = (lngLat, html, anchor = [0, 0]) => {
+    const markers = [];  // tracked for per-hole show/hide
+    const mk = (lngLat, html, holeNum = null) => {
       const el = document.createElement('div');
       el.innerHTML = html;
-      new maplibregl.Marker({ element: el.firstElementChild, anchor: 'center' })
+      const markerEl = el.firstElementChild;
+      new maplibregl.Marker({ element: markerEl, anchor: 'center' })
         .setLngLat(lngLat)
         .addTo(ml);
+      if (holeNum != null) markers.push({ el: markerEl, hole: holeNum });
     };
 
     for (const s of validShots) {
@@ -2317,23 +2335,26 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
       const shotNum = (shotsByHole[s.hole] || []).indexOf(s) + 1;
 
       // Start dot
-      mk([s.sLng, s.sLat], `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6)"></div>`);
+      mk([s.sLng, s.sLat], `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6)"></div>`, s.hole);
 
       // Numbered landing badge
       const popup = new maplibregl.Popup({ offset: 14, closeButton: false })
         .setHTML(`<b>H${s.hole} Shot ${shotNum} · ${x(s.club)}</b><br>${s.yards} yds`);
       const el = document.createElement('div');
       el.innerHTML = `<div style="background:${color};color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6);cursor:pointer">${shotNum}</div>`;
-      new maplibregl.Marker({ element: el.firstElementChild, anchor: 'center' })
+      const landingEl = el.firstElementChild;
+      new maplibregl.Marker({ element: landingEl, anchor: 'center' })
         .setLngLat([s.eLng, s.eLat])
         .setPopup(popup)
         .addTo(ml);
+      markers.push({ el: landingEl, hole: s.hole });
 
       // Yardage label at arc midpoint
       const arc2d = _arcPoints(s.sLat, s.sLng, s.eLat, s.eLng, 40);
       const midPt = arc2d[Math.floor(arc2d.length / 2)];
       mk([midPt[1], midPt[0]],
-        `<div style="background:rgba(0,0,0,.75);color:#fff;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5)">${s.yards}y</div>`
+        `<div style="background:rgba(0,0,0,.75);color:#fff;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5)">${s.yards}y</div>`,
+        s.hole
       );
     }
 
@@ -2343,7 +2364,8 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
       const tLng = hd.tee ? hd.tee.lng : hd.lng;
       if (tLat && tLng) {
         mk([tLng, tLat],
-          `<div style="background:rgba(0,0,0,.72);color:#fff;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:900;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.6)">H${hd.number}</div>`
+          `<div style="background:rgba(0,0,0,.72);color:#fff;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:900;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.6)">H${hd.number}</div>`,
+          hd.number
         );
       }
       if (hd.green) {
@@ -2355,13 +2377,16 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
             .setHTML(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`);
           const pe = document.createElement('div');
           pe.innerHTML = `<div style="background:${pColor};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer">${putts}⛳</div>`;
-          new maplibregl.Marker({ element: pe.firstElementChild, anchor: 'center' })
+          const puttEl = pe.firstElementChild;
+          new maplibregl.Marker({ element: puttEl, anchor: 'center' })
             .setLngLat([hd.green.lng, hd.green.lat])
             .setPopup(pPopup)
             .addTo(ml);
+          markers.push({ el: puttEl, hole: hd.number });
         } else {
           mk([hd.green.lng, hd.green.lat],
-            `<div style="background:rgba(255,255,255,.8);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.4)">⛳</div>`
+            `<div style="background:rgba(255,255,255,.8);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.4)">⛳</div>`,
+            hd.number
           );
         }
       }
@@ -2375,7 +2400,7 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
 
     // Only set up hole nav if this is the round-detail map (has nav buttons)
     if (document.getElementById('rd-map-prev') && mapDivId === 'rd-map') {
-      _rdMapState = { ml, holes: holesData || [], shots: roundShots || [], scoreData: roundScoreData || {}, holeNums, curIdx: 0 };
+      _rdMapState = { ml, holes: holesData || [], shots: roundShots || [], scoreData: roundScoreData || {}, holeNums, curIdx: 0, markers };
       // Fly to hole 1 immediately (the "looking down the fairway" angle)
       _rdMapGoToHole(0);
     } else {
