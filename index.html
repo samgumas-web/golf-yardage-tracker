@@ -1253,16 +1253,16 @@
       </div>
     </div>
     <div class="card" style="padding:0;overflow:hidden;flex-shrink:0">
-      <div style="padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between">
-        <span class="label">Shot Map</span>
-        <span id="rd-map-sub" style="font-size:11px;color:var(--muted)">loading...</span>
-      </div>
-      <div style="position:relative;height:300px;overflow:hidden;border-radius:0 0 14px 14px;background:#1a2e1a">
-        <div id="rd-map" style="width:100%;height:300px"></div>
-        <div id="rd-map-msg" style="display:none;position:absolute;inset:0;background:var(--card);align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:13px;text-align:center;padding:20px">
-          <div style="font-size:28px">📍</div>
-          <div id="rd-map-msg-text">No course data for this round.</div>
+      <div style="padding:8px 6px 8px 14px;display:flex;align-items:center;gap:4px;background:var(--card2)">
+        <button onclick="_rdMapPrevHole()" id="rd-map-prev" style="background:none;border:none;color:var(--green-light);font-size:26px;line-height:1;cursor:pointer;padding:2px 8px;opacity:0.4;transition:opacity .2s">‹</button>
+        <div style="flex:1;text-align:center">
+          <div id="rd-map-hole-title" style="font-size:13px;font-weight:900;color:var(--green-light);letter-spacing:.3px">Shot Map</div>
+          <div id="rd-map-sub" style="font-size:11px;color:var(--muted);margin-top:1px">loading…</div>
         </div>
+        <button onclick="_rdMapNextHole()" id="rd-map-next" style="background:none;border:none;color:var(--green-light);font-size:26px;line-height:1;cursor:pointer;padding:2px 8px;transition:opacity .2s">›</button>
+      </div>
+      <div style="position:relative;height:300px;overflow:hidden;border-radius:0 0 14px 14px;background:#0d1f0d">
+        <div id="rd-map" style="width:100%;height:300px"></div>
       </div>
     </div>
     <div class="card" id="rd-hole-grid"></div>
@@ -1532,8 +1532,9 @@ let roundStartedAt = null;   // ISO string — set on first stroke entry
 
 // ── Past rounds ─────────────────────────────────────────────
 let pastRounds     = [];
-let sumMap         = null;   // Leaflet map instance in summary screen
-let detailMap      = null;   // Leaflet map instance in round-detail screen
+let sumMap         = null;   // MapLibre map instance in summary screen
+let detailMap      = null;   // MapLibre map instance in round-detail screen
+let _rdMapState    = null;   // hole-by-hole nav state for round-detail shot map
 let viewingRoundId = null;   // id of the past round currently open
 
 // ── Auto-shot GPS capture ────────────────────────────────────
@@ -2125,6 +2126,65 @@ function _arcPoints(lat1, lng1, lat2, lng2, nPts) {
   return pts;
 }
 
+// ── Shot map hole-by-hole navigation ─────────────────────────
+function _rdMapGoToHole(idx) {
+  if (!_rdMapState) return;
+  const state = _rdMapState;
+  const len   = state.holeNums.length;
+  if (!len) return;
+  state.curIdx = ((idx % len) + len) % len;
+  const hNum = state.holeNums[state.curIdx];
+  const hd   = (state.holes || []).find(h => h.number === hNum);
+
+  // Update header text
+  const titleEl = document.getElementById('rd-map-hole-title');
+  const subEl   = document.getElementById('rd-map-sub');
+  const prevBtn = document.getElementById('rd-map-prev');
+  const nextBtn = document.getElementById('rd-map-next');
+  const entry   = (state.scoreData || {})[hNum] || {};
+  const score   = entry.strokes != null ? entry.strokes : null;
+  const putts   = entry.putts   != null ? entry.putts   : null;
+  if (titleEl) titleEl.textContent = `Hole ${hNum}` + (hd && hd.par ? ` · Par ${hd.par}` : '');
+  if (subEl)   subEl.textContent   = score != null ? `${score} strokes · ${putts} putts` : 'no score';
+  if (prevBtn) prevBtn.style.opacity = state.curIdx === 0       ? '0.25' : '1';
+  if (nextBtn) nextBtn.style.opacity = state.curIdx === len - 1 ? '0.25' : '1';
+
+  if (!hd || !state.ml) return;
+
+  const tLat = hd.tee ? hd.tee.lat : hd.lat;
+  const tLng = hd.tee ? hd.tee.lng : hd.lng;
+  const gLat = hd.green ? hd.green.lat : tLat;
+  const gLng = hd.green ? hd.green.lng : tLng;
+  if (!tLat || !tLng) return;
+
+  // Bearing: direction from tee to green (camera looks "down the fairway")
+  const bearing = Math.atan2(
+    (gLng - tLng) * Math.cos(tLat * Math.PI / 180),
+    gLat - tLat
+  ) * 180 / Math.PI;
+
+  const dist = haversineM(tLat, tLng, gLat, gLng);
+  // Zoom out enough to see the whole hole; pitch compresses the far end
+  const zoom = Math.max(14.5, 17.5 - Math.log2(Math.max(dist / 55, 1)));
+
+  // Place center 55% of the way from tee to green so tee appears in
+  // the lower foreground and green in the upper distance
+  const cLat = tLat * 0.45 + gLat * 0.55;
+  const cLng = tLng * 0.45 + gLng * 0.55;
+
+  state.ml.flyTo({
+    center: [cLng, cLat],
+    zoom,
+    bearing,
+    pitch: 60,
+    duration: 750,
+    essential: true
+  });
+}
+
+function _rdMapPrevHole() { if (_rdMapState) _rdMapGoToHole(_rdMapState.curIdx - 1); }
+function _rdMapNextHole() { if (_rdMapState) _rdMapGoToHole(_rdMapState.curIdx + 1); }
+
 function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roundScoreData) {
   const container = document.getElementById(mapDivId);
   if (!container) return null;
@@ -2307,13 +2367,26 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
       }
     }
 
-    // Fit viewport to all course/shot points
-    if (allLngLat.length > 1) {
-      const bounds = allLngLat.reduce(
-        (b, c) => b.extend(c),
-        new maplibregl.LngLatBounds(allLngLat[0], allLngLat[0])
-      );
-      ml.fitBounds(bounds, { padding: 52, pitch: 52, bearing: -18, duration: 600, maxZoom: 18 });
+    // Hole-by-hole navigation: collect sorted hole numbers
+    const holeNums = [...new Set([
+      ...(holesData || []).map(h => h.number),
+      ...(roundShots || []).map(s => s.hole)
+    ])].filter(Boolean).sort((a, b) => a - b);
+
+    // Only set up hole nav if this is the round-detail map (has nav buttons)
+    if (document.getElementById('rd-map-prev') && mapDivId === 'rd-map') {
+      _rdMapState = { ml, holes: holesData || [], shots: roundShots || [], scoreData: roundScoreData || {}, holeNums, curIdx: 0 };
+      // Fly to hole 1 immediately (the "looking down the fairway" angle)
+      _rdMapGoToHole(0);
+    } else {
+      // Summary screen: bird's-eye overview of full round
+      if (allLngLat.length > 1) {
+        const bounds = allLngLat.reduce(
+          (b, c) => b.extend(c),
+          new maplibregl.LngLatBounds(allLngLat[0], allLngLat[0])
+        );
+        ml.fitBounds(bounds, { padding: 52, pitch: 52, bearing: -18, duration: 600, maxZoom: 18 });
+      }
     }
   });
 
@@ -2392,9 +2465,10 @@ function openRoundDetail(roundId) {
 
   document.getElementById('rd-club-dist').innerHTML = _renderClubDist(round.shots || []);
 
-  // Tear down previous map safely (detailMap may be null, a Leaflet instance, or stale)
+  // Tear down previous map safely
   if (detailMap && typeof detailMap.remove === 'function') { detailMap.remove(); }
   detailMap = null;
+  _rdMapState = null;
 
   showScreen('scr-round-detail');
 
