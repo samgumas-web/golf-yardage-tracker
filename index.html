@@ -5328,25 +5328,24 @@ function rOpenCard() {
   rBuildClubChips();
   rRefreshDist();
 
-  const logBtn     = document.getElementById('range-log-btn');
   const swingSect  = document.getElementById('range-swing-section');
+  const detailSect = document.getElementById('range-detail-section');
   const cardTitle  = document.getElementById('range-card-title');
   const yesBtn     = document.getElementById('range-yes-btn');
 
-  // Reset Yes button state
   yesBtn.style.opacity = '1';
   yesBtn.style.pointerEvents = 'auto';
 
   if (rIsManual) {
+    // Manual: skip Yes/No entirely, go straight to club + distance
     swingSect.style.display = 'none';
+    detailSect.style.display = 'block';
     cardTitle.textContent = 'Log a Shot';
-    logBtn.style.opacity = '1';
-    logBtn.style.pointerEvents = 'auto';
   } else {
+    // Swing detected: show only Yes/No first, hide club + distance
     swingSect.style.display = 'flex';
-    cardTitle.textContent = 'Swing Detected';
-    logBtn.style.opacity = '.35';
-    logBtn.style.pointerEvents = 'none';
+    detailSect.style.display = 'none';
+    cardTitle.textContent = 'Was that a swing?';
   }
 
   document.getElementById('range-shot-card').classList.add('open');
