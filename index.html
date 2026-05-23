@@ -5315,13 +5315,14 @@ function rOnSwingDetected(features) {
   rOpenCard();
 
   rConfirmTimer = setTimeout(() => {
-    if (rPhase === 'swing_confirm') {
+    // Only auto-dismiss if user hasn't tapped Yes yet (rSwingConfirmed would be true if they had)
+    if (rPhase === 'swing_confirm' && !rSwingConfirmed) {
       rPendingFeatures = null;
       rPhase = 'armed';
       dismissRangeCard();
       rLastSwing = 0;
     }
-  }, 15000);
+  }, 25000);
 }
 
 function rOpenCard() {
