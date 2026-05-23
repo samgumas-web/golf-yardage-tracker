@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1839,7 +1839,7 @@ function renderSavedCourses() {
   document.getElementById('saved-courses-list').innerHTML = list.map((c, i) => {
     const dist = gpsPos ? `<div class="course-dist">${fmtDist(haversineM(gpsPos.lat, gpsPos.lng, c.lat, c.lng))} away</div>` : '';
     return `<div class="course-item" style="padding-right:4px">
-      <div style="font-size:22px">🏌️</div>
+      <div style="width:32px;height:32px;border-radius:6px;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green-light);font-size:13px;font-weight:700">◉</div>
       <div style="flex:1;min-width:0;cursor:pointer" onclick="selectCourse(window._savedCourses[${i}])">
         <div class="course-name">${x(c.name)}</div>
         ${dist}
@@ -2467,7 +2467,7 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
           const pPopup = new maplibregl.Popup({ offset: 14, closeButton: false })
             .setHTML(`H${hd.number}: ${putts} putt${putts !== 1 ? 's' : ''}`);
           const pe = document.createElement('div');
-          pe.innerHTML = `<div style="background:${pColor};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer">${putts}⛳</div>`;
+          pe.innerHTML = `<div style="background:${pColor};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer">${putts}</div>`;
           const puttEl = pe.firstElementChild;
           new maplibregl.Marker({ element: puttEl, anchor: 'center' })
             .setLngLat([hd.green.lng, hd.green.lat])
@@ -2476,7 +2476,7 @@ function _renderShotMapWithPutts(mapDivId, msgDivId, roundShots, holesData, roun
           markers.push({ el: puttEl, hole: hd.number });
         } else {
           mk([hd.green.lng, hd.green.lat],
-            `<div style="background:rgba(255,255,255,.8);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.4)">⛳</div>`,
+            `<div style="background:rgba(255,255,255,.8);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.4)">●</div>`,
             hd.number
           );
         }
@@ -2514,7 +2514,7 @@ function renderRoundsList() {
   const el = document.getElementById('rounds-list');
   if (!el) return;
   if (!pastRounds.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-ico">🏆</div><div class="empty-txt">No rounds saved yet.<br>Complete 18 holes to save your first round.</div></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-txt">No rounds saved yet.<br>Complete 18 holes to save your first round.</div></div>`;
     return;
   }
   const REL_COLOR = { neg: 'var(--blue)', zero: 'var(--green-light)', pos: '#ff7875' };
@@ -2652,7 +2652,7 @@ async function forceUploadToPool() {
   // Bust the local cache so fbLoadTrainingPool fetches fresh data immediately
   localStorage.removeItem(AT_POOL_CACHE_KEY);
   await fbLoadTrainingPool();
-  if (btn) { btn.disabled = false; btn.textContent = '⬆ Upload Swing Data Now'; }
+  if (btn) { btn.disabled = false; btn.textContent = '↑ Upload Swing Data Now'; }
   toast(`Uploaded ${atLearnData.shots.length} shots + ${atLearnData.nonShots.length} non-shots to pool`);
 }
 
@@ -3104,7 +3104,7 @@ function renderCourseList(courses) {
   ct.textContent = `${courses.length} found`;
   list.innerHTML = courses.slice(0, 20).map((c, i) => `
     <div class="course-item" onclick="selectCourse(${i})">
-      <div style="font-size:22px">🏌️</div>
+      <div style="width:32px;height:32px;border-radius:6px;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green-light);font-size:13px;font-weight:700">◉</div>
       <div style="flex:1;min-width:0">
         <div class="course-name">${x(c.name)}</div>
         <div class="course-dist">${fmtDist(c.distance)} away</div>
@@ -4047,7 +4047,7 @@ function clearHole(n) {
   saveTees(selectedCourse.osmId, courseHoles);
   refreshHoleMarkers();
   renderHolesList();
-  toast(`Hole ${n} cleared — tap ⛳ Mark Holes to re-mark`);
+  toast(`Hole ${n} cleared — tap Mark Holes to re-mark`);
 }
 
 function renderHolesList() {
@@ -4064,7 +4064,7 @@ function renderHolesList() {
   if (oc) oc.textContent = `${complete}/18`;
 
   if (!courseHoles.length) {
-    el.innerHTML = `<div class="empty" style="padding:20px 0"><div class="empty-ico">🚩</div><div class="empty-txt">Tap <strong>Mark Holes</strong> above to start mapping the course.</div></div>`;
+    el.innerHTML = `<div class="empty" style="padding:20px 0"><div class="empty-txt">Tap <strong>Mark Holes</strong> above to start mapping the course.</div></div>`;
     return;
   }
 
@@ -4161,24 +4161,24 @@ async function simulateAutoShot() {
   // ══ SHOT 1: tee → fairway ════════════════════════════════
 
   // 1a. Stand at tee (4 ticks; timer fires after 3 s → 'ready')
-  toast('📍 SIM: Standing at tee box…');
+  toast('SIM: Standing at tee box…');
   await stand(teeLat, teeLng, 4);
 
   // 1b. Swing to mark shot 1 start
-  toast('🏌️ SIM: Swing! Tee shot started…');
+  toast('SIM: Swing! Tee shot started…');
   _simSwing();
   await _simWait(400);
 
   // 1c. Walk to ball (~200 yds)
-  toast('🚶 SIM: Walking 200 yds…');
+  toast('SIM: Walking 200 yds…');
   await walk(teeLat, teeLng, fairPos.lat, fairPos.lng, 14, 600);
 
   // 1d. Stand at ball (4 ticks → 'ready')
-  toast('⛳ SIM: Found ball — standing still…');
+  toast('SIM: Found ball — standing still…');
   await stand(fairPos.lat, fairPos.lng, 4);
 
   // 1e. Swing to end shot 1 → fires card
-  toast('🏌️ SIM: Swing! Recording tee shot…');
+  toast('SIM: Swing! Recording tee shot…');
   _simSwing();
   await _simWait(800);
 
@@ -4190,24 +4190,24 @@ async function simulateAutoShot() {
   // ══ SHOT 2: fairway → green ══════════════════════════════
 
   // 2a. Stand at fairway again (4 ticks → 'ready')
-  toast('📍 SIM: Setting up approach shot…');
+  toast('SIM: Setting up approach shot…');
   await stand(fairPos.lat, fairPos.lng, 4);
 
   // 2b. Swing to mark shot 2 start
-  toast('🏌️ SIM: Swing! Approach started…');
+  toast('SIM: Swing! Approach started…');
   _simSwing();
   await _simWait(400);
 
   // 2c. Walk to green
-  toast('🚶 SIM: Walking to the green…');
+  toast('SIM: Walking to the green…');
   await walk(fairPos.lat, fairPos.lng, greenPos.lat, greenPos.lng, 14, 600);
 
   // 2d. Stand at green (4 ticks → 'ready')
-  toast('⛳ SIM: On the green — standing still…');
+  toast('SIM: On the green — standing still…');
   await stand(greenPos.lat, greenPos.lng, 4);
 
   // 2e. Swing to end shot 2 → fires card
-  toast('🏌️ SIM: Swing! Recording approach…');
+  toast('SIM: Swing! Recording approach…');
   _simSwing();
   await _simWait(800);
 
@@ -4339,7 +4339,7 @@ async function simulateFullRound() {
       currentHole = hNum;
       updateHoleDisplay(); refreshHoleMarkers();
       if (hd) zoomToHole(hNum);
-      toast(`⛳ Hole ${hNum} of 18`);
+      toast(`Hole ${hNum} of 18`);
       await _simWait(300);
 
       if (hd) {
@@ -4838,7 +4838,7 @@ function renderClubs() {
   document.getElementById('bag-ct').textContent = `${clubs.length} clubs`;
   const u = unitStr().toLowerCase();
   if (!clubs.length) {
-    ul.innerHTML = `<div class="empty"><div class="empty-ico">🏌️</div><div class="empty-txt">No clubs yet.</div></div>`;
+    ul.innerHTML = `<div class="empty"><div class="empty-txt">No clubs yet.</div></div>`;
     return;
   }
   ul.innerHTML = clubs.map((c,i) => {
@@ -4875,7 +4875,7 @@ function renderHistory() {
   ).join('');
   const visible = filter==='All' ? shots : shots.filter(s=>s.club===filter);
   if (!visible.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">${!shots.length?'No shots yet.':'No shots for this club.'}</div></div>`;
+    list.innerHTML = `<div class="empty"><div class="empty-txt">${!shots.length?'No shots yet.':'No shots for this club.'}</div></div>`;
     wrap.innerHTML = ''; return;
   }
   list.innerHTML = visible.map(s => {
@@ -4994,7 +4994,7 @@ function renderAC() {
   if (!_acResults.length) { _acDrop.innerHTML = `<div class="ac-spin" style="color:var(--muted)">No courses found</div>`; return; }
   _acDrop.innerHTML = _acResults.map((c, i) => `
     <div class="ac-item" onmousedown="pickAC(${i})">
-      <span style="font-size:20px">🏌️</span>
+      <span style="width:28px;height:28px;border-radius:5px;background:var(--card2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green-light);font-size:12px;font-weight:700">◉</span>
       <div style="min-width:0">
         <div class="ac-name">${x(c.name)}</div>
         ${c.distance > 0 ? `<div class="ac-dist">${fmtDist(c.distance)} away</div>` : ''}
@@ -5034,7 +5034,7 @@ function renderMainBag() {
   document.getElementById('mb-ct').textContent = `${clubs.length} clubs`;
   const u = (useYards ? 'yds' : 'm');
   if (!clubs.length) {
-    ul.innerHTML = `<div class="empty"><div class="empty-ico">🏌️</div><div class="empty-txt">No clubs yet. Add one below.</div></div>`;
+    ul.innerHTML = `<div class="empty"><div class="empty-txt">No clubs yet. Add one below.</div></div>`;
     return;
   }
   ul.innerHTML = clubs.map((c, i) => {
@@ -5310,7 +5310,7 @@ function renderStats() {
   if (!clubsWithShots.length) {
     document.getElementById('stats-clubs').innerHTML = `
       <div class="card-head"><span class="label">Club Distances</span></div>
-      <div class="empty" style="padding:24px 0"><div class="empty-ico">📊</div><div class="empty-txt">Track some shots to see your club stats here.</div></div>`;
+      <div class="empty" style="padding:24px 0"><div class="empty-txt">Track some shots to see your club stats here.</div></div>`;
     return;
   }
 
