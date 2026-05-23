@@ -1586,6 +1586,43 @@
   </div>
 </div>
 
+<!-- RANGE: Swing detected card (slides up from bottom) -->
+<div id="range-shot-card" class="range-card">
+  <div class="panel-handle" style="margin:12px auto 18px;cursor:pointer" onclick="dismissRangeCard()"></div>
+
+  <div class="label" style="color:var(--green-light);margin-bottom:10px">Swing Detected</div>
+
+  <!-- Yes / No training row -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div style="font-size:15px;font-weight:700;color:var(--text)">Was that a swing?</div>
+    <div style="display:flex;gap:8px">
+      <button class="at-cfm-btn no" onclick="rLearnSwing(false)">No</button>
+      <button class="at-cfm-btn yes" id="range-yes-btn" onclick="rLearnSwing(true)">Yes</button>
+    </div>
+  </div>
+
+  <!-- Club picker -->
+  <div style="margin-bottom:18px">
+    <div class="label" style="margin-bottom:8px">Club Used</div>
+    <div class="range-club-scroll" id="range-club-scroll"></div>
+  </div>
+
+  <!-- Distance display + slider -->
+  <div style="margin-bottom:22px">
+    <div class="label" style="margin-bottom:10px">Distance</div>
+    <div class="range-dist-num" id="range-dist-num">—</div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px;font-weight:700;letter-spacing:.5px">YDS</div>
+    <input type="range" class="range-slider" id="range-slider" min="0" max="450" step="1" value="150" oninput="rOnSlider(this.value)">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px">
+      <span>0 yds</span><span>450 yds</span>
+    </div>
+  </div>
+
+  <!-- Log button (only active after Yes tapped) -->
+  <button class="btn btn-p" id="range-log-btn" onclick="rLogShot()" style="font-size:15px;padding:14px;opacity:.35;pointer-events:none">Log Shot</button>
+</div>
+<div id="range-backdrop" onclick="dismissRangeCard()"></div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
