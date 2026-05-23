@@ -5203,7 +5203,7 @@ function mainTab(name) {
 
 // ── Range Mode ─────────────────────────────────────────────
 let rMode            = false;
-let rPhase           = 'idle';   // 'idle' | 'armed' | 'swing_confirm' | 'confirmed'
+let rPhase           = 'idle';   // 'idle' | 'armed' | 'swing_confirm'
 let rMotionHandler   = null;
 let rPendingFeatures = null;
 let rConfirmTimer    = null;
@@ -5211,6 +5211,7 @@ let rLastSwing       = 0;
 let rSelectedClub    = null;
 let rSliderVal       = 150;
 let rSwingConfirmed  = false;
+let rIsManual        = false;    // true when card opened via "Log Shot Manually"
 let rSessionShots    = [];       // shots logged this range session
 
 function getClubExpectedDist(name) {
