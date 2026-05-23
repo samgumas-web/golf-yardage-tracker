@@ -920,6 +920,103 @@
   .sc-bogey  { background: #7a4000; color: var(--orange); }
   .sc-double { background: #5c0000; color: #ff7875; }
   .sc-triple { background: #3a0000; color: #ff4d4f; }
+
+  /* ── Range Mode ──────────────────────────────────────── */
+  .range-armed-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    background: rgba(122,170,46,.1);
+    border: 1.5px solid var(--green-mid);
+    border-radius: 12px;
+  }
+  .range-card {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    max-width: 520px;
+    margin: 0 auto;
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 0 16px 40px;
+    z-index: 800;
+    box-shadow: 0 -6px 40px rgba(0,0,0,.7);
+    transform: translateY(100%);
+    transition: transform .32s cubic-bezier(.4,0,.2,1);
+  }
+  .range-card.open { transform: translateY(0); }
+  #range-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 799;
+    display: none;
+  }
+  .range-club-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+  }
+  .range-club-scroll::-webkit-scrollbar { display: none; }
+  .range-club-chip {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--card2);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: border-color .15s, background .15s;
+  }
+  .range-club-chip.sel {
+    border-color: var(--green);
+    background: rgba(122,170,46,.15);
+    color: var(--green-light);
+  }
+  .range-dist-num {
+    font-size: 80px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -4px;
+    text-align: center;
+    color: var(--text);
+  }
+  .range-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  .range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--green);
+    cursor: pointer;
+    border: 3px solid var(--surface);
+    box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  }
+  .range-slider::-moz-range-thumb {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--green);
+    cursor: pointer;
+    border: 3px solid var(--surface);
+  }
+  .range-shot-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .range-shot-row:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
