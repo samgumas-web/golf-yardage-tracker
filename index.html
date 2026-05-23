@@ -1150,7 +1150,10 @@
           <div class="dot active"></div>
           <span style="font-size:14px;font-weight:700;color:var(--text)" id="range-status-lbl">Armed — waiting for swing...</span>
         </div>
-        <button onclick="toggleRangeMode()" style="background:none;border:1.5px solid var(--red);color:var(--red);border-radius:20px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">End Session</button>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button onclick="rManualLog()" style="background:var(--card2);border:1.5px solid var(--border);color:var(--text);border-radius:20px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log Shot Manually</button>
+          <button onclick="toggleRangeMode()" style="background:none;border:1.5px solid var(--red);color:var(--red);border-radius:20px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">End Session</button>
+        </div>
       </div>
     </div>
 
