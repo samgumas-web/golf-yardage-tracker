@@ -5291,18 +5291,24 @@ function rOnSwingDetected(features) {
   const now = Date.now();
   if (now - rLastSwing < AT_SWING_DEBOUNCE_MS) return;
   if (rPhase !== 'armed') return;
-  rLastSwing = now;
 
+  // Run k-NN classifier when trained — filter obvious false positives
+  // (pocket shuffles, dropped phone, etc.) but always prompt when untrained
+  if (atIsTrained()) {
+    const score = atScoreMotion(features);
+    if (score < 0.20) return;  // very low confidence → not a swing
+  }
+
+  rLastSwing = now;
   rPendingFeatures = features;
   rPhase = 'swing_confirm';
+  rIsManual = false;
   rSwingConfirmed = false;
 
-  // Default to last used range club or first club
-  if (!rSelectedClub && clubs.length) {
-    rSelectedClub = clubs[0].name;
-  }
+  if (!rSelectedClub && clubs.length) rSelectedClub = clubs[0].name;
   rSliderVal = rSelectedClub ? getClubExpectedDist(rSelectedClub) : 150;
 
+  navigator.vibrate?.([30]);
   rOpenCard();
 
   rConfirmTimer = setTimeout(() => {
