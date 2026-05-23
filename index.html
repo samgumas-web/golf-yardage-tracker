@@ -5183,7 +5183,7 @@ function hideAC() {
 }
 
 // ── Main tabs (home screen) ────────────────────────────────
-const MAIN_TABS = ['courses', 'bag', 'stats', 'rounds'];
+const MAIN_TABS = ['courses', 'bag', 'stats', 'rounds', 'range'];
 
 function mainTab(name) {
   MAIN_TABS.forEach(t => {
@@ -5191,10 +5191,237 @@ function mainTab(name) {
     document.getElementById('mnav-' + t).classList.toggle('on', t === name);
   });
   if (name === 'rounds') renderRoundsList();
-  const subs = { courses: 'Select your course to start', bag: 'My Bag', stats: 'Shot Stats' };
-  document.getElementById('main-hdr-sub').textContent = subs[name];
+  const subs = { courses: 'Select your course to start', bag: 'My Bag', stats: 'Shot Stats', range: 'Range' };
+  document.getElementById('main-hdr-sub').textContent = subs[name] || '';
   if (name === 'bag')   renderMainBag();
   if (name === 'stats') renderStats();
+  if (name === 'range') renderRangeTab();
+}
+
+// ── Range Mode ─────────────────────────────────────────────
+let rMode            = false;
+let rPhase           = 'idle';   // 'idle' | 'armed' | 'swing_confirm' | 'confirmed'
+let rMotionHandler   = null;
+let rPendingFeatures = null;
+let rConfirmTimer    = null;
+let rLastSwing       = 0;
+let rSelectedClub    = null;
+let rSliderVal       = 150;
+let rSwingConfirmed  = false;
+let rSessionShots    = [];       // shots logged this range session
+
+function getClubExpectedDist(name) {
+  const c = clubs.find(c => c.name === name);
+  if (!c) return 150;
+  if (c.manualYards) return c.manualYards;
+  if (c.shots && c.shots.length) return Math.round(c.shots.reduce((a, b) => a + b, 0) / c.shots.length);
+  return 150;
+}
+
+function toggleRangeMode() {
+  if (rMode) {
+    rMode = false;
+    rPhase = 'idle';
+    if (rMotionHandler) {
+      window.removeEventListener('devicemotion', rMotionHandler);
+      rMotionHandler = null;
+    }
+    clearTimeout(rConfirmTimer);
+    dismissRangeCard();
+    document.getElementById('range-inactive-ui').style.display = '';
+    document.getElementById('range-active-ui').style.display = 'none';
+    return;
+  }
+
+  rMode = true;
+  rSessionShots = [];
+  renderRangeTab();
+  document.getElementById('range-inactive-ui').style.display = 'none';
+  document.getElementById('range-active-ui').style.display = '';
+
+  const startListening = () => {
+    rPhase = 'armed';
+    rMotionHandler = rMotionTick;
+    window.addEventListener('devicemotion', rMotionHandler, { passive: true });
+    document.getElementById('range-status-lbl').textContent = 'Armed — waiting for swing…';
+  };
+
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then(s => {
+      if (s === 'granted') startListening();
+      else { toast('Motion permission denied'); toggleRangeMode(); }
+    }).catch(() => { toast('Could not get motion permission'); toggleRangeMode(); });
+  } else {
+    startListening();
+  }
+}
+
+function rMotionTick(e) {
+  if (rPhase !== 'armed') return;
+
+  const rr = e.rotationRate;
+  const ai = e.accelerationIncludingGravity;
+  const a  = e.acceleration;
+
+  const rotA = Math.abs(rr?.alpha || 0);
+  const rotB = Math.abs(rr?.beta  || 0);
+  const rotG = Math.abs(rr?.gamma || 0);
+  const rot  = Math.max(rotA, rotB, rotG);
+
+  let acc = 0;
+  if (ai) acc = Math.sqrt((ai.x||0)**2 + (ai.y||0)**2 + (ai.z||0)**2);
+  const accY = a ? Math.abs(a.y || 0) : (ai ? Math.abs((ai.y||0) - 9.8) : 0);
+
+  atMotionBuf.push({ t: Date.now(), rot, acc, accY, rotA, rotB, rotG });
+  const cutoff = Date.now() - 1500;
+  while (atMotionBuf.length && atMotionBuf[0].t < cutoff) atMotionBuf.shift();
+
+  const trig = atIsTrained() ? atAdaptiveTrig() : AT_PRETRIG_DPS;
+  if (rot >= trig || acc >= AT_SWING_G) {
+    rOnSwingDetected(atExtractFeatures(atMotionBuf));
+  }
+}
+
+function rOnSwingDetected(features) {
+  const now = Date.now();
+  if (now - rLastSwing < AT_SWING_DEBOUNCE_MS) return;
+  if (rPhase !== 'armed') return;
+  rLastSwing = now;
+
+  rPendingFeatures = features;
+  rPhase = 'swing_confirm';
+  rSwingConfirmed = false;
+
+  // Default to last used range club or first club
+  if (!rSelectedClub && clubs.length) {
+    rSelectedClub = clubs[0].name;
+  }
+  rSliderVal = rSelectedClub ? getClubExpectedDist(rSelectedClub) : 150;
+
+  rOpenCard();
+
+  rConfirmTimer = setTimeout(() => {
+    if (rPhase === 'swing_confirm') {
+      rPendingFeatures = null;
+      rPhase = 'armed';
+      dismissRangeCard();
+      rLastSwing = 0;
+    }
+  }, 15000);
+}
+
+function rOpenCard() {
+  rBuildClubChips();
+  rRefreshDist();
+  const logBtn = document.getElementById('range-log-btn');
+  logBtn.style.opacity = '.35';
+  logBtn.style.pointerEvents = 'none';
+  document.getElementById('range-shot-card').classList.add('open');
+  document.getElementById('range-backdrop').style.display = 'block';
+}
+
+function dismissRangeCard() {
+  document.getElementById('range-shot-card').classList.remove('open');
+  document.getElementById('range-backdrop').style.display = 'none';
+  clearTimeout(rConfirmTimer);
+  rPendingFeatures = null;
+  rSwingConfirmed = false;
+  if (rMode) rPhase = 'armed';
+}
+
+function rLearnSwing(yes) {
+  clearTimeout(rConfirmTimer);
+  if (rPendingFeatures) {
+    if (yes) atLearnData.shots.push(rPendingFeatures);
+    else     atLearnData.nonShots.push(rPendingFeatures);
+    atSaveLearnData();
+    fbPoolTrainingSample(rPendingFeatures, yes ? 'SHOT' : 'NOT_SHOT');
+  }
+  if (!yes) {
+    rPendingFeatures = null;
+    rPhase = 'armed';
+    rLastSwing = 0;
+    dismissRangeCard();
+    return;
+  }
+  // Yes: enable the log button, mark confirmed
+  rSwingConfirmed = true;
+  const logBtn = document.getElementById('range-log-btn');
+  logBtn.style.opacity = '1';
+  logBtn.style.pointerEvents = 'auto';
+  document.getElementById('range-yes-btn').style.opacity = '.5';
+  document.getElementById('range-yes-btn').style.pointerEvents = 'none';
+}
+
+function rBuildClubChips() {
+  const el = document.getElementById('range-club-scroll');
+  if (!clubs.length) {
+    el.innerHTML = '<span style="font-size:13px;color:var(--muted)">No clubs in bag — add clubs in My Bag first.</span>';
+    return;
+  }
+  el.innerHTML = clubs.map(c =>
+    `<button class="range-club-chip${rSelectedClub === c.name ? ' sel' : ''}"
+      onclick="rSelectClub('${c.name.replace(/'/g,"\\'")}')">
+      ${c.name}
+    </button>`
+  ).join('');
+  // Scroll selected chip into view
+  const sel = el.querySelector('.sel');
+  if (sel) sel.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+function rSelectClub(name) {
+  rSelectedClub = name;
+  rSliderVal = getClubExpectedDist(name);
+  document.getElementById('range-slider').value = rSliderVal;
+  rBuildClubChips();
+  rRefreshDist();
+}
+
+function rOnSlider(val) {
+  rSliderVal = parseInt(val, 10);
+  rRefreshDist();
+}
+
+function rRefreshDist() {
+  document.getElementById('range-dist-num').textContent = rSliderVal;
+  document.getElementById('range-slider').value = rSliderVal;
+}
+
+function rLogShot() {
+  if (!rSwingConfirmed || !rSelectedClub) return;
+  persistShot(rSelectedClub, rSliderVal, null, null);
+  rSessionShots.unshift({ club: rSelectedClub, yards: rSliderVal, date: new Date().toISOString() });
+  rPendingFeatures = null;
+  rPhase = 'armed';
+  rLastSwing = 0;
+  rSwingConfirmed = false;
+  dismissRangeCard();
+  renderRangeSessionList();
+}
+
+function renderRangeTab() {
+  renderRangeSessionList();
+}
+
+function renderRangeSessionList() {
+  const card = document.getElementById('range-session-card');
+  const list = document.getElementById('range-session-list');
+  const ct   = document.getElementById('range-session-ct');
+  if (!rSessionShots.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  ct.textContent = `${rSessionShots.length} shot${rSessionShots.length !== 1 ? 's' : ''}`;
+  const u = useYards ? 'yds' : 'm';
+  list.innerHTML = rSessionShots.map(s =>
+    `<div class="range-shot-row">
+      <div class="badge">${s.club}</div>
+      <div style="flex:1">
+        <div class="shot-d">${fmt(s.yards)} ${u}</div>
+        <div class="shot-time">${new Date(s.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+      </div>
+    </div>`
+  ).join('');
 }
 
 // ── Main bag tab ───────────────────────────────────────────
