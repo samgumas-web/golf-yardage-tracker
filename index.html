@@ -5428,14 +5428,27 @@ function rRefreshDist() {
   document.getElementById('range-slider').value = rSliderVal;
 }
 
+function rManualLog() {
+  if (!rMode) return;
+  rIsManual = true;
+  rPendingFeatures = null;
+  rSwingConfirmed = true;
+  rPhase = 'swing_confirm';
+  if (!rSelectedClub && clubs.length) rSelectedClub = clubs[0].name;
+  rSliderVal = rSelectedClub ? getClubExpectedDist(rSelectedClub) : 150;
+  rOpenCard();
+}
+
 function rLogShot() {
-  if (!rSwingConfirmed || !rSelectedClub) return;
+  if (!rSelectedClub) return;
+  if (!rIsManual && !rSwingConfirmed) return;
   persistShot(rSelectedClub, rSliderVal, null, null);
   rSessionShots.unshift({ club: rSelectedClub, yards: rSliderVal, date: new Date().toISOString() });
   rPendingFeatures = null;
   rPhase = 'armed';
   rLastSwing = 0;
   rSwingConfirmed = false;
+  rIsManual = false;
   dismissRangeCard();
   renderRangeSessionList();
 }
