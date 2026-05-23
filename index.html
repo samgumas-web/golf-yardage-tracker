@@ -1590,10 +1590,10 @@
 <div id="range-shot-card" class="range-card">
   <div class="panel-handle" style="margin:12px auto 18px;cursor:pointer" onclick="dismissRangeCard()"></div>
 
-  <div class="label" style="color:var(--green-light);margin-bottom:10px">Swing Detected</div>
+  <div class="label" id="range-card-title" style="color:var(--green-light);margin-bottom:10px">Swing Detected</div>
 
-  <!-- Yes / No training row -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <!-- Yes / No training row (hidden in manual mode) -->
+  <div id="range-swing-section" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
     <div style="font-size:15px;font-weight:700;color:var(--text)">Was that a swing?</div>
     <div style="display:flex;gap:8px">
       <button class="at-cfm-btn no" onclick="rLearnSwing(false)">No</button>
