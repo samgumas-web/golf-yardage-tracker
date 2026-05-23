@@ -5324,9 +5324,28 @@ function rOnSwingDetected(features) {
 function rOpenCard() {
   rBuildClubChips();
   rRefreshDist();
-  const logBtn = document.getElementById('range-log-btn');
-  logBtn.style.opacity = '.35';
-  logBtn.style.pointerEvents = 'none';
+
+  const logBtn     = document.getElementById('range-log-btn');
+  const swingSect  = document.getElementById('range-swing-section');
+  const cardTitle  = document.getElementById('range-card-title');
+  const yesBtn     = document.getElementById('range-yes-btn');
+
+  // Reset Yes button state
+  yesBtn.style.opacity = '1';
+  yesBtn.style.pointerEvents = 'auto';
+
+  if (rIsManual) {
+    swingSect.style.display = 'none';
+    cardTitle.textContent = 'Log a Shot';
+    logBtn.style.opacity = '1';
+    logBtn.style.pointerEvents = 'auto';
+  } else {
+    swingSect.style.display = 'flex';
+    cardTitle.textContent = 'Swing Detected';
+    logBtn.style.opacity = '.35';
+    logBtn.style.pointerEvents = 'none';
+  }
+
   document.getElementById('range-shot-card').classList.add('open');
   document.getElementById('range-backdrop').style.display = 'block';
 }
