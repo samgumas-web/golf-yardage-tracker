@@ -1604,25 +1604,28 @@
     </div>
   </div>
 
-  <!-- Club picker -->
-  <div style="margin-bottom:18px">
-    <div class="label" style="margin-bottom:8px">Club Used</div>
-    <div class="range-club-scroll" id="range-club-scroll"></div>
-  </div>
+  <!-- Club + distance (hidden until Yes is tapped) -->
+  <div id="range-detail-section" style="display:none">
 
-  <!-- Distance display + slider -->
-  <div style="margin-bottom:22px">
-    <div class="label" style="margin-bottom:10px">Distance</div>
-    <div class="range-dist-num" id="range-dist-num">—</div>
-    <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px;font-weight:700;letter-spacing:.5px">YDS</div>
-    <input type="range" class="range-slider" id="range-slider" min="0" max="450" step="1" value="150" oninput="rOnSlider(this.value)">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px">
-      <span>0 yds</span><span>450 yds</span>
+    <!-- Club picker -->
+    <div id="range-club-section" style="margin-bottom:18px">
+      <div class="label" style="margin-bottom:8px">Club Used</div>
+      <div class="range-club-scroll" id="range-club-scroll"></div>
     </div>
-  </div>
 
-  <!-- Log button (only active after Yes tapped) -->
-  <button class="btn btn-p" id="range-log-btn" onclick="rLogShot()" style="font-size:15px;padding:14px;opacity:.35;pointer-events:none">Log Shot</button>
+    <!-- Distance display + slider -->
+    <div id="range-dist-section" style="margin-bottom:22px">
+      <div class="label" style="margin-bottom:10px">Distance</div>
+      <div class="range-dist-num" id="range-dist-num">—</div>
+      <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px;font-weight:700;letter-spacing:.5px">YDS</div>
+      <input type="range" class="range-slider" id="range-slider" min="0" max="450" step="1" value="150" oninput="rOnSlider(this.value)">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px">
+        <span>0 yds</span><span>450 yds</span>
+      </div>
+    </div>
+
+    <button class="btn btn-p" id="range-log-btn" onclick="rLogShot()" style="font-size:15px;padding:14px">Log Shot</button>
+  </div>
 </div>
 <div id="range-backdrop" onclick="dismissRangeCard()"></div>
 
