@@ -5386,13 +5386,13 @@ function rLearnSwing(yes) {
     dismissRangeCard();
     return;
   }
-  // Yes confirmed — enable Log Shot button
+  // Yes confirmed — clear auto-dismiss timer permanently (card stays open until Log Shot)
+  rConfirmTimer = null;
   rSwingConfirmed = true;
-  const logBtn = document.getElementById('range-log-btn');
-  logBtn.style.opacity = '1';
-  logBtn.style.pointerEvents = 'auto';
-  document.getElementById('range-yes-btn').style.opacity = '.5';
-  document.getElementById('range-yes-btn').style.pointerEvents = 'none';
+  // Hide Yes/No, reveal club picker + distance slider
+  document.getElementById('range-swing-section').style.display = 'none';
+  document.getElementById('range-detail-section').style.display = 'block';
+  document.getElementById('range-card-title').textContent = 'Log Your Shot';
 }
 
 function rBuildClubChips() {
