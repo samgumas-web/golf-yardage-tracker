@@ -5367,6 +5367,15 @@ function rLearnSwing(yes) {
     else     atLearnData.nonShots.push(rPendingFeatures);
     atSaveLearnData();
     fbPoolTrainingSample(rPendingFeatures, yes ? 'SHOT' : 'NOT_SHOT');
+    // Sync to Google Sheets training log (same as on-course auto-track)
+    gsSync('training', {
+      timestamp: new Date().toISOString(),
+      user_email: activeProfile?.email || 'anonymous',
+      type: yes ? 'SHOT' : 'NOT_SHOT',
+      rot_dps: rPendingFeatures.rot.toFixed(1),
+      acc_ms2: rPendingFeatures.acc.toFixed(1),
+      stable_secs: (rPendingFeatures.stable || 0).toFixed(1)
+    });
   }
   if (!yes) {
     rPendingFeatures = null;
@@ -5375,7 +5384,7 @@ function rLearnSwing(yes) {
     dismissRangeCard();
     return;
   }
-  // Yes: enable the log button, mark confirmed
+  // Yes confirmed — enable Log Shot button
   rSwingConfirmed = true;
   const logBtn = document.getElementById('range-log-btn');
   logBtn.style.opacity = '1';
