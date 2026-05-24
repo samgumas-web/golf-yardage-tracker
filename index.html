@@ -4992,6 +4992,30 @@ function deleteShot(id) {
   if (c) { const i = c.shots.indexOf(s.yards); if (i>-1) c.shots.splice(i,1); saveClubs(); }
   render();
 }
+function deleteRound(id) {
+  if (!confirm('Delete this round and all its shot data? This cannot be undone.')) return;
+  const round = pastRounds.find(r => r.id === id);
+  if (!round) return;
+  // Remove the round's shots from global shots array and club stats
+  const roundShotIds = new Set((round.shots || []).map(s => s.id));
+  roundShotIds.forEach(sid => {
+    const s = shots.find(s => s.id === sid);
+    if (s) {
+      const c = clubs.find(c => c.name === s.club);
+      if (c) { const i = c.shots.indexOf(s.yards); if (i > -1) c.shots.splice(i, 1); }
+      fbDeleteShot(sid);
+    }
+  });
+  shots = shots.filter(s => !roundShotIds.has(s.id));
+  saveShots(); saveClubs();
+  // Remove round from pastRounds
+  pastRounds = pastRounds.filter(r => r.id !== id);
+  savePastRounds();
+  fbDeleteRound(id);
+  viewingRoundId = null;
+  showScreen('scr-courses'); mainTab('rounds');
+  toast('Round deleted');
+}
 
 function clearHistory() {
   if (!confirm('Clear all shot history? Club averages will reset.')) return;
