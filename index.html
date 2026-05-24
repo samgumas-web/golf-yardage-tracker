@@ -2800,6 +2800,11 @@ function fbDeleteShot(id) {
   fbDb.collection('users').doc(activeProfile.id).collection('shots').doc(String(id))
     .delete().catch(() => {});
 }
+function fbDeleteRound(id) {
+  if (!activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('rounds').doc(String(id))
+    .delete().catch(() => {});
+}
 
 function fbClearShots() {
   if (!activeProfile) return;
