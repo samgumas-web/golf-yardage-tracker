@@ -3558,9 +3558,9 @@ function updateHoleCountUI() {
 }
 
 function promptMarkTeeBoxes() {
-  // Find the first hole number (1–18) that has no tee marked
+  // Find the first hole number that has no tee marked
   let firstIncomplete = null;
-  for (let n = 1; n <= 18; n++) {
+  for (let n = 1; n <= courseHoleCount; n++) {
     const h = courseHoles.find(h => h.number === n);
     if (!h || !h.lat) { firstIncomplete = n; break; }
   }
