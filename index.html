@@ -3182,6 +3182,7 @@ async function fbLoadTrainingPool() {
     const cached = JSON.parse(localStorage.getItem(AT_POOL_CACHE_KEY) || 'null');
     if (cached && (Date.now() - cached.ts) < AT_POOL_CACHE_TTL) {
       atPoolData = { shots: cached.shots, nonShots: cached.nonShots };
+      computeFeatureWeights(cached.shots, cached.nonShots);
       return;
     }
   } catch {}
