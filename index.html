@@ -3198,6 +3198,7 @@ async function fbLoadTrainingPool() {
       else nonShots.push(s);
     });
     atPoolData = { shots, nonShots };
+    computeFeatureWeights(shots, nonShots);
     localStorage.setItem(AT_POOL_CACHE_KEY, JSON.stringify({ shots, nonShots, ts: Date.now() }));
   } catch (e) {
     console.warn('fbLoadTrainingPool:', e);
