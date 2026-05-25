@@ -3094,21 +3094,23 @@ function fbPoolTrainingSample(features, type) {
 }
 
 async function fbSeedUserToPool(uid, trainData) {
-  // Batch-write all of a user's existing training samples to trainingPool (runs once per user)
+  // Upload only NEW samples since last upload (tracked by poolShotCount / poolNonShotCount)
   if (!fbDb) return;
   const shots    = Array.isArray(trainData.shots)    ? trainData.shots    : [];
   const nonShots = Array.isArray(trainData.nonShots) ? trainData.nonShots : [];
+  const shotStart    = trainData.poolShotCount    || 0;
+  const nonShotStart = trainData.poolNonShotCount || 0;
+  const newShots    = shots.slice(shotStart);
+  const newNonShots = nonShots.slice(nonShotStart);
   const all = [
-    ...shots.map(s    => ({ type: 'SHOT',     ...s })),
-    ...nonShots.map(s => ({ type: 'NOT_SHOT', ...s }))
+    ...newShots.map(s    => ({ type: 'SHOT',     ...s })),
+    ...newNonShots.map(s => ({ type: 'NOT_SHOT', ...s }))
   ];
   if (!all.length) {
-    // Nothing to seed but mark done anyway
     fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
-      .update({ poolSeeded: true }).catch(() => {});
+      .update({ poolSeeded: true, poolShotCount: shots.length, poolNonShotCount: nonShots.length }).catch(() => {});
     return;
   }
-  // Firestore batch limit is 500 writes
   const pool = fbDb.collection('trainingPool');
   try {
     for (let i = 0; i < all.length; i += 499) {
@@ -3128,9 +3130,12 @@ async function fbSeedUserToPool(uid, trainData) {
       });
       await batch.commit();
     }
-    // Only mark seeded if all batches succeeded
+    // Update counts to current lengths so next call only uploads new entries
     await fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
-      .update({ poolSeeded: true });
+      .update({ poolSeeded: true, poolShotCount: shots.length, poolNonShotCount: nonShots.length });
+    // Keep in-memory copy in sync
+    atLearnData.poolShotCount    = shots.length;
+    atLearnData.poolNonShotCount = nonShots.length;
   } catch (e) {
     console.warn('fbSeedUserToPool failed — will retry on next login:', e);
   }
