@@ -1750,7 +1750,7 @@ fbAuth.onAuthStateChanged(async user => {
     if (ul) ul.textContent = user.email;
     const hadFirebaseShots = await fbLoadUserData(user.uid);
     await fbLoadRounds(user.uid);
-    fbLoadTrainingPool();
+    await fbLoadTrainingPool();
     migrateLegacyData();
     initUserData();
     render();
