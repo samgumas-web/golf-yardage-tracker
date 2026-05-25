@@ -2466,6 +2466,14 @@ async function fbLoadUserData(uid) {
     }
     if (trainDoc.exists) {
       const trainData = trainDoc.data();
+      // Migrate existing poolSeeded users who predate count tracking
+      if (trainData.poolSeeded && trainData.poolShotCount === undefined) {
+        trainData.poolShotCount    = (trainData.shots    || []).length;
+        trainData.poolNonShotCount = (trainData.nonShots || []).length;
+        fbDb.collection('users').doc(uid).collection('data').doc('trainingModel')
+          .update({ poolShotCount: trainData.poolShotCount, poolNonShotCount: trainData.poolNonShotCount })
+          .catch(() => {});
+      }
       localStorage.setItem(AT_LEARN_KEY, JSON.stringify(trainData));
       // One-time seed: push all existing samples to the shared pool if not done yet
       if (!trainData.poolSeeded) {
