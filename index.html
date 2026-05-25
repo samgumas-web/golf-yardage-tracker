@@ -3647,19 +3647,19 @@ async function selectCourse(idxOrObj) {
   showMapLoading(true);
   try {
     courseHoles = await fetchCourseTees(course);
-    renderHoleMarkers();
-    renderHolesList();
-    zoomToHole(1);
-    if (!courseHoles.length) {
-      setTimeout(() => {
-        toast('No hole data found — tap "+ Mark Tees" to mark tee boxes');
-      }, 800);
-    } else {
-      // Silently enhance with OSM green polygons for precise on-green detection
-      enhanceWithGreenPolygons(courseHoles, course);
-    }
-  } catch { /* silent */ }
+  } catch { courseHoles = []; }
   showMapLoading(false);
+  // Render separately so a crash here never prevents courseHoles from being set
+  try { renderHoleMarkers(); } catch(e) { console.warn('renderHoleMarkers:', e); }
+  renderHolesList();
+  zoomToHole(1);
+  if (!courseHoles.length) {
+    setTimeout(() => {
+      toast('No hole data found — tap "+ Mark Tees" to mark tee boxes');
+    }, 800);
+  } else {
+    enhanceWithGreenPolygons(courseHoles, course);
+  }
 
   // Pan to user if GPS known
   if (gpsPos && map) {
