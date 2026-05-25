@@ -2189,22 +2189,25 @@ function renderScorecard() {
   document.getElementById('sc-total-yds').textContent =
     `Par ${totalPar} · ${totalYds.toLocaleString()} yds`;
 
-  const teeClass = 'sc-yds tee-' + tee;
-  const frontRows = sc.holes.slice(0, 9).map(h => scorecardRow(h, teeClass)).join('');
+  const teeClass  = 'sc-yds tee-' + tee;
+  const teeLbl    = tee.charAt(0).toUpperCase() + tee.slice(1);
+  const is9hole   = sc.holes.length <= 9;
+  const frontRows = sc.holes.slice(0, 9).map(h => scorecardRow(h, tee, teeClass)).join('');
   const frontTot  = sc.holes.slice(0, 9).reduce((s,h) => s + (h[tee] || 0), 0);
   const frontPar  = sc.holes.slice(0, 9).reduce((s,h) => s + h.par, 0);
-  const backRows  = sc.holes.slice(9).map(h => scorecardRow(h, teeClass)).join('');
+  const backRows  = sc.holes.slice(9).map(h => scorecardRow(h, tee, teeClass)).join('');
   const backTot   = sc.holes.slice(9).reduce((s,h) => s + (h[tee] || 0), 0);
   const backPar   = sc.holes.slice(9).reduce((s,h) => s + h.par, 0);
 
   document.getElementById('scorecard-table').innerHTML = `
     <table class="sc-table">
       <thead><tr>
-        <th>Hole</th><th>Par</th><th>${tee.charAt(0).toUpperCase() + tee.slice(1)}</th>
+        <th>Hole</th><th>Par</th><th>${teeLbl}</th>
       </tr></thead>
       <tbody>
-        <tr class="sc-nine-hdr"><td colspan="3">Front Nine</td></tr>
+        ${is9hole ? '' : '<tr class="sc-nine-hdr"><td colspan="3">Front Nine</td></tr>'}
         ${frontRows}
+        ${is9hole ? '' : `
         <tr style="background:var(--card2)">
           <td class="sc-hole">OUT</td>
           <td class="sc-par">${frontPar}</td>
@@ -2216,7 +2219,7 @@ function renderScorecard() {
           <td class="sc-hole">IN</td>
           <td class="sc-par">${backPar}</td>
           <td class="${teeClass}">${backTot}</td>
-        </tr>
+        </tr>`}
         <tr style="background:var(--card);font-weight:900">
           <td class="sc-hole">TOT</td>
           <td class="sc-par">${totalPar}</td>
