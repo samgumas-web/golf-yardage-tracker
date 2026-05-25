@@ -2927,14 +2927,14 @@ async function fbLoadTrainingPool() {
 }
 
 function fbSaveCourseHoles(courseId, courseName, holes) {
-  const docId = courseId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const docId = String(courseId).replace(/[^a-zA-Z0-9_-]/g, '_');
   fbDb.collection('courses').doc(docId)
-    .set({ courseId, courseName, updatedAt: new Date().toISOString(), holes }).catch(() => {});
+    .set({ courseId: String(courseId), courseName, updatedAt: new Date().toISOString(), holeCount: courseHoleCount, holes }).catch(() => {});
 }
 
 async function fbFetchCourseHoles(courseId) {
   try {
-    const doc = await fbDb.collection('courses').doc(courseId.replace(/[^a-zA-Z0-9_-]/g, '_')).get();
+    const doc = await fbDb.collection('courses').doc(String(courseId).replace(/[^a-zA-Z0-9_-]/g, '_')).get();
     return (doc.exists && doc.data().holes) ? doc.data() : null;
   } catch { return null; }
 }
