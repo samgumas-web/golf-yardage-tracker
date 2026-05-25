@@ -3726,6 +3726,7 @@ function renderHoleMarkers() {
   greenMarkers.forEach(m => map && map.removeLayer(m));
   holeMarkers = []; greenMarkers = [];
   for (const h of courseHoles) {
+    if (!h.lat || !h.lng) continue; // skip holes with no GPS data
     const isActive = h.number === currentHole;
     // Tee marker
     const teeIcon = L.divIcon({
