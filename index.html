@@ -4270,14 +4270,14 @@ function renderHolesList() {
   const oc = document.getElementById('holes-total-ct');
   if (tc) tc.textContent = teeCt;
   if (gc) gc.textContent = greenCt;
-  if (oc) oc.textContent = `${complete}/18`;
+  if (oc) oc.textContent = `${complete}/${courseHoleCount}`;
 
   if (!courseHoles.length) {
     el.innerHTML = `<div class="empty" style="padding:20px 0"><div class="empty-txt">Tap <strong>Mark Holes</strong> above to start mapping the course.</div></div>`;
     return;
   }
 
-  const all = Array.from({length:18}, (_,i)=>i+1);
+  const all = Array.from({length:courseHoleCount}, (_,i)=>i+1);
   el.innerHTML = all.map(n => {
     const h = courseHoles.find(h=>h.number===n);
     const isNow   = n === currentHole;
