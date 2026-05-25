@@ -3064,17 +3064,19 @@ async function forceUploadToPool() {
   if (!activeProfile) return;
   const btn = document.getElementById('force-pool-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
-  // Clear poolSeeded flag so fbSeedUserToPool runs again
-  try {
-    await fbDb.collection('users').doc(activeProfile.id).collection('data')
-      .doc('trainingModel').update({ poolSeeded: false });
-  } catch {}
+  const prevShot    = atLearnData.poolShotCount    || 0;
+  const prevNonShot = atLearnData.poolNonShotCount || 0;
   await fbSeedUserToPool(activeProfile.id, atLearnData);
+  const newShots    = atLearnData.shots.length    - prevShot;
+  const newNonShots = atLearnData.nonShots.length - prevNonShot;
   // Bust the local cache so fbLoadTrainingPool fetches fresh data immediately
   localStorage.removeItem(AT_POOL_CACHE_KEY);
   await fbLoadTrainingPool();
   if (btn) { btn.disabled = false; btn.textContent = '↑ Upload Swing Data Now'; }
-  toast(`Uploaded ${atLearnData.shots.length} shots + ${atLearnData.nonShots.length} non-shots to pool`);
+  const label = (newShots + newNonShots) > 0
+    ? `Uploaded ${newShots} new shots + ${newNonShots} new non-shots`
+    : 'All data already uploaded — nothing new to send';
+  toast(label);
 }
 
 function fbPoolTrainingSample(features, type) {
