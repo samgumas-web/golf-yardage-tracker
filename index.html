@@ -1718,6 +1718,36 @@ let atConfirmTimer   = null; // auto-dismiss timer for confirm UI
 let atStableTime     = 0;    // timestamp when current stable phase began
 let atLearnData      = { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 };
 let atPoolData       = { shots: [], nonShots: [] }; // global training pool from all users
+// Feature weights for k-NN distance — recomputed from pool data on each load (Fisher's criterion)
+let atFeatureWeights = { rot: 0.20, acc: 0.05, accY: 0.15, rotG: 0.30, rotB: 0.20, stable: 0.10 };
+
+function computeFeatureWeights(shots, nonShots) {
+  if (shots.length < 5 || nonShots.length < 5) return;
+  const features = ['rot', 'acc', 'accY', 'rotG', 'rotB', 'stable'];
+  const all = [...shots, ...nonShots];
+  function p95(arr) {
+    const s = arr.slice().sort((a, b) => a - b);
+    return Math.max(s[Math.floor(s.length * 0.95)] || 1, 1);
+  }
+  const caps = {};
+  features.forEach(f => { caps[f] = p95(all.map(e => e[f] || 0)); });
+  const mean = arr => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+  const variance = arr => { const m = mean(arr); return arr.reduce((a, b) => a + (b - m) ** 2, 0) / (arr.length || 1); };
+  const scores = {};
+  features.forEach(f => {
+    const cap = caps[f];
+    const sVals = shots.map(e    => Math.min(e[f] || 0, cap) / cap);
+    const nVals = nonShots.map(e => Math.min(e[f] || 0, cap) / cap);
+    const mS = mean(sVals), mN = mean(nVals);
+    scores[f] = (mS - mN) ** 2 / (variance(sVals) + variance(nVals) + 1e-9);
+  });
+  // Floor each feature at 5% of the best score so nothing gets zeroed entirely
+  const best = Math.max(...Object.values(scores));
+  const floor = best * 0.05;
+  features.forEach(f => { scores[f] = Math.max(scores[f], floor); });
+  const total = features.reduce((a, f) => a + scores[f], 0);
+  features.forEach(f => { atFeatureWeights[f] = scores[f] / total; });
+}
 
 // ── Scorecard ───────────────────────────────────────────────
 let roundScore     = {};
