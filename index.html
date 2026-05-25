@@ -4095,7 +4095,7 @@ function atAdaptiveTrig() {
   const { shots } = atMergedData();
   if (shots.length < 3) return AT_PRETRIG_DPS;
   const minShot = Math.min(...shots.map(s => s.rot));
-  return Math.max(minShot * 0.75, 80);
+  return Math.max(minShot * 0.75, 110);
 }
 
 function atIsTrained() {
