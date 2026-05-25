@@ -4203,8 +4203,8 @@ function atLearnSwing(yes) {
 
   if (atPendingFeatures) {
     const sampleType = yes ? 'SHOT' : 'NOT_SHOT';
-    if (yes) atLearnData.shots.push(atPendingFeatures);
-    else     atLearnData.nonShots.push(atPendingFeatures);
+    if (yes) { atLearnData.shots.push(atPendingFeatures);    atLearnData.poolShotCount    = (atLearnData.poolShotCount    || 0) + 1; }
+    else     { atLearnData.nonShots.push(atPendingFeatures); atLearnData.poolNonShotCount = (atLearnData.poolNonShotCount || 0) + 1; }
     atSaveLearnData();
     fbPoolTrainingSample(atPendingFeatures, sampleType);
     gsSync('training', {
