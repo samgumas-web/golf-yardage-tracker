@@ -3128,7 +3128,7 @@ function osmToCourselist(elements, refLat, refLng) {
   return elements
     .filter(e => e.tags && e.tags.name)
     .map(e => ({
-      osmId: e.id, type: e.type,
+      osmId: String(e.id), type: e.type,
       name: e.tags.name,
       lat: e.center ? e.center.lat : e.lat,
       lng: e.center ? e.center.lon : e.lon
