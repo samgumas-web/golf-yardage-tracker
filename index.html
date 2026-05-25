@@ -3695,9 +3695,9 @@ function onMapClick(e) {
       vibrate([30, 20, 60]);
       toast(`Hole ${markingHole} tee + green marked ✓`);
       markingHole++;
-      if (markingHole > 18) {
+      if (markingHole > courseHoleCount) {
         doneMarking();
-        toast('All 18 holes mapped! 🎉');
+        toast(`All ${courseHoleCount} holes mapped!`);
       } else {
         markingStep = 'tee';
         startMarkStep();
