@@ -2229,7 +2229,7 @@ function renderScorecard() {
     </table>`;
 }
 
-function scorecardRow(h, teeClass) {
+function scorecardRow(h, tee, teeClass) {
   const isNow = h.n === currentHole;
   return `<tr${isNow ? ' class="active-hole"' : ''}>
     <td class="sc-hole">${h.n}${isNow ? ' ●' : ''}</td>
