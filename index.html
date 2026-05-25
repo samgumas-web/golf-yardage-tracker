@@ -3476,14 +3476,9 @@ function inferHoleCount(holes) {
 }
 
 async function fetchCourseTees(course) {
-  const saved = loadSavedTees(course.osmId);
-  if (saved && saved.length) {
-    courseHoleCount = inferHoleCount(saved);
-    updateHoleCountUI();
-    return saved;
-  }
-
-  // Pull from Firebase (shared across all users)
+  // Firestore is always checked first — it's the global source of truth.
+  // localStorage is only used as an offline fallback so stale local caches
+  // never hide fresher data that another user submitted.
   const fbData = await fbFetchCourseHoles(course.osmId);
   if (fbData && fbData.holes && fbData.holes.length) {
     courseHoleCount = fbData.holeCount || inferHoleCount(fbData.holes);
@@ -3492,7 +3487,15 @@ async function fetchCourseTees(course) {
     return fbData.holes;
   }
 
-  // Use preset data if available — saves a network call and always has all 18 holes
+  // Offline fallback — use whatever this device cached last
+  const saved = loadSavedTees(course.osmId);
+  if (saved && saved.length) {
+    courseHoleCount = inferHoleCount(saved);
+    updateHoleCountUI();
+    return saved;
+  }
+
+  // Use preset data if available
   if (PRESET_HOLES[course.osmId]) {
     courseHoleCount = 18;
     updateHoleCountUI();
