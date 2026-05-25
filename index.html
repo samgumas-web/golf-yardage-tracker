@@ -1520,6 +1520,11 @@
         <span class="label">Map Setup</span>
         <button class="btn btn-s btn-xs" onclick="closePanel();promptMarkTeeBoxes()" style="background:var(--green-dark);border-color:var(--green-mid);color:var(--green-light)">Mark Holes</button>
       </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Holes:</span>
+        <button id="hole-ct-9"  onclick="setCourseHoleCount(9)"  class="btn btn-s btn-xs" style="min-width:36px">9</button>
+        <button id="hole-ct-18" onclick="setCourseHoleCount(18)" class="btn btn-s btn-xs" style="min-width:36px;background:var(--green-dark);border-color:var(--green-mid);color:var(--green-light)">18</button>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center">
           <div style="font-size:18px;font-weight:900;color:var(--green)" id="holes-tee-ct">0</div>
