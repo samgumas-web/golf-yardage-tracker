@@ -3602,17 +3602,9 @@ function startMarkStep() {
 }
 
 function skipMarkStep() {
-  if (markingStep === 'tee') {
-    // Skip tee → skip whole hole, go to next
-    markingHole++;
-    if (markingHole > 18) { doneMarking(); return; }
-    markingStep = 'tee';
-  } else {
-    // Skip green → go to next hole tee
-    markingHole++;
-    if (markingHole > 18) { doneMarking(); return; }
-    markingStep = 'tee';
-  }
+  markingHole++;
+  if (markingHole > courseHoleCount) { doneMarking(); return; }
+  markingStep = 'tee';
   startMarkStep();
 }
 
