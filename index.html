@@ -5682,8 +5682,8 @@ function dismissRangeCard() {
 function rLearnSwing(yes) {
   clearTimeout(rConfirmTimer);
   if (rPendingFeatures) {
-    if (yes) atLearnData.shots.push(rPendingFeatures);
-    else     atLearnData.nonShots.push(rPendingFeatures);
+    if (yes) { atLearnData.shots.push(rPendingFeatures);    atLearnData.poolShotCount    = (atLearnData.poolShotCount    || 0) + 1; }
+    else     { atLearnData.nonShots.push(rPendingFeatures); atLearnData.poolNonShotCount = (atLearnData.poolNonShotCount || 0) + 1; }
     atSaveLearnData();
     fbPoolTrainingSample(rPendingFeatures, yes ? 'SHOT' : 'NOT_SHOT');
     // Sync to Google Sheets training log (same as on-course auto-track)
