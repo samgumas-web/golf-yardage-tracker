@@ -3165,19 +3165,34 @@ const PRESET_HOLES = {
   ]
 };
 
+function inferHoleCount(holes) {
+  if (!holes || !holes.length) return 18;
+  return Math.max(...holes.map(h => h.number)) <= 9 ? 9 : 18;
+}
+
 async function fetchCourseTees(course) {
   const saved = loadSavedTees(course.osmId);
-  if (saved && saved.length) return saved;
+  if (saved && saved.length) {
+    courseHoleCount = inferHoleCount(saved);
+    updateHoleCountUI();
+    return saved;
+  }
 
   // Pull from Firebase (shared across all users)
   const fbData = await fbFetchCourseHoles(course.osmId);
   if (fbData && fbData.holes && fbData.holes.length) {
+    courseHoleCount = fbData.holeCount || inferHoleCount(fbData.holes);
+    updateHoleCountUI();
     _cacheTees(course.osmId, fbData.holes);
     return fbData.holes;
   }
 
   // Use preset data if available — saves a network call and always has all 18 holes
-  if (PRESET_HOLES[course.osmId]) return PRESET_HOLES[course.osmId];
+  if (PRESET_HOLES[course.osmId]) {
+    courseHoleCount = 18;
+    updateHoleCountUI();
+    return PRESET_HOLES[course.osmId];
+  }
 
   const d = 0.025;
   const bbox = `${course.lat-d},${course.lng-d},${course.lat+d},${course.lng+d}`;
