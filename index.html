@@ -3541,6 +3541,22 @@ function zoomToHole(n) {
 }
 
 // ── Course setup — tap tee then green per hole ─────────────
+function setCourseHoleCount(n) {
+  courseHoleCount = n;
+  updateHoleCountUI();
+  renderHolesList();
+}
+
+function updateHoleCountUI() {
+  const b9  = document.getElementById('hole-ct-9');
+  const b18 = document.getElementById('hole-ct-18');
+  if (!b9 || !b18) return;
+  const activeStyle  = 'background:var(--green-dark);border-color:var(--green-mid);color:var(--green-light)';
+  const inactiveStyle = 'background:var(--card2);border-color:var(--border);color:var(--muted)';
+  b9.style.cssText  = `min-width:36px;${courseHoleCount === 9  ? activeStyle : inactiveStyle}`;
+  b18.style.cssText = `min-width:36px;${courseHoleCount === 18 ? activeStyle : inactiveStyle}`;
+}
+
 function promptMarkTeeBoxes() {
   // Find the first hole number (1–18) that has no tee marked
   let firstIncomplete = null;
