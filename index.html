@@ -1716,7 +1716,7 @@ let atMotionBuf      = [];   // rolling 600ms motion samples {t,rot,acc}
 let atPendingFeatures= null; // features of swing awaiting confirmation
 let atConfirmTimer   = null; // auto-dismiss timer for confirm UI
 let atStableTime     = 0;    // timestamp when current stable phase began
-let atLearnData      = { shots: [], nonShots: [] };
+let atLearnData      = { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 };
 let atPoolData       = { shots: [], nonShots: [] }; // global training pool from all users
 
 // ── Scorecard ───────────────────────────────────────────────
