@@ -4169,21 +4169,17 @@ function atScoreMotion(f) {
   const maxRotB   = p95(all.map(e => e.rotB   || 0));
   const maxStable = p95(all.map(e => e.stable));
 
-  // Weights re-tuned to match actual pool separability:
-  //   rotG 30% — best positive separator (shots avg 115 vs non 79)
-  //   rotB 20% — 2nd best separator (shots avg 162 vs non 125); was 5%
-  //   rot  20% — moderate positive separator
-  //   accY 15% — weak positive separator; was over-weighted at 30%
-  //   acc   5% — near-neutral, kept low
-  //   stable 10% — informative in k-NN distance space
+  // Weights computed dynamically from pool data via Fisher's criterion (computeFeatureWeights);
+  // fall back to manually-tuned defaults when pool is too small.
+  const w = atFeatureWeights;
   const clamp = (v, mx) => Math.min(v, mx);
   const dist = (a, b) => Math.sqrt(
-    0.20 * ((clamp(a.rot,  maxRot)    - clamp(b.rot,  maxRot))    / maxRot)    ** 2 +
-    0.05 * ((clamp(a.acc,  maxAcc)    - clamp(b.acc,  maxAcc))    / maxAcc)    ** 2 +
-    0.15 * ((clamp(a.accY||0,maxAccY) - clamp(b.accY||0,maxAccY)) / maxAccY)   ** 2 +
-    0.30 * ((clamp(a.rotG||0,maxRotG) - clamp(b.rotG||0,maxRotG)) / maxRotG)   ** 2 +
-    0.20 * ((clamp(a.rotB||0,maxRotB) - clamp(b.rotB||0,maxRotB)) / maxRotB)   ** 2 +
-    0.10 * ((clamp(a.stable,maxStable)- clamp(b.stable,maxStable)) / maxStable) ** 2
+    w.rot    * ((clamp(a.rot,    maxRot)    - clamp(b.rot,    maxRot))    / maxRot)    ** 2 +
+    w.acc    * ((clamp(a.acc,    maxAcc)    - clamp(b.acc,    maxAcc))    / maxAcc)    ** 2 +
+    w.accY   * ((clamp(a.accY||0,maxAccY)  - clamp(b.accY||0,maxAccY))   / maxAccY)   ** 2 +
+    w.rotG   * ((clamp(a.rotG||0,maxRotG)  - clamp(b.rotG||0,maxRotG))   / maxRotG)   ** 2 +
+    w.rotB   * ((clamp(a.rotB||0,maxRotB)  - clamp(b.rotB||0,maxRotB))   / maxRotB)   ** 2 +
+    w.stable * ((clamp(a.stable, maxStable)- clamp(b.stable, maxStable))  / maxStable) ** 2
   );
 
   const k = Math.min(7, Math.max(1, Math.floor(all.length / 10)));
