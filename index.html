@@ -4108,20 +4108,35 @@ function atScoreMotion(f) {
   if (shots.length < 3) return f.rot >= AT_SWING_DPS ? 0.9 : 0.1;
 
   const all = [...shots, ...nonShots];
-  const maxRot    = Math.max(...all.map(e => e.rot),        1);
-  const maxAcc    = Math.max(...all.map(e => e.acc),        1);
-  const maxAccY   = Math.max(...all.map(e => e.accY || 0),  1);
-  const maxRotG   = Math.max(...all.map(e => e.rotG || 0),  1);
-  const maxRotB   = Math.max(...all.map(e => e.rotB || 0),  1);
-  const maxStable = Math.max(...all.map(e => e.stable),     1);
 
+  // Use 95th-percentile cap on normalisation denominators so extreme outliers
+  // (dropped phones, bumpy carts) don't compress the entire meaningful range.
+  function p95(arr) {
+    const s = arr.slice().sort((a,b)=>a-b);
+    return Math.max(s[Math.floor(s.length * 0.95)] || 1, 1);
+  }
+  const maxRot    = p95(all.map(e => e.rot));
+  const maxAcc    = p95(all.map(e => e.acc));
+  const maxAccY   = p95(all.map(e => e.accY   || 0));
+  const maxRotG   = p95(all.map(e => e.rotG   || 0));
+  const maxRotB   = p95(all.map(e => e.rotB   || 0));
+  const maxStable = p95(all.map(e => e.stable));
+
+  // Weights re-tuned to match actual pool separability:
+  //   rotG 30% — best positive separator (shots avg 115 vs non 79)
+  //   rotB 20% — 2nd best separator (shots avg 162 vs non 125); was 5%
+  //   rot  20% — moderate positive separator
+  //   accY 15% — weak positive separator; was over-weighted at 30%
+  //   acc   5% — near-neutral, kept low
+  //   stable 10% — informative in k-NN distance space
+  const clamp = (v, mx) => Math.min(v, mx);
   const dist = (a, b) => Math.sqrt(
-    0.25 * ((a.rot            - b.rot)            / maxRot)    ** 2 +
-    0.10 * ((a.acc            - b.acc)            / maxAcc)    ** 2 +
-    0.30 * (((a.accY||0)      - (b.accY||0))      / maxAccY)   ** 2 + // pull-out = high vertical acc
-    0.25 * (((a.rotG||0)      - (b.rotG||0))      / maxRotG)   ** 2 + // swing = high Y-axis rotation
-    0.05 * (((a.rotB||0)      - (b.rotB||0))      / maxRotB)   ** 2 +
-    0.05 * ((a.stable         - b.stable)          / maxStable) ** 2
+    0.20 * ((clamp(a.rot,  maxRot)    - clamp(b.rot,  maxRot))    / maxRot)    ** 2 +
+    0.05 * ((clamp(a.acc,  maxAcc)    - clamp(b.acc,  maxAcc))    / maxAcc)    ** 2 +
+    0.15 * ((clamp(a.accY||0,maxAccY) - clamp(b.accY||0,maxAccY)) / maxAccY)   ** 2 +
+    0.30 * ((clamp(a.rotG||0,maxRotG) - clamp(b.rotG||0,maxRotG)) / maxRotG)   ** 2 +
+    0.20 * ((clamp(a.rotB||0,maxRotB) - clamp(b.rotB||0,maxRotB)) / maxRotB)   ** 2 +
+    0.10 * ((clamp(a.stable,maxStable)- clamp(b.stable,maxStable)) / maxStable) ** 2
   );
 
   const k = Math.min(7, Math.max(1, Math.floor(all.length / 10)));
@@ -4130,7 +4145,14 @@ function atScoreMotion(f) {
     ...nonShots.map(s => ({ f: s, lbl: 0 }))
   ].sort((a, b) => dist(f, a.f) - dist(f, b.f)).slice(0, k);
 
-  return neighbors.filter(n => n.lbl === 1).length / k;
+  const kShot    = neighbors.filter(n => n.lbl === 1).length;
+  const kNonShot = k - kShot;
+
+  // Density-ratio normalisation: corrects for the 7:1 class imbalance so a
+  // real swing doesn't get buried by the sheer volume of non-shot training samples.
+  const shotDensity    = kShot    / shots.length;
+  const nonShotDensity = kNonShot / nonShots.length;
+  return shotDensity / (shotDensity + nonShotDensity + 1e-9);
 }
 
 function atSaveLearnData() {
