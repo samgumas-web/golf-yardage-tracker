@@ -1908,8 +1908,223 @@ const COURSE_SCORECARDS = {
       { n:17, par:5, black:522, blue:491, white:475, yellow:461 },
       { n:18, par:5, black:485, blue:470, white:452, yellow:440 },
     ]
-  }
+  },
+
+  // ── Rancho Park Par-3 (9-hole, all par 3) ──────────────
+  'preset_rancho_park_par3': {
+    tees: ['white'],
+    holes: [
+      { n:1, par:3, white:98  },
+      { n:2, par:3, white:100 },
+      { n:3, par:3, white:148 },
+      { n:4, par:3, white:90  },
+      { n:5, par:3, white:131 },
+      { n:6, par:3, white:82  },
+      { n:7, par:3, white:88  },
+      { n:8, par:3, white:135 },
+      { n:9, par:3, white:120 },
+    ]
+  },
+
+  // ── Heroes Golf Course at West LA VA (9-hole, all par 3) ─
+  'preset_heroes_va': {
+    tees: ['blue','white'],
+    holes: [
+      { n:1, par:3, blue:120, white:93  },
+      { n:2, par:3, blue:133, white:116 },
+      { n:3, par:3, blue:125, white:104 },
+      { n:4, par:3, blue:146, white:123 },
+      { n:5, par:3, blue:178, white:118 },
+      { n:6, par:3, blue:78,  white:71  },
+      { n:7, par:3, blue:133, white:112 },
+      { n:8, par:3, blue:136, white:105 },
+      { n:9, par:3, blue:95,  white:74  },
+    ]
+  },
+
+  // ── Bel-Air Country Club ────────────────────────────────
+  'preset_bel_air': {
+    tees: ['black','blue','white','yellow'],
+    holes: [
+      { n:1,  par:5, black:500, blue:491, white:477, yellow:462 },
+      { n:2,  par:4, black:442, blue:393, white:381, yellow:370 },
+      { n:3,  par:3, black:172, blue:172, white:154, yellow:128 },
+      { n:4,  par:4, black:448, blue:448, white:430, yellow:417 },
+      { n:5,  par:3, black:165, blue:165, white:150, yellow:141 },
+      { n:6,  par:4, black:382, blue:377, white:355, yellow:311 },
+      { n:7,  par:4, black:406, blue:390, white:372, yellow:300 },
+      { n:8,  par:5, black:513, blue:496, white:471, yellow:465 },
+      { n:9,  par:4, black:417, blue:338, white:324, yellow:315 },
+      { n:10, par:3, black:199, blue:197, white:192, yellow:100 },
+      { n:11, par:4, black:395, blue:395, white:386, yellow:366 },
+      { n:12, par:4, black:388, blue:373, white:346, yellow:323 },
+      { n:13, par:3, black:228, blue:216, white:195, yellow:171 },
+      { n:14, par:5, black:584, blue:576, white:567, yellow:543 },
+      { n:15, par:4, black:465, blue:442, white:431, yellow:424 },
+      { n:16, par:3, black:194, blue:194, white:173, yellow:152 },
+      { n:17, par:4, black:470, blue:470, white:451, yellow:422 },
+      { n:18, par:4, black:414, blue:390, white:380, yellow:384 },
+    ]
+  },
+
+  // ── Los Angeles Country Club — North Course ─────────────
+  // Tee mapping: Black→black, Blue→blue, Thomas→white, Green(fwd)→yellow
+  'preset_lacc_north': {
+    tees: ['black','blue','white','yellow'],
+    holes: [
+      { n:1,  par:5, black:546, blue:513, white:494, yellow:497 },
+      { n:2,  par:4, black:483, blue:429, white:481, yellow:420 },
+      { n:3,  par:4, black:402, blue:378, white:365, yellow:268 },
+      { n:4,  par:3, black:211, blue:200, white:172, yellow:172 },
+      { n:5,  par:4, black:482, blue:439, white:418, yellow:362 },
+      { n:6,  par:4, black:337, blue:320, white:323, yellow:262 },
+      { n:7,  par:3, black:241, blue:220, white:199, yellow:206 },
+      { n:8,  par:5, black:538, blue:505, white:528, yellow:452 },
+      { n:9,  par:3, black:182, blue:166, white:160, yellow:154 },
+      { n:10, par:4, black:384, blue:377, white:360, yellow:362 },
+      { n:11, par:3, black:242, blue:224, white:192, yellow:165 },
+      { n:12, par:4, black:387, blue:365, white:350, yellow:280 },
+      { n:13, par:4, black:469, blue:432, white:406, yellow:304 },
+      { n:14, par:5, black:602, blue:534, white:497, yellow:495 },
+      { n:15, par:3, black:131, blue:120, white:100, yellow:103 },
+      { n:16, par:4, black:472, blue:437, white:412, yellow:421 },
+      { n:17, par:4, black:456, blue:413, white:345, yellow:350 },
+      { n:18, par:4, black:445, blue:414, white:386, yellow:349 },
+    ]
+  },
+
+  // ── Los Angeles Country Club — South Course ─────────────
+  // Tee mapping: Champions→black, Black→blue, Blue→white, Blue/White→yellow
+  'preset_lacc_south': {
+    tees: ['black','blue','white','yellow'],
+    holes: [
+      { n:1,  par:4, black:342, blue:339, white:328, yellow:328 },
+      { n:2,  par:4, black:400, blue:395, white:359, yellow:360 },
+      { n:3,  par:5, black:617, blue:608, white:574, yellow:520 },
+      { n:4,  par:3, black:199, blue:190, white:178, yellow:163 },
+      { n:5,  par:4, black:463, blue:447, white:416, yellow:375 },
+      { n:6,  par:4, black:423, blue:422, white:358, yellow:335 },
+      { n:7,  par:3, black:143, blue:135, white:124, yellow:124 },
+      { n:8,  par:5, black:511, blue:490, white:484, yellow:484 },
+      { n:9,  par:3, black:172, blue:159, white:141, yellow:122 },
+      { n:10, par:5, black:566, blue:546, white:513, yellow:487 },
+      { n:11, par:3, black:185, blue:176, white:151, yellow:136 },
+      { n:12, par:4, black:350, blue:345, white:340, yellow:340 },
+      { n:13, par:4, black:341, blue:335, white:330, yellow:330 },
+      { n:14, par:3, black:170, blue:165, white:156, yellow:156 },
+      { n:15, par:4, black:416, blue:382, white:370, yellow:348 },
+      { n:16, par:5, black:539, blue:540, white:502, yellow:502 },
+      { n:17, par:3, black:156, blue:156, white:145, yellow:145 },
+      { n:18, par:4, black:414, blue:367, white:352, yellow:332 },
+    ]
+  },
+
+  // ── Hillcrest Country Club ──────────────────────────────
+  'preset_hillcrest': {
+    tees: ['black','blue','white','yellow'],
+    holes: [
+      { n:1,  par:4, black:392, blue:381, white:376, yellow:373 },
+      { n:2,  par:3, black:172, blue:162, white:152, yellow:145 },
+      { n:3,  par:4, black:341, blue:315, white:316, yellow:305 },
+      { n:4,  par:5, black:554, blue:542, white:536, yellow:470 },
+      { n:5,  par:4, black:446, blue:412, white:411, yellow:371 },
+      { n:6,  par:3, black:186, blue:153, white:142, yellow:126 },
+      { n:7,  par:4, black:316, blue:309, white:307, yellow:270 },
+      { n:8,  par:5, black:493, blue:479, white:469, yellow:459 },
+      { n:9,  par:4, black:384, blue:369, white:365, yellow:360 },
+      { n:10, par:4, black:306, blue:299, white:288, yellow:279 },
+      { n:11, par:4, black:446, blue:430, white:436, yellow:431 },
+      { n:12, par:3, black:193, blue:170, white:172, yellow:169 },
+      { n:13, par:4, black:435, blue:424, white:406, yellow:396 },
+      { n:14, par:5, black:539, blue:516, white:509, yellow:490 },
+      { n:15, par:4, black:391, blue:378, white:367, yellow:365 },
+      { n:16, par:3, black:145, blue:137, white:129, yellow:120 },
+      { n:17, par:4, black:323, blue:302, white:299, yellow:294 },
+      { n:18, par:4, black:427, blue:421, white:389, yellow:420 },
+    ]
+  },
+
+  // ── Riviera Country Club ────────────────────────────────
+  // Tee mapping: Black→black, Blue→blue, White→white, Gold(fwd)→yellow
+  'preset_riviera': {
+    tees: ['black','blue','white','yellow'],
+    holes: [
+      { n:1,  par:5, black:503, blue:503, white:497, yellow:456 },
+      { n:2,  par:4, black:463, blue:463, white:445, yellow:391 },
+      { n:3,  par:4, black:434, blue:434, white:405, yellow:364 },
+      { n:4,  par:3, black:236, blue:236, white:223, yellow:186 },
+      { n:5,  par:4, black:434, blue:419, white:408, yellow:386 },
+      { n:6,  par:3, black:199, blue:175, white:144, yellow:133 },
+      { n:7,  par:4, black:408, blue:408, white:370, yellow:314 },
+      { n:8,  par:4, black:433, blue:416, white:375, yellow:310 },
+      { n:9,  par:4, black:458, blue:420, white:406, yellow:386 },
+      { n:10, par:4, black:315, blue:315, white:301, yellow:245 },
+      { n:11, par:5, black:564, blue:564, white:513, yellow:454 },
+      { n:12, par:4, black:479, blue:410, white:367, yellow:317 },
+      { n:13, par:4, black:459, blue:438, white:406, yellow:354 },
+      { n:14, par:3, black:176, blue:176, white:159, yellow:142 },
+      { n:15, par:4, black:487, blue:443, white:430, yellow:411 },
+      { n:16, par:3, black:166, blue:166, white:148, yellow:125 },
+      { n:17, par:5, black:590, blue:576, white:512, yellow:420 },
+      { n:18, par:4, black:475, blue:451, white:422, yellow:331 },
+    ]
+  },
+
+  // ── Brentwood Country Club ──────────────────────────────
+  // Tee mapping: Championship→black, Black→blue
+  'preset_brentwood_cc': {
+    tees: ['black','blue'],
+    holes: [
+      { n:1,  par:4, black:362, blue:362 },
+      { n:2,  par:3, black:189, blue:189 },
+      { n:3,  par:4, black:338, blue:338 },
+      { n:4,  par:4, black:449, blue:436 },
+      { n:5,  par:5, black:523, blue:523 },
+      { n:6,  par:4, black:446, blue:414 },
+      { n:7,  par:3, black:142, blue:142 },
+      { n:8,  par:4, black:506, blue:506 },
+      { n:9,  par:4, black:348, blue:348 },
+      { n:10, par:4, black:411, blue:411 },
+      { n:11, par:4, black:461, blue:449 },
+      { n:12, par:5, black:525, blue:525 },
+      { n:13, par:4, black:405, blue:405 },
+      { n:14, par:5, black:570, blue:570 },
+      { n:15, par:3, black:240, blue:217 },
+      { n:16, par:4, black:411, blue:411 },
+      { n:17, par:3, black:234, blue:202 },
+      { n:18, par:4, black:388, blue:388 },
+    ]
+  },
+
+  // ── Penmar Golf Course (9-hole) ─────────────────────────
+  'preset_penmar': {
+    tees: ['white','yellow'],
+    holes: [
+      { n:1, par:4, white:271, yellow:257 },
+      { n:2, par:4, white:338, yellow:317 },
+      { n:3, par:3, white:140, yellow:121 },
+      { n:4, par:4, white:288, yellow:270 },
+      { n:5, par:3, white:177, yellow:149 },
+      { n:6, par:4, white:423, yellow:398 },
+      { n:7, par:4, white:368, yellow:336 },
+      { n:8, par:3, white:141, yellow:126 },
+      { n:9, par:4, white:350, yellow:337 },
+    ]
+  },
 };
+
+// OSM numeric ID aliases — maps a course found via OSM search to the same
+// scorecard as the preset entry, so hole data appears regardless of how the
+// course was selected.
+COURSE_SCORECARDS['16064599']   = COURSE_SCORECARDS['preset_rancho_park'];
+COURSE_SCORECARDS['1090343871'] = COURSE_SCORECARDS['preset_rancho_park_par3'];
+COURSE_SCORECARDS['56135439']   = COURSE_SCORECARDS['preset_lacc_north'];
+COURSE_SCORECARDS['3569007']    = COURSE_SCORECARDS['preset_bel_air'];
+COURSE_SCORECARDS['24655757']   = COURSE_SCORECARDS['preset_hillcrest'];
+COURSE_SCORECARDS['44652700']   = COURSE_SCORECARDS['preset_riviera'];
+COURSE_SCORECARDS['44652708']   = COURSE_SCORECARDS['preset_brentwood_cc'];
+COURSE_SCORECARDS['23048327']   = COURSE_SCORECARDS['preset_penmar'];
+COURSE_SCORECARDS['1154408118'] = COURSE_SCORECARDS['preset_heroes_va'];
 
 let selectedTee = 'blue';
 
