@@ -3444,6 +3444,7 @@ function fbAudioSample(features, type) {
   if (!fbDb) return;
   fbDb.collection('audioTrainingPool').add({
     type,
+    club:     features.club || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
     rms:      parseFloat((features.rms      ||0).toFixed(4)),
     peak:     parseFloat((features.peak     ||0).toFixed(4)),
     zcr:      parseFloat((features.zcr      ||0).toFixed(4)),
