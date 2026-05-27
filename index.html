@@ -6105,10 +6105,10 @@ function rLearnSwing(yes) {
     atSaveLearnData();
     fbPoolTrainingSample(rPendingFeatures, sampleType);
     if (auEnabled && auPending && Date.now() - auLastEvent < AU_SWING_WINDOW_MS * 2) {
-      if (yes) { auLearnData.shots.push(auPending);    auLearnData.poolShotCount    = (auLearnData.poolShotCount    || 0) + 1; }
-      else     { auLearnData.nonShots.push(auPending); auLearnData.poolNonShotCount = (auLearnData.poolNonShotCount || 0) + 1; }
+      const auSample = { ...auPending, club: yes ? 'SHOT_UNKNOWN' : 'NOT_SHOT' };
+      auLearnData.samples.push(auSample);
       auSaveLearnData();
-      fbAudioSample(auPending, sampleType);
+      fbAudioSample(auSample, sampleType);
       auPending = null;
     }
     gsSync('training', {
