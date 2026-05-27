@@ -6685,6 +6685,89 @@ function auSaveTrainingAndClose() {
   auCloseTraining();
 }
 
+function auOpenDataViewer() {
+  const modal = document.getElementById('au-data-modal');
+  if (!modal) return;
+  const samples = auLearnData.samples || [];
+  const shots    = samples.filter(s => s.club !== 'NOT_SHOT');
+  const nonShots = samples.filter(s => s.club === 'NOT_SHOT');
+
+  // Summary row
+  const clubs = new Set(shots.map(s => s.club));
+  document.getElementById('au-data-summary').innerHTML = `
+    <div style="background:#111;border:1px solid #1e3a1e;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Total</div>
+      <div style="font-size:20px;font-weight:700;color:#4ade80">${samples.length}</div>
+    </div>
+    <div style="background:#111;border:1px solid #1e3a1e;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Shot Clubs</div>
+      <div style="font-size:20px;font-weight:700;color:#4ade80">${clubs.size}</div>
+    </div>
+    <div style="background:#111;border:1px solid #1e3a1e;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Non-Shots</div>
+      <div style="font-size:20px;font-weight:700;color:#f87171">${nonShots.length}</div>
+    </div>`;
+
+  if (!samples.length) {
+    document.getElementById('au-data-body').innerHTML = '<div style="color:#4b5563;font-size:13px;padding:20px;text-align:center">No audio training data yet.<br>Use "Train with Audio Samples" to get started.</div>';
+    modal.style.display = 'block';
+    return;
+  }
+
+  // Group by club
+  const byClub = {};
+  samples.forEach(s => {
+    const k = s.club || 'SHOT_UNKNOWN';
+    if (!byClub[k]) byClub[k] = [];
+    byClub[k].push(s);
+  });
+
+  const clubOrder = Object.keys(byClub).sort((a, b) => {
+    if (a === 'NOT_SHOT') return 1;
+    if (b === 'NOT_SHOT') return -1;
+    return a.localeCompare(b);
+  });
+
+  const fmt = n => (typeof n === 'number' ? n.toFixed(3) : '—');
+  const locIcon = l => l === 'ground' ? '📍' : l === 'bag' ? '🎒' : '👖';
+
+  let html = '';
+  for (const club of clubOrder) {
+    const rows = byClub[club];
+    const isNot = club === 'NOT_SHOT';
+    html += `<div style="margin-bottom:18px">
+      <div style="font-size:13px;font-weight:600;color:${isNot ? '#f87171' : '#4ade80'};margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #1e3a1e">
+        ${isNot ? '✗ NOT SHOT' : '✓ ' + club}
+        <span style="font-size:11px;font-weight:400;color:#4b5563;margin-left:6px">${rows.length} sample${rows.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:monospace">
+        <tr style="color:#4b5563">
+          <th style="text-align:left;padding:3px 6px">#</th>
+          <th style="text-align:right;padding:3px 6px">snr</th>
+          <th style="text-align:right;padding:3px 6px">impulse</th>
+          <th style="text-align:right;padding:3px 6px">zcr</th>
+          <th style="text-align:right;padding:3px 6px">centroid</th>
+          <th style="text-align:right;padding:3px 6px">attack</th>
+          <th style="text-align:center;padding:3px 6px">loc</th>
+        </tr>`;
+    rows.forEach((r, i) => {
+      html += `<tr style="border-top:1px solid #0f2010">
+        <td style="padding:3px 6px;color:#4b5563">${i+1}</td>
+        <td style="padding:3px 6px;text-align:right;color:#93c5fd">${fmt(r.snr)}</td>
+        <td style="padding:3px 6px;text-align:right;color:#93c5fd">${fmt(r.impulsiveness)}</td>
+        <td style="padding:3px 6px;text-align:right;color:#93c5fd">${fmt(r.zcr)}</td>
+        <td style="padding:3px 6px;text-align:right;color:#93c5fd">${fmt(r.centroid)}</td>
+        <td style="padding:3px 6px;text-align:right;color:#93c5fd">${fmt(r.attack)}</td>
+        <td style="padding:3px 6px;text-align:center">${locIcon(r.location || 'ground')}</td>
+      </tr>`;
+    });
+    html += `</table></div></div>`;
+  }
+  document.getElementById('au-data-body').innerHTML = html;
+  modal.style.display = 'block';
+}
+
 function auSetTrainLoc(loc) {
   phoneLocation = loc;
   localStorage.setItem('gy_phone_loc', loc);
