@@ -3529,7 +3529,7 @@ async function fbLoadAudioPool() {
         centroid: d.centroid || 0,
         attack:   d.attack   || 0,
         club:     d.club     || (d.type==='SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
-        location: d.location || 'pocket'
+        location: d.location || 'ground'
       });
     });
     auPoolData = { samples };
