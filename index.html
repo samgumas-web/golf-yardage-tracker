@@ -6918,7 +6918,7 @@ async function migrateAudioToGround() {
   try {
     // Update pool documents
     if (!activeProfile) return;
-    const snap = await fbDb.collection('users').doc(activeProfile.id).collection('audioPool').limit(500).get();
+    const snap = await fbDb.collection('trainingPool').doc('audioPool').collection('samples').limit(500).get();
     for (let i = 0; i < snap.docs.length; i += 499) {
       const batch = fbDb.batch();
       snap.docs.slice(i, i + 499).forEach(doc => {
