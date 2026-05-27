@@ -3387,7 +3387,10 @@ function auBuildFeatures(rms, peak) {
   const thresh = peak * 0.9;
   for (let i = 0; i < n; i++) { if (Math.abs(auTimeBuf[i]) >= thresh) { attackIdx = i; break; } }
   const attack = attackIdx / n;
-  return { rms, peak, zcr, centroid, attack };
+  // Volume-invariant features: snr = peak relative to ambient floor; impulsiveness = rms/peak shape ratio
+  const snr          = peak / Math.max(auBaselineRms, 0.001);
+  const impulsiveness = peak > 0 ? rms / peak : 0; // 0 = pure spike, 1 = sustained burst
+  return { snr, impulsiveness, zcr, centroid, attack };
 }
 
 function auMergedData() {
