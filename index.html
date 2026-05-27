@@ -3528,10 +3528,12 @@ function updateAudioUI() {
     btn.style.borderColor = auEnabled ? 'var(--green-mid)'  : 'var(--border)';
     btn.style.color       = auEnabled ? 'var(--green-light)': 'var(--muted)';
   }
+  const auShots    = (auLearnData.samples || []).filter(s => s.club !== 'NOT_SHOT').length;
+  const auNonShots = (auLearnData.samples || []).filter(s => s.club === 'NOT_SHOT').length;
   const st = document.getElementById('au-stats');
-  if (st) st.textContent = `${auLearnData.shots.length} shot sounds · ${auLearnData.nonShots.length} non-shots trained`;
+  if (st) st.textContent = `${auShots} shot sounds · ${auNonShots} non-shots trained`;
   const up = document.getElementById('force-audio-pool-btn');
-  if (up) up.style.display = (auLearnData.shots.length+auLearnData.nonShots.length)>0 ? 'block' : 'none';
+  if (up) up.style.display = (auShots + auNonShots) > 0 ? 'block' : 'none';
 }
 
 function fbSaveCourseHoles(courseId, courseName, holes) {
