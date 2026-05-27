@@ -3366,7 +3366,30 @@ function auLoop() {
         flash.style.color = '#facc15';
       }
     }
+    // Bag / ground mode: audio alone triggers the shot confirmation (no motion needed)
+    if ((phoneLocation === 'bag' || phoneLocation === 'ground') && auEnabled && autoTrack && auLastScore >= 0.55) {
+      onAudioShot();
+    }
   }
+}
+
+function onAudioShot() {
+  const now = Date.now();
+  if (now - atLastSwing < AT_SWING_DEBOUNCE_MS) return;
+  if (atPhase !== 'ready') return;
+  atLastSwing = now;
+  atPendingFeatures = null; // no motion — audio-only trigger
+  atPhase = 'swing_confirm';
+  vibrate([30]);
+  updateATUI();
+  clearTimeout(atConfirmTimer);
+  atConfirmTimer = setTimeout(() => {
+    if (atPhase === 'swing_confirm') {
+      atLastSwing = 0;
+      atPhase = 'ready';
+      updateATUI();
+    }
+  }, 10000);
 }
 
 function auBuildFeatures(rms, peak) {
