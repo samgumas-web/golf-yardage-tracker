@@ -6841,6 +6841,16 @@ function startGPSTimeout() {
       Listening…
     </div>
 
+    <!-- Training phone location -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px">Training phone location <span style="color:#4b5563">(match where you'll actually keep it)</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px">
+        <button onclick="auSetTrainLoc('ground')" id="au-loc-ground" style="padding:6px 4px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">📍 Ground</button>
+        <button onclick="auSetTrainLoc('pocket')" id="au-loc-pocket" style="padding:6px 4px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">👖 Pocket</button>
+        <button onclick="auSetTrainLoc('bag')"    id="au-loc-bag"    style="padding:6px 4px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">🎒 Bag</button>
+      </div>
+    </div>
+
     <!-- Club selector -->
     <div style="margin-bottom:12px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Select club for SHOT labels</div>
