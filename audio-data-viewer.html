@@ -92,7 +92,7 @@ function signOut() { auth.signOut(); }
 function fmt(n) { return typeof n === 'number' ? n.toFixed(4) : '—'; }
 
 async function loadData() {
-  STATUS.textContent = 'Fetching audioTrainingPool…';
+  STATUS.textContent = 'Fetching your audio training data…';
   const summaryEl = document.getElementById('summary');
   const outputEl  = document.getElementById('output');
   summaryEl.innerHTML = '<div style="color:#4b5563">Loading…</div>';
