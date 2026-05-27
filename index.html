@@ -3406,19 +3406,19 @@ function auMergedData() {
 
 function auScoreAudio(f) {
   const { shots, nonShots } = auMergedData();
-  if (shots.length < 3) return f.peak > AU_MIN_PEAK * 2 ? 0.55 : 0.1;
+  if (shots.length < 3) return f.snr > 8 ? 0.55 : 0.1; // cold-start: snr>8 means clearly louder than ambient
   const all = [...shots, ...nonShots];
-  const keys = ['rms', 'peak', 'zcr', 'centroid', 'attack'];
+  const keys = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack'];
   function p95(arr) { const s = arr.slice().sort((a,b)=>a-b); return Math.max(s[Math.floor(s.length*0.95)]||1,1); }
   const caps = {}; keys.forEach(k => { caps[k] = p95(all.map(e => e[k]||0)); });
   const w = auFeatureWeights;
   const cl = (v, mx) => Math.min(Math.max(v,0), mx);
   const dist = (a, b) => Math.sqrt(
-    w.peak     * ((cl(a.peak,     caps.peak)    - cl(b.peak,     caps.peak))    / caps.peak)     ** 2 +
-    w.rms      * ((cl(a.rms,      caps.rms)     - cl(b.rms,      caps.rms))     / caps.rms)      ** 2 +
-    w.zcr      * ((cl(a.zcr,      caps.zcr)     - cl(b.zcr,      caps.zcr))     / caps.zcr)      ** 2 +
-    w.centroid * ((cl(a.centroid, caps.centroid)- cl(b.centroid, caps.centroid))/ caps.centroid) ** 2 +
-    w.attack   * ((cl(a.attack,   caps.attack)  - cl(b.attack,   caps.attack))  / caps.attack)   ** 2
+    w.snr          * ((cl(a.snr,          caps.snr)          - cl(b.snr,          caps.snr))          / caps.snr)          ** 2 +
+    w.impulsiveness* ((cl(a.impulsiveness,caps.impulsiveness) - cl(b.impulsiveness,caps.impulsiveness))/ caps.impulsiveness)** 2 +
+    w.zcr          * ((cl(a.zcr,          caps.zcr)          - cl(b.zcr,          caps.zcr))          / caps.zcr)          ** 2 +
+    w.centroid     * ((cl(a.centroid,     caps.centroid)      - cl(b.centroid,     caps.centroid))      / caps.centroid)     ** 2 +
+    w.attack       * ((cl(a.attack,       caps.attack)        - cl(b.attack,       caps.attack))        / caps.attack)       ** 2
   );
   const k = Math.min(7, Math.max(1, Math.floor(all.length/10)));
   const neighbors = [
