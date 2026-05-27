@@ -3488,9 +3488,16 @@ async function fbLoadAudioPool() {
     const samples = [];
     snap.forEach(doc => {
       const d = doc.data();
+      // Support both old format (peak/rms) and new format (snr/impulsiveness)
+      const snr           = d.snr           !== undefined ? d.snr           : (d.peak || 0) / 0.01;
+      const impulsiveness = d.impulsiveness !== undefined ? d.impulsiveness : (d.peak > 0 ? (d.rms||0)/d.peak : 0.5);
       samples.push({
-        rms:d.rms||0, peak:d.peak||0, zcr:d.zcr||0, centroid:d.centroid||0, attack:d.attack||0,
-        club: d.club || (d.type==='SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT')
+        snr, impulsiveness,
+        zcr:      d.zcr      || 0,
+        centroid: d.centroid || 0,
+        attack:   d.attack   || 0,
+        club:     d.club     || (d.type==='SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+        location: d.location || 'pocket'
       });
     });
     auPoolData = { samples };
