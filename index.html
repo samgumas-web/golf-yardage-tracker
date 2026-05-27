@@ -3507,7 +3507,7 @@ async function fbLoadAudioPool() {
           snr:           (d.peak || 0) / 0.01,
           impulsiveness: d.peak > 0 ? (d.rms||0)/d.peak : 0.5,
           zcr:d.zcr||0, centroid:d.centroid||0, attack:d.attack||0,
-          club:d.club||'SHOT_UNKNOWN', location:d.location||'pocket'
+          club:d.club||'SHOT_UNKNOWN', location:d.location||'ground'
         };
       });
       auPoolData = { samples };
