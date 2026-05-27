@@ -179,7 +179,7 @@ async function loadData() {
       html += `</table>`;
     }
     outputEl.innerHTML = html;
-    STATUS.textContent = `Loaded ${totals.total} documents — ${clubCount} club categories`;
+    STATUS.textContent = `Loaded ${totals.total} samples — ${clubCount} club categories`;
   } catch (e) {
     STATUS.textContent = 'Error: ' + e.message;
     console.error(e);
