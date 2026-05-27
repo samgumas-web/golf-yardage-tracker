@@ -6719,52 +6719,85 @@ function startGPSTimeout() {
 <!-- Audio Training Modal -->
 <div id="au-train-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:#0a1a0a;overflow-y:auto">
   <div style="padding:20px;max-width:480px;margin:0 auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div style="font-size:16px;font-weight:600;color:var(--green-light)">Audio Training</div>
       <button onclick="auCloseTraining()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px;line-height:1">✕</button>
     </div>
-    <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px">
-      Play golf impact videos and tap <b style="color:#4ade80">SHOT</b> each time you hear a ball strike.
-      Tap <b style="color:#f87171">NOT SHOT</b> for crowd noise, talking, clapping, and other sounds.<br><br>
-      The yellow flash shows when the app has captured a transient — label it before the next sound.
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">
+      1. Select the club being hit below.<br>
+      2. Play golf impact videos — the yellow flash fires on each detected sound.<br>
+      3. Tap <b style="color:#4ade80">SHOT</b> for ball strikes, <b style="color:#f87171">NOT SHOT</b> for everything else.
     </div>
+
     <!-- Level meter -->
-    <div style="margin-bottom:12px">
+    <div style="margin-bottom:10px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Audio Level</div>
-      <div style="background:var(--card2);border-radius:6px;height:16px;overflow:hidden;border:1px solid var(--border)">
+      <div style="background:var(--card2);border-radius:6px;height:14px;overflow:hidden;border:1px solid var(--border)">
         <div id="au-train-meter" style="height:100%;width:0%;background:linear-gradient(90deg,#166534,#4ade80);border-radius:6px;transition:width 0.05s"></div>
       </div>
     </div>
-    <!-- Transient flash indicator -->
-    <div id="au-train-flash" style="text-align:center;font-size:13px;font-weight:500;color:var(--muted);min-height:30px;padding:6px;margin-bottom:14px;background:var(--card2);border-radius:8px;border:1px solid var(--border)">
+
+    <!-- Transient flash -->
+    <div id="au-train-flash" style="text-align:center;font-size:13px;font-weight:500;color:var(--muted);min-height:30px;padding:6px;margin-bottom:12px;background:var(--card2);border-radius:8px;border:1px solid var(--border)">
       Listening…
     </div>
+
+    <!-- Club selector -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Select club for SHOT labels</div>
+      <div id="au-club-grid" style="display:flex;flex-wrap:wrap;gap:5px">
+        <button class="au-club-btn" data-club="Driver"                      onclick="auSetClub('Driver')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">Driver</button>
+        <button class="au-club-btn" data-club="3-Wood"                      onclick="auSetClub('3-Wood')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">3-Wood</button>
+        <button class="au-club-btn" data-club="5-Wood"                      onclick="auSetClub('5-Wood')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">5-Wood</button>
+        <button class="au-club-btn" data-club="7-Wood"                      onclick="auSetClub('7-Wood')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">7-Wood</button>
+        <button class="au-club-btn" data-club="2-Hybrid"                    onclick="auSetClub('2-Hybrid')"                    style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">2-Hybrid</button>
+        <button class="au-club-btn" data-club="3-Hybrid"                    onclick="auSetClub('3-Hybrid')"                    style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">3-Hybrid</button>
+        <button class="au-club-btn" data-club="4-Hybrid"                    onclick="auSetClub('4-Hybrid')"                    style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">4-Hybrid</button>
+        <button class="au-club-btn" data-club="5-Hybrid"                    onclick="auSetClub('5-Hybrid')"                    style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">5-Hybrid</button>
+        <button class="au-club-btn" data-club="4-Iron"                      onclick="auSetClub('4-Iron')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">4-Iron</button>
+        <button class="au-club-btn" data-club="5-Iron"                      onclick="auSetClub('5-Iron')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">5-Iron</button>
+        <button class="au-club-btn" data-club="6-Iron"                      onclick="auSetClub('6-Iron')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">6-Iron</button>
+        <button class="au-club-btn" data-club="7-Iron"                      onclick="auSetClub('7-Iron')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">7-Iron</button>
+        <button class="au-club-btn" data-club="8-Iron"                      onclick="auSetClub('8-Iron')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">8-Iron</button>
+        <button class="au-club-btn" data-club="9-Iron"                      onclick="auSetClub('9-Iron')"                      style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">9-Iron</button>
+        <button class="au-club-btn" data-club="Pitching Wedge"              onclick="auSetClub('Pitching Wedge')"              style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">PW</button>
+        <button class="au-club-btn" data-club="Gap Wedge / Approach Wedge" onclick="auSetClub('Gap Wedge / Approach Wedge')" style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">GW</button>
+        <button class="au-club-btn" data-club="Sand Wedge"                  onclick="auSetClub('Sand Wedge')"                  style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">SW</button>
+        <button class="au-club-btn" data-club="Lob Wedge"                   onclick="auSetClub('Lob Wedge')"                   style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">LW</button>
+      </div>
+      <div id="au-selected-club-lbl" style="font-size:11px;color:var(--muted);margin-top:5px;text-align:center">No club selected</div>
+    </div>
+
     <!-- Label buttons -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <button onclick="auTrainLabel(true)" style="padding:20px 8px;background:#14532d;border:2px solid #16a34a;border-radius:10px;color:#4ade80;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <button onclick="auTrainLabel(true)" style="padding:18px 8px;background:#14532d;border:2px solid #16a34a;border-radius:10px;color:#4ade80;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">
         ✓ SHOT
       </button>
-      <button onclick="auTrainLabel(false)" style="padding:20px 8px;background:#3b0f0f;border:2px solid #b91c1c;border-radius:10px;color:#f87171;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">
+      <button onclick="auTrainLabel(false)" style="padding:18px 8px;background:#3b0f0f;border:2px solid #b91c1c;border-radius:10px;color:#f87171;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">
         ✗ NOT SHOT
       </button>
     </div>
+
     <!-- Session counter -->
-    <div id="au-train-count" style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:16px">
+    <div id="au-train-count" style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:14px">
       0 shots · 0 non-shots labeled this session
     </div>
+
     <!-- Source selection -->
-    <div style="margin-bottom:16px">
-      <button id="au-train-src-btn" onclick="auCaptureSystemAudio()" class="btn btn-s" style="width:100%;font-size:12px;padding:10px;background:var(--card2)">
+    <div style="margin-bottom:14px">
+      <button id="au-train-src-btn" onclick="auCaptureSystemAudio()" class="btn btn-s" style="width:100%;font-size:12px;padding:9px;background:var(--card2)">
         🖥 Use Tab/System Audio (Desktop Chrome)
       </button>
-      <div style="font-size:11px;color:var(--muted);margin-top:5px;text-align:center">
-        Mobile: play the video on speaker — the mic picks it up automatically
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;text-align:center">
+        Mobile: play videos on speaker — mic captures automatically
       </div>
     </div>
+
     <!-- YouTube link -->
-    <a href="https://www.youtube.com/results?search_query=golf+ball+impact+sound+collection" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:13px;color:var(--green-mid);text-decoration:none;padding:10px;background:var(--card2);border-radius:8px;margin-bottom:16px">
+    <a href="https://www.youtube.com/results?search_query=golf+ball+impact+sound+collection" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:13px;color:var(--green-mid);text-decoration:none;padding:9px;background:var(--card2);border-radius:8px;margin-bottom:14px">
       🔗 Search YouTube: Golf Impact Sounds ↗
     </a>
+
     <!-- Save -->
     <button onclick="auSaveTrainingAndClose()" class="btn btn-s" style="width:100%;font-size:13px;padding:12px;background:#1a472a;border-color:#166534">
       Save &amp; Close
