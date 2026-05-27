@@ -3305,16 +3305,31 @@ async function fbLoadTrainingPool() {
     }
   } catch {}
 
-  // Fetch from Firestore (up to 500 docs)
+  // Fetch from Firestore — new subcollection path + legacy flat path for backwards compat
   try {
-    const snap = await fbDb.collection('trainingPool').limit(500).get();
+    const parseDoc = d => ({ rot: d.rot || 0, acc: d.acc || 0, stable: d.stable || 0, accY: d.accY || 0, rotA: d.rotA || 0, rotB: d.rotB || 0, rotG: d.rotG || 0 });
     const shots = [], nonShots = [];
-    snap.forEach(doc => {
+
+    // New path: trainingPool/motionSwingTraining/samples
+    const newSnap = await fbDb.collection('trainingPool').doc('motionSwingTraining').collection('samples').limit(400).get();
+    newSnap.forEach(doc => {
       const d = doc.data();
-      const s = { rot: d.rot || 0, acc: d.acc || 0, stable: d.stable || 0, accY: d.accY || 0, rotA: d.rotA || 0, rotB: d.rotB || 0, rotG: d.rotG || 0 };
-      if (d.type === 'SHOT') shots.push(s);
-      else nonShots.push(s);
+      if (d.type === 'SHOT') shots.push(parseDoc(d));
+      else if (d.type === 'NOT_SHOT') nonShots.push(parseDoc(d));
     });
+
+    // Legacy flat path: trainingPool/{docId} — read remaining budget from old docs
+    const remaining = Math.max(0, 500 - shots.length - nonShots.length);
+    if (remaining > 0) {
+      const oldSnap = await fbDb.collection('trainingPool').limit(remaining + 2).get();
+      oldSnap.forEach(doc => {
+        const d = doc.data();
+        if (!d.type) return; // skip container docs (audioPool, motionSwingTraining)
+        if (d.type === 'SHOT') shots.push(parseDoc(d));
+        else if (d.type === 'NOT_SHOT') nonShots.push(parseDoc(d));
+      });
+    }
+
     atPoolData = { shots, nonShots };
     computeFeatureWeights(shots, nonShots);
     localStorage.setItem(AT_POOL_CACHE_KEY, JSON.stringify({ shots, nonShots, ts: Date.now() }));
