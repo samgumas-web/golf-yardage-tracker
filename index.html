@@ -3567,7 +3567,7 @@ async function forceUploadAudioToPool() {
   const newSamples = auLearnData.samples.slice(auLearnData.poolCount || 0);
   let uploadOk = true;
   if (newSamples.length) {
-    const pool = fbDb.collection('users').doc(activeProfile.id).collection('audioPool');
+    const pool = fbDb.collection('trainingPool').doc('audioPool').collection('samples');
     try {
       for (let i = 0; i < newSamples.length; i += 499) {
         const batch = fbDb.batch();
