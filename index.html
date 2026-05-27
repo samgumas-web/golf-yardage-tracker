@@ -6801,12 +6801,10 @@ function auTrainLabel(yes) {
     const sample = { ...f, club: auSelectedClub, location: phoneLocation };
     auLearnData.samples.push(sample);
     auTrainSession.shots++;
-    fbAudioSample(sample, 'SHOT');
   } else {
     const sample = { ...f, club: 'NOT_SHOT', location: phoneLocation };
     auLearnData.samples.push(sample);
     auTrainSession.nonShots++;
-    fbAudioSample(sample, 'NOT_SHOT');
   }
   auPending = null;
   auUpdateTrainCount();
