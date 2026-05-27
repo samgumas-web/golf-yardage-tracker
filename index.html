@@ -1564,6 +1564,17 @@
       <div id="training-stats" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
     </div>
 
+    <!-- Audio Shot Detection -->
+    <div class="card">
+      <div class="label" style="margin-bottom:4px">Audio Shot Detection</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">
+        Microphone listens for the impact sound of a golf shot. Audio confirmation is an extra signal alongside motion — the more shots you label, the more accurate it becomes.
+      </div>
+      <button id="au-toggle-btn" onclick="auToggle()" class="btn btn-s" style="width:100%;font-size:12px;padding:9px;background:var(--card2);border-color:var(--border);color:var(--muted);margin-bottom:6px">🎙 Audio: OFF</button>
+      <div id="au-stats" style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:6px">0 shot sounds · 0 non-shots trained</div>
+      <button onclick="forceUploadAudioToPool()" class="btn btn-s" id="force-audio-pool-btn" style="display:none;width:100%;font-size:12px;padding:9px;background:#1a472a">↑ Upload Audio Training Data</button>
+    </div>
+
     <!-- Google Sheets Sync -->
     <div class="card">
       <div class="label" style="margin-bottom:6px">Google Sheets Sync</div>
