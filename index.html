@@ -3484,31 +3484,32 @@ async function forceUploadAudioToPool() {
   if (!activeProfile) return;
   const btn = document.getElementById('force-audio-pool-btn');
   if (btn) { btn.disabled=true; btn.textContent='Uploading…'; }
-  const s0=auLearnData.poolShotCount||0, n0=auLearnData.poolNonShotCount||0;
-  const newS=auLearnData.shots.slice(s0), newN=auLearnData.nonShots.slice(n0);
-  const all=[...newS.map(s=>({type:'SHOT',...s})),...newN.map(s=>({type:'NOT_SHOT',...s}))];
-  if (all.length) {
-    const pool=fbDb.collection('audioTrainingPool');
+  const newSamples = auLearnData.samples.slice(auLearnData.poolCount || 0);
+  if (newSamples.length) {
+    const pool = fbDb.collection('audioTrainingPool');
     try {
-      for (let i=0; i<all.length; i+=499) {
-        const batch=fbDb.batch();
-        all.slice(i,i+499).forEach(s => batch.set(pool.doc(),{
-          type:s.type,
-          rms:parseFloat((s.rms||0).toFixed(4)),peak:parseFloat((s.peak||0).toFixed(4)),
-          zcr:parseFloat((s.zcr||0).toFixed(4)),centroid:parseFloat((s.centroid||0).toFixed(4)),
-          attack:parseFloat((s.attack||0).toFixed(4)),ts:Date.now()
+      for (let i = 0; i < newSamples.length; i += 499) {
+        const batch = fbDb.batch();
+        newSamples.slice(i, i+499).forEach(s => batch.set(pool.doc(), {
+          type:     s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT',
+          club:     s.club || 'SHOT_UNKNOWN',
+          rms:      parseFloat((s.rms||0).toFixed(4)),
+          peak:     parseFloat((s.peak||0).toFixed(4)),
+          zcr:      parseFloat((s.zcr||0).toFixed(4)),
+          centroid: parseFloat((s.centroid||0).toFixed(4)),
+          attack:   parseFloat((s.attack||0).toFixed(4)),
+          ts: Date.now()
         }));
         await batch.commit();
       }
-      auLearnData.poolShotCount=auLearnData.shots.length;
-      auLearnData.poolNonShotCount=auLearnData.nonShots.length;
+      auLearnData.poolCount = auLearnData.samples.length;
       auSaveLearnData();
-    } catch(e) { console.warn('forceUploadAudioToPool:',e); }
+    } catch(e) { console.warn('forceUploadAudioToPool:', e); }
   }
   localStorage.removeItem(AU_POOL_CACHE_KEY);
   await fbLoadAudioPool();
   if (btn) { btn.disabled=false; btn.textContent='↑ Upload Audio Training Data'; }
-  toast(all.length>0 ? `Uploaded ${newS.length} audio shots + ${newN.length} non-shots` : 'All audio data already uploaded');
+  toast(newSamples.length > 0 ? `Uploaded ${newSamples.length} audio samples` : 'All audio data already uploaded');
 }
 
 function auToggle() {
