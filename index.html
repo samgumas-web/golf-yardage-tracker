@@ -6786,6 +6786,37 @@ async function auCaptureSystemAudio() {
   }
 }
 
+// ── One-time migration: tag all existing audioTrainingPool docs with location:'ground' ──
+async function migrateAudioToGround() {
+  if (!fbDb) return;
+  const btn = document.getElementById('au-migrate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Migrating…'; }
+  let updated = 0, skipped = 0;
+  try {
+    // Update pool documents
+    const snap = await fbDb.collection('audioTrainingPool').limit(500).get();
+    for (let i = 0; i < snap.docs.length; i += 499) {
+      const batch = fbDb.batch();
+      snap.docs.slice(i, i + 499).forEach(doc => {
+        if (!doc.data().location) { batch.update(doc.ref, { location: 'ground' }); updated++; }
+        else skipped++;
+      });
+      await batch.commit();
+    }
+    // Also patch local auLearnData
+    let localPatched = 0;
+    auLearnData.samples.forEach(s => { if (!s.location) { s.location = 'ground'; localPatched++; } });
+    if (localPatched) auSaveLearnData();
+    localStorage.removeItem(AU_POOL_CACHE_KEY);
+    toast(`Migrated ${updated} pool docs + ${localPatched} local samples → ground. ${skipped} already had location.`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('migrateAudioToGround:', e);
+    toast('Migration error: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Migrate Audio Data → Ground (retry)'; }
+  }
+}
+
 // Keyboard
 document.getElementById('new-club').addEventListener('keypress', e => { if (e.key==='Enter') addClub(); });
 document.getElementById('mb-new-club').addEventListener('keypress', e => { if (e.key==='Enter') mbAddClub(); });
