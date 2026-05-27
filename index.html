@@ -6624,6 +6624,123 @@ function renderStats() {
     }).join('');
 }
 
+// ── Audio Training ──────────────────────────────────────────
+function auOpenTraining() {
+  const modal = document.getElementById('au-train-modal');
+  if (!modal) return;
+  auTrainSession = { shots: 0, nonShots: 0 };
+  auTrainMode    = true;
+  modal.style.display = 'block';
+  auUpdateTrainCount();
+  // Ensure mic or system audio is running
+  if (!auActive) {
+    const wasEnabled = auEnabled;
+    auEnabled = true;
+    auStartListening().catch(() => {});
+    if (!wasEnabled) auEnabled = false; // restore; mic stays active until modal closes
+  }
+}
+
+function auCloseTraining() {
+  const modal = document.getElementById('au-train-modal');
+  if (modal) modal.style.display = 'none';
+  auTrainMode = false;
+  // Stop listening if we started only for training (audio toggle is off)
+  if (!auEnabled) auStopListening();
+  updateAudioUI();
+}
+
+function auSaveTrainingAndClose() {
+  const total = auTrainSession.shots + auTrainSession.nonShots;
+  if (total > 0) {
+    auSaveLearnData();
+    // Invalidate pool cache so next load gets fresh weights
+    localStorage.removeItem(AU_POOL_CACHE_KEY);
+    toast(`Saved ${auTrainSession.shots} shots + ${auTrainSession.nonShots} non-shots`);
+  }
+  auCloseTraining();
+}
+
+function auTrainLabel(yes) {
+  const f = auPending;
+  if (!f) {
+    toast('No sound captured yet — wait for the yellow flash');
+    return;
+  }
+  if (yes) {
+    auLearnData.shots.push(f);
+    auLearnData.poolShotCount = (auLearnData.poolShotCount || 0) + 1;
+    auTrainSession.shots++;
+    fbAudioSample(f, 'SHOT');
+  } else {
+    auLearnData.nonShots.push(f);
+    auLearnData.poolNonShotCount = (auLearnData.poolNonShotCount || 0) + 1;
+    auTrainSession.nonShots++;
+    fbAudioSample(f, 'NOT_SHOT');
+  }
+  auPending = null;
+  auUpdateTrainCount();
+  const flash = document.getElementById('au-train-flash');
+  if (flash) {
+    flash.textContent = yes ? '✓ Shot labeled!' : '✗ Non-shot labeled';
+    flash.style.color = yes ? '#4ade80' : '#f87171';
+    setTimeout(() => {
+      if (flash.textContent !== '⚡ Sound captured — label it now!') {
+        flash.textContent = 'Listening…';
+        flash.style.color = 'var(--muted)';
+      }
+    }, 1200);
+  }
+}
+
+function auUpdateTrainCount() {
+  const el = document.getElementById('au-train-count');
+  if (el) el.textContent = `${auTrainSession.shots} shots · ${auTrainSession.nonShots} non-shots labeled this session`;
+}
+
+async function auCaptureSystemAudio() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    toast('System audio capture requires desktop Chrome'); return;
+  }
+  const btn = document.getElementById('au-train-src-btn');
+  try {
+    if (btn) { btn.textContent = 'Requesting…'; btn.disabled = true; }
+    // Stop any existing stream
+    if (auStream)  { auStream.getTracks().forEach(t => t.stop()); auStream = null; }
+    if (auContext) { auContext.close().catch(() => {}); auContext = null; }
+    auActive = false;
+    const stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: false });
+    if (!stream.getAudioTracks().length) {
+      toast('No audio track — tick "Share audio" when prompted');
+      if (btn) { btn.textContent = '🖥 Use System Audio (Desktop Chrome)'; btn.disabled = false; }
+      return;
+    }
+    auStream  = stream;
+    auContext = new (window.AudioContext || window.webkitAudioContext)();
+    const src = auContext.createMediaStreamSource(stream);
+    auAnalyser = auContext.createAnalyser();
+    auAnalyser.fftSize               = 1024;
+    auAnalyser.smoothingTimeConstant = 0.0;
+    src.connect(auAnalyser);
+    auTimeBuf     = new Float32Array(auAnalyser.fftSize);
+    auFreqBuf     = new Float32Array(auAnalyser.frequencyBinCount);
+    auActive      = true;
+    auBaselineRms = 0.01;
+    auLoop();
+    if (btn) {
+      btn.textContent   = '🖥 System Audio Active ✓';
+      btn.style.color   = '#4ade80';
+      btn.style.borderColor = '#16a34a';
+      btn.disabled      = false;
+    }
+    toast('System audio captured — play a YouTube video in another tab!');
+  } catch (e) {
+    console.warn('auCaptureSystemAudio:', e);
+    toast('Could not capture system audio');
+    if (btn) { btn.textContent = '🖥 Use System Audio (Desktop Chrome)'; btn.disabled = false; }
+  }
+}
+
 // Keyboard
 document.getElementById('new-club').addEventListener('keypress', e => { if (e.key==='Enter') addClub(); });
 document.getElementById('mb-new-club').addEventListener('keypress', e => { if (e.key==='Enter') mbAddClub(); });
