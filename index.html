@@ -3563,31 +3563,42 @@ async function forceUploadAudioToPool() {
   const btn = document.getElementById('force-audio-pool-btn');
   if (btn) { btn.disabled=true; btn.textContent='Uploading…'; }
   const newSamples = auLearnData.samples.slice(auLearnData.poolCount || 0);
+  let uploadOk = true;
   if (newSamples.length) {
-    const pool = fbDb.collection('audioTrainingPool');
+    const pool = fbDb.collection('users').doc(activeProfile.id).collection('audioPool');
     try {
       for (let i = 0; i < newSamples.length; i += 499) {
         const batch = fbDb.batch();
         newSamples.slice(i, i+499).forEach(s => batch.set(pool.doc(), {
-          type:     s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT',
-          club:     s.club || 'SHOT_UNKNOWN',
-          rms:      parseFloat((s.rms||0).toFixed(4)),
-          peak:     parseFloat((s.peak||0).toFixed(4)),
-          zcr:      parseFloat((s.zcr||0).toFixed(4)),
-          centroid: parseFloat((s.centroid||0).toFixed(4)),
-          attack:   parseFloat((s.attack||0).toFixed(4)),
+          type:          s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT',
+          club:          s.club          || 'SHOT_UNKNOWN',
+          location:      s.location      || phoneLocation,
+          snr:           parseFloat((s.snr          ||0).toFixed(4)),
+          impulsiveness: parseFloat((s.impulsiveness||0).toFixed(4)),
+          zcr:           parseFloat((s.zcr          ||0).toFixed(4)),
+          centroid:      parseFloat((s.centroid     ||0).toFixed(4)),
+          attack:        parseFloat((s.attack       ||0).toFixed(4)),
           ts: Date.now()
         }));
         await batch.commit();
       }
       auLearnData.poolCount = auLearnData.samples.length;
       auSaveLearnData();
-    } catch(e) { console.warn('forceUploadAudioToPool:', e); }
+    } catch(e) {
+      uploadOk = false;
+      console.warn('forceUploadAudioToPool:', e);
+    }
   }
   localStorage.removeItem(AU_POOL_CACHE_KEY);
   await fbLoadAudioPool();
   if (btn) { btn.disabled=false; btn.textContent='↑ Upload Audio Training Data'; }
-  toast(newSamples.length > 0 ? `Uploaded ${newSamples.length} audio samples` : 'All audio data already uploaded');
+  if (!uploadOk) {
+    toast('Upload failed — check connection and try again');
+  } else if (newSamples.length > 0) {
+    toast(`Uploaded ${newSamples.length} audio samples to Firestore`);
+  } else {
+    toast('All audio data already uploaded');
+  }
 }
 
 function auToggle() {
