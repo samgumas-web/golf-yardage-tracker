@@ -4002,10 +4002,39 @@ function renderCourseList(courses) {
   window._nearbyCourses = courses;
 }
 
-async function selectCourse(idxOrObj) {
+function selectCourse(idxOrObj) {
   const course = typeof idxOrObj === 'number' ? window._nearbyCourses[idxOrObj]
                : typeof idxOrObj === 'string' ? JSON.parse(idxOrObj)
                : idxOrObj;
+  _pendingCourse = course;
+  // Show round screen with course name, then overlay the phone-location picker
+  showScreen('scr-round');
+  document.getElementById('round-course-name').textContent = course.name;
+  const modal = document.getElementById('phone-loc-modal');
+  if (modal) {
+    // Highlight previously chosen location
+    modal.querySelectorAll('.ploc-btn').forEach(b => {
+      const active = b.dataset.loc === phoneLocation;
+      b.style.background   = active ? '#14532d' : 'var(--card2)';
+      b.style.borderColor  = active ? '#16a34a' : 'var(--border)';
+      b.style.color        = active ? '#4ade80' : '#e5e7eb';
+    });
+    modal.style.display = 'flex';
+  } else {
+    _finishSelectCourse(); // fallback if modal missing
+  }
+}
+
+function setPhoneLocation(loc) {
+  phoneLocation = loc;
+  localStorage.setItem('gy_phone_loc', loc);
+  const modal = document.getElementById('phone-loc-modal');
+  if (modal) modal.style.display = 'none';
+  _finishSelectCourse();
+}
+
+async function _finishSelectCourse() {
+  const course = _pendingCourse;
   selectedCourse = course;
   persistSavedCourse(course);
   reconcileTee();
@@ -4017,35 +4046,24 @@ async function selectCourse(idxOrObj) {
   roundScore = {}; saveRoundScore();
 
   clearMapTarget();
-  showScreen('scr-round');
-  document.getElementById('round-course-name').textContent = course.name;
   updateHoleDisplay();
   showTapHint();
 
-  // Init map centered on course
   initLeafletMap(course.lat, course.lng);
 
-  // Load tee data
   showMapLoading(true);
-  try {
-    courseHoles = await fetchCourseTees(course);
-  } catch { courseHoles = []; }
+  try { courseHoles = await fetchCourseTees(course); } catch { courseHoles = []; }
   showMapLoading(false);
-  // Render separately so a crash here never prevents courseHoles from being set
   try { renderHoleMarkers(); } catch(e) { console.warn('renderHoleMarkers:', e); }
   renderHolesList();
   zoomToHole(1);
   if (!courseHoles.length) {
-    setTimeout(() => {
-      toast('No hole data — tap "+ Mark Tees" to add tee boxes & greens');
-    }, 800);
+    setTimeout(() => toast('No hole data — tap "+ Mark Tees" to add tee boxes & greens'), 800);
   } else {
     const withGps = courseHoles.filter(h => h.lat).length;
     setTimeout(() => toast(`${withGps} holes loaded`), 600);
     enhanceWithGreenPolygons(courseHoles, course);
   }
-
-  // Pan to user if GPS known
   if (gpsPos && map) {
     map.panTo([gpsPos.lat, gpsPos.lng]);
     updateUserOnMap(gpsPos.lat, gpsPos.lng);
