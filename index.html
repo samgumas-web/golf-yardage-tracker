@@ -6610,35 +6610,45 @@ function auSaveTrainingAndClose() {
   auCloseTraining();
 }
 
+function auSetClub(club) {
+  auSelectedClub = club;
+  // Highlight selected club button
+  document.querySelectorAll('.au-club-btn').forEach(b => {
+    b.style.background   = b.dataset.club === club ? '#14532d' : 'var(--card2)';
+    b.style.borderColor  = b.dataset.club === club ? '#16a34a' : 'var(--border)';
+    b.style.color        = b.dataset.club === club ? '#4ade80' : 'var(--muted)';
+  });
+  const lbl = document.getElementById('au-selected-club-lbl');
+  if (lbl) lbl.textContent = club ? `Club: ${club}` : 'No club selected';
+}
+
 function auTrainLabel(yes) {
   const f = auPending;
-  if (!f) {
-    toast('No sound captured yet — wait for the yellow flash');
-    return;
-  }
+  if (!f) { toast('No sound captured yet — wait for the yellow flash'); return; }
   if (yes) {
-    auLearnData.shots.push(f);
-    auLearnData.poolShotCount = (auLearnData.poolShotCount || 0) + 1;
+    if (!auSelectedClub) { toast('Select a club first, then tap SHOT'); return; }
+    const sample = { ...f, club: auSelectedClub };
+    auLearnData.samples.push(sample);
     auTrainSession.shots++;
-    fbAudioSample(f, 'SHOT');
+    fbAudioSample(sample, 'SHOT');
   } else {
-    auLearnData.nonShots.push(f);
-    auLearnData.poolNonShotCount = (auLearnData.poolNonShotCount || 0) + 1;
+    const sample = { ...f, club: 'NOT_SHOT' };
+    auLearnData.samples.push(sample);
     auTrainSession.nonShots++;
-    fbAudioSample(f, 'NOT_SHOT');
+    fbAudioSample(sample, 'NOT_SHOT');
   }
   auPending = null;
   auUpdateTrainCount();
   const flash = document.getElementById('au-train-flash');
   if (flash) {
-    flash.textContent = yes ? '✓ Shot labeled!' : '✗ Non-shot labeled';
+    flash.textContent = yes ? `✓ ${auSelectedClub} shot labeled!` : '✗ Non-shot labeled';
     flash.style.color = yes ? '#4ade80' : '#f87171';
     setTimeout(() => {
       if (flash.textContent !== '⚡ Sound captured — label it now!') {
         flash.textContent = 'Listening…';
         flash.style.color = 'var(--muted)';
       }
-    }, 1200);
+    }, 1400);
   }
 }
 
