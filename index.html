@@ -3502,16 +3502,16 @@ function auSaveLearnData() {
 }
 
 function fbAudioSample(features, type) {
-  if (!fbDb) return;
-  fbDb.collection('audioTrainingPool').add({
+  if (!fbDb || !activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id).collection('audioPool').add({
     type,
-    club:         features.club     || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
-    location:     features.location || phoneLocation,
-    snr:          parseFloat((features.snr          ||0).toFixed(4)),
-    impulsiveness:parseFloat((features.impulsiveness||0).toFixed(4)),
-    zcr:          parseFloat((features.zcr          ||0).toFixed(4)),
-    centroid:     parseFloat((features.centroid     ||0).toFixed(4)),
-    attack:       parseFloat((features.attack       ||0).toFixed(4)),
+    club:          features.club     || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+    location:      features.location || phoneLocation,
+    snr:           parseFloat((features.snr          ||0).toFixed(4)),
+    impulsiveness: parseFloat((features.impulsiveness||0).toFixed(4)),
+    zcr:           parseFloat((features.zcr          ||0).toFixed(4)),
+    centroid:      parseFloat((features.centroid     ||0).toFixed(4)),
+    attack:        parseFloat((features.attack       ||0).toFixed(4)),
     ts: Date.now()
   }).catch(() => {});
 }
