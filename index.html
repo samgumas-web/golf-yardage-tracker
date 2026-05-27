@@ -2585,9 +2585,10 @@ async function fbLoadUserData(uid) {
   let hadShots = false;
   try {
     const ref = fbDb.collection('users').doc(uid).collection('data');
-    const [clubsDoc, trainDoc] = await Promise.all([
+    const [clubsDoc, trainDoc, audioDoc] = await Promise.all([
       ref.doc('clubs').get(),
-      ref.doc('trainingModel').get()
+      ref.doc('trainingModel').get(),
+      ref.doc('audioModel').get()
     ]);
     if (clubsDoc.exists && clubsDoc.data().items) {
       localStorage.setItem(userKey('gy_clubs'), JSON.stringify(clubsDoc.data().items));
@@ -2607,6 +2608,18 @@ async function fbLoadUserData(uid) {
       if (!trainData.poolSeeded) {
         fbSeedUserToPool(uid, trainData);
       }
+    }
+    // Restore audio model from Firestore if it has more data than localStorage (e.g. new device)
+    if (audioDoc.exists) {
+      const remoteAudio = audioDoc.data();
+      const remoteSamples = Array.isArray(remoteAudio.samples) ? remoteAudio.samples.length : 0;
+      try {
+        const localAudio = JSON.parse(localStorage.getItem(AU_LEARN_KEY) || 'null');
+        const localSamples = localAudio && Array.isArray(localAudio.samples) ? localAudio.samples.length : 0;
+        if (remoteSamples > localSamples) {
+          localStorage.setItem(AU_LEARN_KEY, JSON.stringify(remoteAudio));
+        }
+      } catch { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(remoteAudio)); }
     }
     const shotsSnap = await fbDb.collection('users').doc(uid).collection('shots')
       .orderBy('id', 'desc').limit(500).get();
