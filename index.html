@@ -4556,6 +4556,14 @@ function atLearnSwing(yes) {
     else     { atLearnData.nonShots.push(atPendingFeatures); atLearnData.poolNonShotCount = (atLearnData.poolNonShotCount || 0) + 1; }
     atSaveLearnData();
     fbPoolTrainingSample(atPendingFeatures, sampleType);
+    // Co-train audio: if a transient was captured alongside this motion event, label it too
+    if (auEnabled && auPending && Date.now() - auLastEvent < AU_SWING_WINDOW_MS * 2) {
+      if (yes) { auLearnData.shots.push(auPending);    auLearnData.poolShotCount    = (auLearnData.poolShotCount    || 0) + 1; }
+      else     { auLearnData.nonShots.push(auPending); auLearnData.poolNonShotCount = (auLearnData.poolNonShotCount || 0) + 1; }
+      auSaveLearnData();
+      fbAudioSample(auPending, sampleType);
+      auPending = null;
+    }
     gsSync('training', {
       timestamp: new Date().toISOString(),
       user_email: activeProfile ? activeProfile.email : 'anonymous',
