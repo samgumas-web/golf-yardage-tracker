@@ -3572,6 +3572,7 @@ async function forceUploadAudioToPool() {
       for (let i = 0; i < newSamples.length; i += 499) {
         const batch = fbDb.batch();
         newSamples.slice(i, i+499).forEach(s => batch.set(pool.doc(), {
+          uid:           activeProfile.id,
           type:          s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT',
           club:          s.club          || 'SHOT_UNKNOWN',
           location:      s.location      || phoneLocation,
