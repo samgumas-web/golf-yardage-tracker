@@ -80,7 +80,12 @@ auth.onAuthStateChanged(user => {
 });
 
 function signIn() {
-  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => { STATUS.textContent = 'Sign-in failed: ' + e.message; });
+  const email = document.getElementById('email-inp').value.trim();
+  const pw    = document.getElementById('pw-inp').value;
+  if (!email || !pw) { STATUS.textContent = 'Enter email and password'; return; }
+  STATUS.textContent = 'Signing in…';
+  auth.signInWithEmailAndPassword(email, pw)
+    .catch(e => { STATUS.textContent = 'Sign-in failed: ' + e.message; });
 }
 function signOut() { auth.signOut(); }
 
