@@ -3458,22 +3458,25 @@ async function fbLoadAudioPool() {
   try {
     const cached = JSON.parse(localStorage.getItem(AU_POOL_CACHE_KEY) || 'null');
     if (cached && (Date.now()-cached.ts) < AU_POOL_CACHE_TTL) {
-      auPoolData = { shots: cached.shots, nonShots: cached.nonShots };
-      computeAudioWeights(cached.shots, cached.nonShots);
+      const samples = cached.samples || [];
+      auPoolData = { samples };
+      computeAudioWeights(samples.filter(s=>s.club!=='NOT_SHOT'), samples.filter(s=>s.club==='NOT_SHOT'));
       return;
     }
   } catch {}
   try {
     const snap = await fbDb.collection('audioTrainingPool').limit(500).get();
-    const shots = [], nonShots = [];
+    const samples = [];
     snap.forEach(doc => {
       const d = doc.data();
-      const s = { rms:d.rms||0, peak:d.peak||0, zcr:d.zcr||0, centroid:d.centroid||0, attack:d.attack||0 };
-      if (d.type==='SHOT') shots.push(s); else nonShots.push(s);
+      samples.push({
+        rms:d.rms||0, peak:d.peak||0, zcr:d.zcr||0, centroid:d.centroid||0, attack:d.attack||0,
+        club: d.club || (d.type==='SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT')
+      });
     });
-    auPoolData = { shots, nonShots };
-    computeAudioWeights(shots, nonShots);
-    localStorage.setItem(AU_POOL_CACHE_KEY, JSON.stringify({ shots, nonShots, ts: Date.now() }));
+    auPoolData = { samples };
+    computeAudioWeights(samples.filter(s=>s.club!=='NOT_SHOT'), samples.filter(s=>s.club==='NOT_SHOT'));
+    localStorage.setItem(AU_POOL_CACHE_KEY, JSON.stringify({ samples, ts: Date.now() }));
   } catch (e) { console.warn('fbLoadAudioPool:', e); }
 }
 
