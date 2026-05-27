@@ -1755,6 +1755,94 @@ const AU_TRIGGER_RATIO   = 6;       // RMS must be this × baseline to fire
 const AU_MIN_PEAK        = 0.07;    // absolute min peak (0–1 scale) to avoid silence triggers
 const AU_SWING_WINDOW_MS = 2500;    // audio within this window of motion boosts confidence
 
+// Synthetic baseline so the audio k-NN has starting points before real training data exists.
+// Features: { peak, rms, zcr, centroid, attack } — all normalised 0–1.
+// Golf impacts: sharp transient (high peak, fast attack, low zcr, mid centroid).
+const AUDIO_SEED_SHOTS = [
+  // Driver / fairway wood — hardest hit
+  { peak:0.88, rms:0.24, zcr:0.06, centroid:0.47, attack:0.007 },
+  { peak:0.92, rms:0.27, zcr:0.05, centroid:0.44, attack:0.005 },
+  { peak:0.85, rms:0.22, zcr:0.07, centroid:0.49, attack:0.009 },
+  { peak:0.90, rms:0.26, zcr:0.06, centroid:0.42, attack:0.006 },
+  { peak:0.87, rms:0.25, zcr:0.05, centroid:0.46, attack:0.008 },
+  // Long iron (4–6 iron)
+  { peak:0.78, rms:0.19, zcr:0.08, centroid:0.43, attack:0.011 },
+  { peak:0.80, rms:0.21, zcr:0.07, centroid:0.41, attack:0.010 },
+  { peak:0.75, rms:0.18, zcr:0.09, centroid:0.45, attack:0.012 },
+  { peak:0.82, rms:0.20, zcr:0.08, centroid:0.40, attack:0.009 },
+  { peak:0.77, rms:0.19, zcr:0.08, centroid:0.44, attack:0.013 },
+  // Mid iron (7–9 iron)
+  { peak:0.72, rms:0.17, zcr:0.09, centroid:0.42, attack:0.014 },
+  { peak:0.74, rms:0.18, zcr:0.10, centroid:0.40, attack:0.012 },
+  { peak:0.70, rms:0.16, zcr:0.10, centroid:0.43, attack:0.015 },
+  { peak:0.76, rms:0.17, zcr:0.09, centroid:0.41, attack:0.011 },
+  { peak:0.73, rms:0.18, zcr:0.09, centroid:0.44, attack:0.013 },
+  // Chip / pitch
+  { peak:0.55, rms:0.13, zcr:0.11, centroid:0.38, attack:0.018 },
+  { peak:0.52, rms:0.12, zcr:0.12, centroid:0.36, attack:0.020 },
+  { peak:0.58, rms:0.14, zcr:0.10, centroid:0.39, attack:0.016 },
+  { peak:0.50, rms:0.11, zcr:0.12, centroid:0.37, attack:0.022 },
+  { peak:0.56, rms:0.13, zcr:0.11, centroid:0.38, attack:0.019 },
+  // Putt
+  { peak:0.28, rms:0.08, zcr:0.09, centroid:0.32, attack:0.025 },
+  { peak:0.32, rms:0.09, zcr:0.10, centroid:0.30, attack:0.023 },
+  { peak:0.25, rms:0.07, zcr:0.10, centroid:0.33, attack:0.028 },
+  { peak:0.30, rms:0.08, zcr:0.09, centroid:0.31, attack:0.024 },
+  { peak:0.27, rms:0.07, zcr:0.11, centroid:0.32, attack:0.027 },
+];
+// Non-shot sounds: talking, footsteps, clapping, wind, cart noise, bag drop, crowd.
+const AUDIO_SEED_NON_SHOTS = [
+  // Talking / conversation
+  { peak:0.32, rms:0.07, zcr:0.38, centroid:0.35, attack:0.18 },
+  { peak:0.28, rms:0.06, zcr:0.40, centroid:0.32, attack:0.22 },
+  { peak:0.35, rms:0.08, zcr:0.42, centroid:0.37, attack:0.15 },
+  { peak:0.25, rms:0.05, zcr:0.36, centroid:0.30, attack:0.25 },
+  { peak:0.30, rms:0.07, zcr:0.39, centroid:0.34, attack:0.20 },
+  { peak:0.38, rms:0.09, zcr:0.41, centroid:0.38, attack:0.17 },
+  { peak:0.27, rms:0.06, zcr:0.37, centroid:0.31, attack:0.23 },
+  { peak:0.33, rms:0.08, zcr:0.43, centroid:0.36, attack:0.19 },
+  // Footsteps (low centroid thud)
+  { peak:0.42, rms:0.05, zcr:0.18, centroid:0.12, attack:0.08 },
+  { peak:0.38, rms:0.04, zcr:0.20, centroid:0.14, attack:0.10 },
+  { peak:0.45, rms:0.06, zcr:0.17, centroid:0.11, attack:0.07 },
+  { peak:0.40, rms:0.05, zcr:0.21, centroid:0.13, attack:0.09 },
+  { peak:0.35, rms:0.04, zcr:0.19, centroid:0.12, attack:0.11 },
+  // Clapping (similar transient but slower attack, lower centroid)
+  { peak:0.60, rms:0.12, zcr:0.20, centroid:0.28, attack:0.04 },
+  { peak:0.65, rms:0.14, zcr:0.22, centroid:0.25, attack:0.05 },
+  { peak:0.58, rms:0.11, zcr:0.19, centroid:0.27, attack:0.04 },
+  { peak:0.62, rms:0.13, zcr:0.21, centroid:0.29, attack:0.06 },
+  { peak:0.55, rms:0.10, zcr:0.18, centroid:0.26, attack:0.05 },
+  { peak:0.63, rms:0.12, zcr:0.20, centroid:0.28, attack:0.04 },
+  // Wind / rustling (low peak, high ZCR, slow attack)
+  { peak:0.14, rms:0.03, zcr:0.45, centroid:0.40, attack:0.48 },
+  { peak:0.12, rms:0.02, zcr:0.48, centroid:0.42, attack:0.52 },
+  { peak:0.16, rms:0.03, zcr:0.44, centroid:0.38, attack:0.45 },
+  { peak:0.10, rms:0.02, zcr:0.50, centroid:0.43, attack:0.55 },
+  { peak:0.13, rms:0.03, zcr:0.46, centroid:0.41, attack:0.50 },
+  // Cart / motor rumble
+  { peak:0.08, rms:0.02, zcr:0.55, centroid:0.18, attack:0.60 },
+  { peak:0.10, rms:0.03, zcr:0.52, centroid:0.20, attack:0.55 },
+  { peak:0.07, rms:0.02, zcr:0.58, centroid:0.17, attack:0.65 },
+  { peak:0.09, rms:0.02, zcr:0.54, centroid:0.19, attack:0.58 },
+  // Bag drop / club rattle (low centroid impact with slow attack)
+  { peak:0.50, rms:0.06, zcr:0.15, centroid:0.08, attack:0.06 },
+  { peak:0.45, rms:0.05, zcr:0.16, centroid:0.09, attack:0.07 },
+  { peak:0.48, rms:0.06, zcr:0.14, centroid:0.10, attack:0.05 },
+  { peak:0.52, rms:0.07, zcr:0.17, centroid:0.08, attack:0.06 },
+  // Crowd / laughter (sustained, high ZCR)
+  { peak:0.35, rms:0.10, zcr:0.44, centroid:0.33, attack:0.30 },
+  { peak:0.40, rms:0.12, zcr:0.46, centroid:0.35, attack:0.28 },
+  { peak:0.32, rms:0.09, zcr:0.42, centroid:0.31, attack:0.32 },
+  // Ambient near-silence / background hum
+  { peak:0.06, rms:0.01, zcr:0.50, centroid:0.22, attack:0.70 },
+  { peak:0.05, rms:0.01, zcr:0.52, centroid:0.20, attack:0.72 },
+  { peak:0.07, rms:0.01, zcr:0.48, centroid:0.23, attack:0.68 },
+];
+
+let auTrainMode    = false;          // true while Audio Training modal is open
+let auTrainSession = { shots: 0, nonShots: 0 }; // labeled counts for this session
+
 function computeFeatureWeights(shots, nonShots) {
   if (shots.length < 5 || nonShots.length < 5) return;
   const features = ['rot', 'acc', 'accY', 'rotG', 'rotB', 'stable'];
