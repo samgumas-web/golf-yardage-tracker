@@ -3226,9 +3226,10 @@ async function forceUploadToPool() {
 }
 
 function fbPoolTrainingSample(features, type) {
-  if (!fbDb) return;
+  if (!fbDb || !activeProfile) return;
   const f = features;
-  fbDb.collection('trainingPool').add({
+  fbDb.collection('trainingPool').doc('motionSwingTraining').collection('samples').add({
+    uid: activeProfile.id,
     type,
     rot:    parseFloat((f.rot    || 0).toFixed(3)),
     acc:    parseFloat((f.acc    || 0).toFixed(3)),
