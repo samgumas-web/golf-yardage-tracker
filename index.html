@@ -2657,6 +2657,11 @@ async function fbSyncOnLogin(hadFirebaseShots) {
   }
 
   await Promise.all(promises).catch(e => console.warn('fbSyncOnLogin:', e));
+
+  // Auto-upload any audio samples that were saved locally but not yet in the shared pool
+  if (auLearnData.samples.length > (auLearnData.poolCount || 0)) {
+    forceUploadAudioToPool();
+  }
 }
 
 // ── Past rounds storage ───────────────────────────────────────
