@@ -3265,6 +3265,232 @@ async function fbLoadTrainingPool() {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// ── Audio Detection — analysis, classifier, training, pool ───
+// ─────────────────────────────────────────────────────────────
+
+async function auStartListening() {
+  if (auActive || !auEnabled) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try {
+    auStream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    auContext  = new (window.AudioContext || window.webkitAudioContext)();
+    const src  = auContext.createMediaStreamSource(auStream);
+    auAnalyser = auContext.createAnalyser();
+    auAnalyser.fftSize               = 1024;
+    auAnalyser.smoothingTimeConstant = 0.0; // raw frames for transient detection
+    src.connect(auAnalyser);
+    auTimeBuf     = new Float32Array(auAnalyser.fftSize);
+    auFreqBuf     = new Float32Array(auAnalyser.frequencyBinCount);
+    auActive      = true;
+    auBaselineRms = 0.01;
+    auLoop();
+  } catch (e) { console.warn('auStartListening:', e); auActive = false; }
+}
+
+function auStopListening() {
+  auActive = false;
+  if (auStream)  { auStream.getTracks().forEach(t => t.stop()); auStream = null; }
+  if (auContext) { auContext.close().catch(() => {}); auContext = null; }
+  auAnalyser = auTimeBuf = auFreqBuf = null;
+}
+
+function auLoop() {
+  if (!auActive || !auAnalyser) return;
+  setTimeout(auLoop, 25); // ~40 checks/sec
+  auAnalyser.getFloatTimeDomainData(auTimeBuf);
+  auAnalyser.getFloatFrequencyData(auFreqBuf);
+  const n = auTimeBuf.length;
+  let sumSq = 0, peak = 0;
+  for (let i = 0; i < n; i++) {
+    const v = auTimeBuf[i];
+    sumSq += v * v;
+    const av = Math.abs(v);
+    if (av > peak) peak = av;
+  }
+  const rms = Math.sqrt(sumSq / n);
+  // Update baseline only during quiet periods so shots don't raise the floor
+  if (rms < auBaselineRms * 2) auBaselineRms = auBaselineRms * 0.995 + rms * 0.005;
+  const now = Date.now();
+  if (rms > auBaselineRms * AU_TRIGGER_RATIO && peak > AU_MIN_PEAK && now - auLastEvent > AU_DEBOUNCE_MS) {
+    auLastEvent = now;
+    const f     = auBuildFeatures(rms, peak);
+    auLastScore = auScoreAudio(f);
+    auPending   = f;
+  }
+}
+
+function auBuildFeatures(rms, peak) {
+  const n = auTimeBuf.length;
+  let zcr = 0;
+  for (let i = 1; i < n; i++) { if (auTimeBuf[i] * auTimeBuf[i-1] < 0) zcr++; }
+  zcr /= n;
+  // Spectral centroid (normalised 0–1)
+  const fLen = auFreqBuf.length;
+  let wSum = 0, magSum = 0;
+  for (let i = 0; i < fLen; i++) {
+    const mag = Math.pow(10, (auFreqBuf[i] + 80) / 20);
+    wSum += i * mag; magSum += mag;
+  }
+  const centroid = magSum > 0 ? wSum / magSum / fLen : 0;
+  // Attack: index of first sample at ≥90% of peak (0=instant, 1=slow)
+  let attackIdx = 0;
+  const thresh = peak * 0.9;
+  for (let i = 0; i < n; i++) { if (Math.abs(auTimeBuf[i]) >= thresh) { attackIdx = i; break; } }
+  const attack = attackIdx / n;
+  return { rms, peak, zcr, centroid, attack };
+}
+
+function auMergedData() {
+  return {
+    shots:    [...auLearnData.shots,    ...auLearnData.shots,    ...auPoolData.shots],
+    nonShots: [...auLearnData.nonShots, ...auLearnData.nonShots, ...auPoolData.nonShots]
+  };
+}
+
+function auScoreAudio(f) {
+  const { shots, nonShots } = auMergedData();
+  if (shots.length < 3) return f.peak > AU_MIN_PEAK * 2 ? 0.55 : 0.1;
+  const all = [...shots, ...nonShots];
+  const keys = ['rms', 'peak', 'zcr', 'centroid', 'attack'];
+  function p95(arr) { const s = arr.slice().sort((a,b)=>a-b); return Math.max(s[Math.floor(s.length*0.95)]||1,1); }
+  const caps = {}; keys.forEach(k => { caps[k] = p95(all.map(e => e[k]||0)); });
+  const w = auFeatureWeights;
+  const cl = (v, mx) => Math.min(Math.max(v,0), mx);
+  const dist = (a, b) => Math.sqrt(
+    w.peak     * ((cl(a.peak,     caps.peak)    - cl(b.peak,     caps.peak))    / caps.peak)     ** 2 +
+    w.rms      * ((cl(a.rms,      caps.rms)     - cl(b.rms,      caps.rms))     / caps.rms)      ** 2 +
+    w.zcr      * ((cl(a.zcr,      caps.zcr)     - cl(b.zcr,      caps.zcr))     / caps.zcr)      ** 2 +
+    w.centroid * ((cl(a.centroid, caps.centroid)- cl(b.centroid, caps.centroid))/ caps.centroid) ** 2 +
+    w.attack   * ((cl(a.attack,   caps.attack)  - cl(b.attack,   caps.attack))  / caps.attack)   ** 2
+  );
+  const k = Math.min(7, Math.max(1, Math.floor(all.length/10)));
+  const neighbors = [
+    ...shots.map(s    => ({ f:s, lbl:1 })),
+    ...nonShots.map(s => ({ f:s, lbl:0 }))
+  ].sort((a,b) => dist(f,a.f)-dist(f,b.f)).slice(0,k);
+  const kS = neighbors.filter(n=>n.lbl===1).length, kN = k-kS;
+  const sD = kS/(shots.length||1), nD = kN/(nonShots.length||1);
+  return sD / (sD + nD + 1e-9);
+}
+
+function computeAudioWeights(shots, nonShots) {
+  if (shots.length < 5 || nonShots.length < 5) return;
+  const keys = ['rms','peak','zcr','centroid','attack'];
+  const all  = [...shots, ...nonShots];
+  function p95(arr) { const s=arr.slice().sort((a,b)=>a-b); return Math.max(s[Math.floor(s.length*0.95)]||1,1); }
+  const caps = {}; keys.forEach(k => { caps[k] = p95(all.map(e=>e[k]||0)); });
+  const mean = arr => arr.reduce((a,b)=>a+b,0)/(arr.length||1);
+  const vari = arr => { const m=mean(arr); return arr.reduce((a,b)=>a+(b-m)**2,0)/(arr.length||1); };
+  const scores = {};
+  keys.forEach(k => {
+    const cap=caps[k];
+    const sV=shots.map(e=>Math.min(e[k]||0,cap)/cap), nV=nonShots.map(e=>Math.min(e[k]||0,cap)/cap);
+    scores[k] = (mean(sV)-mean(nV))**2 / (vari(sV)+vari(nV)+1e-9);
+  });
+  const best=Math.max(...Object.values(scores)), floor=best*0.05;
+  keys.forEach(k => { scores[k]=Math.max(scores[k],floor); });
+  const total=keys.reduce((a,k)=>a+scores[k],0);
+  keys.forEach(k => { auFeatureWeights[k]=scores[k]/total; });
+}
+
+function auSaveLearnData() {
+  try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
+  if (activeProfile && fbDb) {
+    fbDb.collection('users').doc(activeProfile.id).collection('data')
+      .doc('audioModel').set(auLearnData).catch(() => {});
+  }
+}
+
+function fbAudioSample(features, type) {
+  if (!fbDb) return;
+  fbDb.collection('audioTrainingPool').add({
+    type,
+    rms:      parseFloat((features.rms      ||0).toFixed(4)),
+    peak:     parseFloat((features.peak     ||0).toFixed(4)),
+    zcr:      parseFloat((features.zcr      ||0).toFixed(4)),
+    centroid: parseFloat((features.centroid ||0).toFixed(4)),
+    attack:   parseFloat((features.attack   ||0).toFixed(4)),
+    ts: Date.now()
+  }).catch(() => {});
+}
+
+async function fbLoadAudioPool() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(AU_POOL_CACHE_KEY) || 'null');
+    if (cached && (Date.now()-cached.ts) < AU_POOL_CACHE_TTL) {
+      auPoolData = { shots: cached.shots, nonShots: cached.nonShots };
+      computeAudioWeights(cached.shots, cached.nonShots);
+      return;
+    }
+  } catch {}
+  try {
+    const snap = await fbDb.collection('audioTrainingPool').limit(500).get();
+    const shots = [], nonShots = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const s = { rms:d.rms||0, peak:d.peak||0, zcr:d.zcr||0, centroid:d.centroid||0, attack:d.attack||0 };
+      if (d.type==='SHOT') shots.push(s); else nonShots.push(s);
+    });
+    auPoolData = { shots, nonShots };
+    computeAudioWeights(shots, nonShots);
+    localStorage.setItem(AU_POOL_CACHE_KEY, JSON.stringify({ shots, nonShots, ts: Date.now() }));
+  } catch (e) { console.warn('fbLoadAudioPool:', e); }
+}
+
+async function forceUploadAudioToPool() {
+  if (!activeProfile) return;
+  const btn = document.getElementById('force-audio-pool-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Uploading…'; }
+  const s0=auLearnData.poolShotCount||0, n0=auLearnData.poolNonShotCount||0;
+  const newS=auLearnData.shots.slice(s0), newN=auLearnData.nonShots.slice(n0);
+  const all=[...newS.map(s=>({type:'SHOT',...s})),...newN.map(s=>({type:'NOT_SHOT',...s}))];
+  if (all.length) {
+    const pool=fbDb.collection('audioTrainingPool');
+    try {
+      for (let i=0; i<all.length; i+=499) {
+        const batch=fbDb.batch();
+        all.slice(i,i+499).forEach(s => batch.set(pool.doc(),{
+          type:s.type,
+          rms:parseFloat((s.rms||0).toFixed(4)),peak:parseFloat((s.peak||0).toFixed(4)),
+          zcr:parseFloat((s.zcr||0).toFixed(4)),centroid:parseFloat((s.centroid||0).toFixed(4)),
+          attack:parseFloat((s.attack||0).toFixed(4)),ts:Date.now()
+        }));
+        await batch.commit();
+      }
+      auLearnData.poolShotCount=auLearnData.shots.length;
+      auLearnData.poolNonShotCount=auLearnData.nonShots.length;
+      auSaveLearnData();
+    } catch(e) { console.warn('forceUploadAudioToPool:',e); }
+  }
+  localStorage.removeItem(AU_POOL_CACHE_KEY);
+  await fbLoadAudioPool();
+  if (btn) { btn.disabled=false; btn.textContent='↑ Upload Audio Training Data'; }
+  toast(all.length>0 ? `Uploaded ${newS.length} audio shots + ${newN.length} non-shots` : 'All audio data already uploaded');
+}
+
+function auToggle() {
+  auEnabled = !auEnabled;
+  localStorage.setItem('gy_audio_enabled', auEnabled ? 'true' : 'false');
+  updateAudioUI();
+  if (auEnabled && autoTrack) { auStartListening(); toast('Audio detection on — mic is listening'); }
+  else if (!auEnabled)        { auStopListening();  toast('Audio detection off'); }
+}
+
+function updateAudioUI() {
+  const btn = document.getElementById('au-toggle-btn');
+  if (btn) {
+    btn.textContent       = auEnabled ? '🎙 Audio: ON' : '🎙 Audio: OFF';
+    btn.style.background  = auEnabled ? 'var(--green-dark)' : 'var(--card2)';
+    btn.style.borderColor = auEnabled ? 'var(--green-mid)'  : 'var(--border)';
+    btn.style.color       = auEnabled ? 'var(--green-light)': 'var(--muted)';
+  }
+  const st = document.getElementById('au-stats');
+  if (st) st.textContent = `${auLearnData.shots.length} shot sounds · ${auLearnData.nonShots.length} non-shots trained`;
+  const up = document.getElementById('force-audio-pool-btn');
+  if (up) up.style.display = (auLearnData.shots.length+auLearnData.nonShots.length)>0 ? 'block' : 'none';
+}
+
 function fbSaveCourseHoles(courseId, courseName, holes) {
   if (!fbDb) return;
   const docId = String(courseId).replace(/[^a-zA-Z0-9_-]/g, '_');
