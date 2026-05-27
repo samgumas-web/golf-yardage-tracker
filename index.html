@@ -4622,8 +4622,10 @@ function toggleAutoTrack() {
       atMotionHandler = atMotionTick;
       window.addEventListener('devicemotion', atMotionHandler, { passive: true });
     }
+    auStartListening();
     toast('Auto-tracking on');
   } else {
+    auStopListening();
     clearTimeout(atSettleTimer);
     atShotStart = null;
     atStableRef = null;
