@@ -3537,8 +3537,7 @@ async function fbLoadAudioPool() {
     }
   } catch {}
   try {
-    if (!activeProfile) return;
-    const snap = await fbDb.collection('users').doc(activeProfile.id).collection('audioPool').limit(500).get();
+    const snap = await fbDb.collection('trainingPool').doc('audioPool').collection('samples').limit(500).get();
     const samples = [];
     snap.forEach(doc => {
       const d = doc.data();
