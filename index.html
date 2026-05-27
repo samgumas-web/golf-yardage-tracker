@@ -2449,6 +2449,12 @@ function initUserData() {
     const d = JSON.parse(localStorage.getItem(AT_LEARN_KEY) || 'null');
     atLearnData = (d && Array.isArray(d.shots)) ? d : { shots: [], nonShots: [] };
   } catch { atLearnData = { shots: [], nonShots: [] }; }
+  try {
+    const a = JSON.parse(localStorage.getItem(AU_LEARN_KEY) || 'null');
+    auLearnData = (a && Array.isArray(a.shots)) ? a : { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 };
+  } catch { auLearnData = { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 }; }
+  auEnabled = localStorage.getItem('gy_audio_enabled') === 'true';
+  updateAudioUI();
 }
 
 function migrateLegacyData() {
