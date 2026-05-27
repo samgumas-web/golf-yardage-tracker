@@ -6579,8 +6579,17 @@ function auOpenTraining() {
   if (!modal) return;
   auTrainSession = { shots: 0, nonShots: 0 };
   auTrainMode    = true;
+  auSelectedClub = '';
   modal.style.display = 'block';
   auUpdateTrainCount();
+  // Reset club button highlights
+  document.querySelectorAll('.au-club-btn').forEach(b => {
+    b.style.background  = 'var(--card2)';
+    b.style.borderColor = 'var(--border)';
+    b.style.color       = 'var(--muted)';
+  });
+  const lbl = document.getElementById('au-selected-club-lbl');
+  if (lbl) lbl.textContent = 'No club selected';
   // Ensure mic or system audio is running
   if (!auActive) {
     const wasEnabled = auEnabled;
