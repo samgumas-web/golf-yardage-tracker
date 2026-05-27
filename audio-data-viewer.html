@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GolfYards — Audio Training Data Viewer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a1a0a; color: #ccc; font-family: monospace; font-size: 13px; padding: 20px; }
+  h1 { color: #4ade80; margin-bottom: 16px; font-size: 18px; }
+  #status { color: #facc15; margin-bottom: 14px; min-height: 20px; }
+  button { background: #1a472a; border: 1px solid #166534; color: #4ade80; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 8px; margin-bottom: 12px; }
+  button:hover { background: #14532d; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  th { background: #111; color: #4ade80; text-align: left; padding: 6px 10px; border-bottom: 1px solid #1e3a1e; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 5px 10px; border-bottom: 1px solid #1a2e1a; vertical-align: top; }
+  tr:hover td { background: #0f2010; }
+  .club-header { color: #4ade80; font-size: 14px; font-weight: bold; margin: 20px 0 8px; border-bottom: 1px solid #1e3a1e; padding-bottom: 4px; }
+  .count-badge { display: inline-block; background: #1a472a; color: #4ade80; border-radius: 4px; padding: 2px 8px; font-size: 11px; margin-left: 8px; }
+  .not-shot { color: #f87171; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 24px; }
+  .summary-card { background: #111; border: 1px solid #1e3a1e; border-radius: 8px; padding: 10px 14px; }
+  .summary-card .label { font-size: 11px; color: #6b7280; margin-bottom: 2px; }
+  .summary-card .value { font-size: 16px; color: #4ade80; font-weight: bold; }
+  .no-data { color: #4b5563; font-style: italic; padding: 12px 0; }
+  #sign-in-area { margin-bottom: 20px; }
+  .num { color: #93c5fd; font-family: monospace; }
+</style>
+</head>
+<body>
+<h1>🎙 Audio Training Pool — Data Viewer</h1>
+<div id="status">Loading Firebase…</div>
+
+<div id="sign-in-area" style="display:none">
+  <button id="signin-btn" onclick="signIn()">Sign in with Google</button>
+</div>
+
+<div id="main" style="display:none">
+  <button onclick="loadData()">↻ Refresh</button>
+  <button onclick="signOut()" style="background:#1a1a2e;border-color:#374151;color:#9ca3af">Sign out</button>
+  <div id="summary" class="summary-grid"></div>
+  <div id="output"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            'AIzaSyCrOToPLYqbDnknhcWcVlQrOchs8YGTB9g',
+  authDomain:        'golfyards-16f37.firebaseapp.com',
+  projectId:         'golfyards-16f37',
+  storageBucket:     'golfyards-16f37.firebasestorage.app',
+  messagingSenderId: '172351445870',
+  appId:             '1:172351445870:web:11772be91aeb54d1dfbf7f'
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+const STATUS = document.getElementById('status');
+const SIGNIN = document.getElementById('sign-in-area');
+const MAIN   = document.getElementById('main');
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    STATUS.textContent = `Signed in as ${user.email}`;
+    SIGNIN.style.display = 'none';
+    MAIN.style.display   = 'block';
+    loadData();
+  } else {
+    STATUS.textContent = 'Not signed in';
+    SIGNIN.style.display = 'block';
+    MAIN.style.display   = 'none';
+  }
+});
+
+function signIn() {
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => { STATUS.textContent = 'Sign-in failed: ' + e.message; });
+}
+function signOut() { auth.signOut(); }
+
+function fmt(n) { return typeof n === 'number' ? n.toFixed(4) : '—'; }
+
+async function loadData() {
+  STATUS.textContent = 'Fetching audioTrainingPool…';
+  const summaryEl = document.getElementById('summary');
+  const outputEl  = document.getElementById('output');
+  summaryEl.innerHTML = '<div style="color:#4b5563">Loading…</div>';
+  outputEl.innerHTML  = '';
+
+  try {
+    const snap = await db.collection('audioTrainingPool').orderBy('ts', 'asc').limit(1000).get();
+    if (snap.empty) {
+      summaryEl.innerHTML = '';
+      outputEl.innerHTML = '<div class="no-data">No documents found in audioTrainingPool.</div>';
+      STATUS.textContent = 'Loaded — 0 documents';
+      return;
+    }
+
+    // Group by club
+    const byClub = {};
+    const totals = { total: 0, shots: 0, notShot: 0, clubs: new Set() };
+    snap.forEach(doc => {
+      const d = doc.data();
+      const club = d.club || (d.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT');
+      if (!byClub[club]) byClub[club] = [];
+      byClub[club].push({ id: doc.id, ...d, club });
+      totals.total++;
+      if (club === 'NOT_SHOT') totals.notShot++;
+      else { totals.shots++; totals.clubs.add(club); }
+    });
+
+    // Summary cards
+    const clubCount = totals.clubs.size;
+    summaryEl.innerHTML = `
+      <div class="summary-card"><div class="label">Total Samples</div><div class="value">${totals.total}</div></div>
+      <div class="summary-card"><div class="label">Shot Samples</div><div class="value" style="color:#4ade80">${totals.shots}</div></div>
+      <div class="summary-card"><div class="label">Non-Shot Samples</div><div class="value" style="color:#f87171">${totals.notShot}</div></div>
+      <div class="summary-card"><div class="label">Club Categories</div><div class="value">${clubCount}</div></div>
+    `;
+
+    // Order: NOT_SHOT last, rest alphabetically
+    const clubOrder = Object.keys(byClub).sort((a, b) => {
+      if (a === 'NOT_SHOT') return 1;
+      if (b === 'NOT_SHOT') return -1;
+      if (a === 'SHOT_UNKNOWN') return 1;
+      if (b === 'SHOT_UNKNOWN') return -1;
+      return a.localeCompare(b);
+    });
+
+    let html = '';
+    for (const club of clubOrder) {
+      const rows = byClub[club];
+      const isNot = club === 'NOT_SHOT';
+      html += `<div class="club-header ${isNot ? 'not-shot' : ''}">
+        ${isNot ? '✗ NOT SHOT' : '✓ ' + club}
+        <span class="count-badge">${rows.length} sample${rows.length !== 1 ? 's' : ''}</span>
+      </div>`;
+      html += `<table>
+        <tr>
+          <th>#</th><th>peak</th><th>rms</th><th>zcr</th><th>centroid</th><th>attack</th><th>Timestamp</th>
+        </tr>`;
+      rows.forEach((r, i) => {
+        const ts = r.ts ? new Date(r.ts).toLocaleString() : '—';
+        html += `<tr>
+          <td>${i+1}</td>
+          <td class="num">${fmt(r.peak)}</td>
+          <td class="num">${fmt(r.rms)}</td>
+          <td class="num">${fmt(r.zcr)}</td>
+          <td class="num">${fmt(r.centroid)}</td>
+          <td class="num">${fmt(r.attack)}</td>
+          <td style="font-size:11px;color:#4b5563">${ts}</td>
+        </tr>`;
+      });
+      html += `</table>`;
+    }
+    outputEl.innerHTML = html;
+    STATUS.textContent = `Loaded ${totals.total} documents — ${clubCount} club categories`;
+  } catch (e) {
+    STATUS.textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>
