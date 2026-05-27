@@ -3477,7 +3477,16 @@ async function fbLoadAudioPool() {
   try {
     const cached = JSON.parse(localStorage.getItem(AU_POOL_CACHE_KEY) || 'null');
     if (cached && (Date.now()-cached.ts) < AU_POOL_CACHE_TTL) {
-      const samples = cached.samples || [];
+      // Migrate cached data if it uses old peak/rms format
+      const samples = (cached.samples || []).map(d => {
+        if (d.snr !== undefined) return d;
+        return {
+          snr:           (d.peak || 0) / 0.01,
+          impulsiveness: d.peak > 0 ? (d.rms||0)/d.peak : 0.5,
+          zcr:d.zcr||0, centroid:d.centroid||0, attack:d.attack||0,
+          club:d.club||'SHOT_UNKNOWN', location:d.location||'pocket'
+        };
+      });
       auPoolData = { samples };
       computeAudioWeights(samples.filter(s=>s.club!=='NOT_SHOT'), samples.filter(s=>s.club==='NOT_SHOT'));
       return;
