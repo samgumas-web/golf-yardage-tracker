@@ -2466,8 +2466,21 @@ function initUserData() {
   } catch { atLearnData = { shots: [], nonShots: [] }; }
   try {
     const a = JSON.parse(localStorage.getItem(AU_LEARN_KEY) || 'null');
-    auLearnData = (a && Array.isArray(a.shots)) ? a : { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 };
-  } catch { auLearnData = { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 }; }
+    if (a && Array.isArray(a.samples)) {
+      auLearnData = a;
+    } else if (a && (Array.isArray(a.shots) || Array.isArray(a.nonShots))) {
+      // Migrate legacy shots/nonShots format
+      auLearnData = {
+        samples: [
+          ...(a.shots    || []).map(s => ({ ...s, club: 'SHOT_UNKNOWN' })),
+          ...(a.nonShots || []).map(s => ({ ...s, club: 'NOT_SHOT' }))
+        ],
+        poolCount: 0
+      };
+    } else {
+      auLearnData = { samples: [], poolCount: 0 };
+    }
+  } catch { auLearnData = { samples: [], poolCount: 0 }; }
   auEnabled = localStorage.getItem('gy_audio_enabled') === 'true';
   updateAudioUI();
 }
