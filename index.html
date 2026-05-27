@@ -6788,6 +6788,33 @@ function startGPSTimeout() {
 }
 </script>
 
+<!-- Phone Location Picker (shown when starting a round) -->
+<div id="phone-loc-modal" style="display:none;position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,0.88);align-items:center;justify-content:center">
+  <div style="background:#0f2010;border:1px solid #1e3a1e;border-radius:16px;padding:24px 20px;max-width:340px;width:92%">
+    <div style="font-size:15px;font-weight:600;color:#4ade80;margin-bottom:6px;text-align:center">Where will your phone be?</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:18px;text-align:center;line-height:1.5">
+      This tells the audio detector how the impact sound will reach the mic, and whether motion detection should be active.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="ploc-btn" data-loc="ground" onclick="setPhoneLocation('ground')"
+        style="padding:14px 16px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:#e5e7eb;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent">
+        <div style="font-size:14px;font-weight:600;margin-bottom:2px">📍 Ground Near Ball</div>
+        <div style="font-size:11px;color:#6b7280">Phone placed on ground while you swing. Audio-only detection — no motion required.</div>
+      </button>
+      <button class="ploc-btn" data-loc="pocket" onclick="setPhoneLocation('pocket')"
+        style="padding:14px 16px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:#e5e7eb;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent">
+        <div style="font-size:14px;font-weight:600;margin-bottom:2px">👖 In My Pocket</div>
+        <div style="font-size:11px;color:#6b7280">Default. Motion swing detection active, audio provides extra confirmation.</div>
+      </button>
+      <button class="ploc-btn" data-loc="bag" onclick="setPhoneLocation('bag')"
+        style="padding:14px 16px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:#e5e7eb;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent">
+        <div style="font-size:14px;font-weight:600;margin-bottom:2px">🎒 In My Golf Bag</div>
+        <div style="font-size:11px;color:#6b7280">Phone stays in bag. Audio-only detection — no motion required.</div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Audio Training Modal -->
 <div id="au-train-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:#0a1a0a;overflow-y:auto">
   <div style="padding:20px;max-width:480px;margin:0 auto">
