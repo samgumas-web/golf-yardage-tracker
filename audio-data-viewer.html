@@ -98,23 +98,37 @@ async function loadData() {
   summaryEl.innerHTML = '<div style="color:#4b5563">Loading…</div>';
   outputEl.innerHTML  = '';
 
+  const uid = auth.currentUser.uid;
   try {
-    const snap = await db.collection('audioTrainingPool').orderBy('ts', 'asc').limit(1000).get();
-    if (snap.empty) {
+    // Read user's own saved audio model (always readable, same path as the app)
+    const doc = await db.collection('users').doc(uid).collection('data').doc('audioModel').get();
+    const raw = doc.exists ? doc.data() : null;
+
+    // Normalise to new samples[] format (migrate legacy shots/nonShots if needed)
+    let samples = [];
+    if (raw && Array.isArray(raw.samples)) {
+      samples = raw.samples;
+    } else if (raw && (Array.isArray(raw.shots) || Array.isArray(raw.nonShots))) {
+      samples = [
+        ...(raw.shots    || []).map(s => ({ ...s, club: 'SHOT_UNKNOWN' })),
+        ...(raw.nonShots || []).map(s => ({ ...s, club: 'NOT_SHOT' }))
+      ];
+    }
+
+    if (!samples.length) {
       summaryEl.innerHTML = '';
-      outputEl.innerHTML = '<div class="no-data">No documents found in audioTrainingPool.</div>';
-      STATUS.textContent = 'Loaded — 0 documents';
+      outputEl.innerHTML = '<div class="no-data">No audio training data saved for this account yet.<br>Use Settings → Audio Shot Detection → Train with Audio Samples in the app.</div>';
+      STATUS.textContent = 'Loaded — 0 samples';
       return;
     }
 
     // Group by club
     const byClub = {};
     const totals = { total: 0, shots: 0, notShot: 0, clubs: new Set() };
-    snap.forEach(doc => {
-      const d = doc.data();
-      const club = d.club || (d.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT');
+    samples.forEach((d, i) => {
+      const club = d.club || 'SHOT_UNKNOWN';
       if (!byClub[club]) byClub[club] = [];
-      byClub[club].push({ id: doc.id, ...d, club });
+      byClub[club].push({ idx: i + 1, ...d, club });
       totals.total++;
       if (club === 'NOT_SHOT') totals.notShot++;
       else { totals.shots++; totals.clubs.add(club); }
