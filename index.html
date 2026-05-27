@@ -1821,6 +1821,7 @@ fbAuth.onAuthStateChanged(async user => {
     const hadFirebaseShots = await fbLoadUserData(user.uid);
     await fbLoadRounds(user.uid);
     await fbLoadTrainingPool();
+    fbLoadAudioPool();
     migrateLegacyData();
     initUserData();
     render();
