@@ -3376,10 +3376,13 @@ function auBuildFeatures(rms, peak) {
 }
 
 function auMergedData() {
-  // Personal data weighted 2× over pool; seed data provides baseline before any real data exists
+  const lShots    = auLearnData.samples.filter(s => s.club !== 'NOT_SHOT');
+  const lNonShots = auLearnData.samples.filter(s => s.club === 'NOT_SHOT');
+  const pShots    = (auPoolData.samples || []).filter(s => s.club !== 'NOT_SHOT');
+  const pNonShots = (auPoolData.samples || []).filter(s => s.club === 'NOT_SHOT');
   return {
-    shots:    [...auLearnData.shots, ...auLearnData.shots, ...auPoolData.shots, ...AUDIO_SEED_SHOTS],
-    nonShots: [...auLearnData.nonShots, ...auLearnData.nonShots, ...auPoolData.nonShots, ...AUDIO_SEED_NON_SHOTS]
+    shots:    [...lShots, ...lShots, ...pShots],
+    nonShots: [...lNonShots, ...lNonShots, ...pNonShots]
   };
 }
 
