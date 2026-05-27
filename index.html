@@ -3260,12 +3260,13 @@ async function fbSeedUserToPool(uid, trainData) {
       .update({ poolSeeded: true, poolShotCount: shots.length, poolNonShotCount: nonShots.length }).catch(() => {});
     return;
   }
-  const pool = fbDb.collection('trainingPool');
+  const pool = fbDb.collection('trainingPool').doc('motionSwingTraining').collection('samples');
   try {
     for (let i = 0; i < all.length; i += 499) {
       const batch = fbDb.batch();
       all.slice(i, i + 499).forEach(s => {
         batch.set(pool.doc(), {
+          uid:    uid,
           type:   s.type,
           rot:    parseFloat((s.rot    || 0).toFixed(3)),
           acc:    parseFloat((s.acc    || 0).toFixed(3)),
