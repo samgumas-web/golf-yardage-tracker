@@ -6678,9 +6678,16 @@ function auSaveTrainingAndClose() {
   const total = auTrainSession.shots + auTrainSession.nonShots;
   if (total > 0) {
     auSaveLearnData();
-    // Invalidate pool cache so next load gets fresh weights
     localStorage.removeItem(AU_POOL_CACHE_KEY);
-    toast(`Saved ${auTrainSession.shots} shots + ${auTrainSession.nonShots} non-shots`);
+    // Auto-upload all new samples to Firestore
+    if (activeProfile) {
+      forceUploadAudioToPool().then(() => {
+        updateAudioUI();
+      });
+      toast(`Saved ${auTrainSession.shots} shots + ${auTrainSession.nonShots} non-shots — uploading to Firestore…`);
+    } else {
+      toast(`Saved ${auTrainSession.shots} shots + ${auTrainSession.nonShots} non-shots (sign in to sync)`);
+    }
   }
   auCloseTraining();
 }
