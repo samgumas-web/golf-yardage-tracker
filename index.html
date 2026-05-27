@@ -2474,7 +2474,6 @@ function initUserData() {
     if (a && Array.isArray(a.samples)) {
       auLearnData = a;
     } else if (a && (Array.isArray(a.shots) || Array.isArray(a.nonShots))) {
-      // Migrate legacy shots/nonShots format
       auLearnData = {
         samples: [
           ...(a.shots    || []).map(s => ({ ...s, club: 'SHOT_UNKNOWN' })),
@@ -2485,7 +2484,12 @@ function initUserData() {
     } else {
       auLearnData = { samples: [], poolCount: 0 };
     }
-  } catch { auLearnData = { samples: [], poolCount: 0 }; }
+    // If pool path changed since last upload, reset poolCount so all samples re-upload to new path
+    if (auLearnData.poolVersion !== AU_POOL_VERSION) {
+      auLearnData.poolCount = 0;
+      auLearnData.poolVersion = AU_POOL_VERSION;
+    }
+  } catch { auLearnData = { samples: [], poolCount: 0, poolVersion: AU_POOL_VERSION }; }
   auEnabled = localStorage.getItem('gy_audio_enabled') === 'true';
   updateAudioUI();
 }
