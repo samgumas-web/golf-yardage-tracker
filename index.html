@@ -4688,6 +4688,7 @@ function atLearnSwing(yes) {
     if (auEnabled && auPending && Date.now() - auLastEvent < AU_SWING_WINDOW_MS * 2) {
       const auSample = { ...auPending, club: yes ? 'SHOT_UNKNOWN' : 'NOT_SHOT' };
       auLearnData.samples.push(auSample);
+      auLearnData.poolCount = (auLearnData.poolCount || 0) + 1; // individual write below counts as uploaded
       auSaveLearnData();
       fbAudioSample(auSample, sampleType);
       auPending = null;
