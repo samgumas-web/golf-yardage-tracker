@@ -4521,7 +4521,10 @@ function onSwingDetected(features) {
   if (atPhase !== 'ready') return;
   atLastSwing = now;
 
-  const score = atScoreMotion(features);
+  const motionScore = atScoreMotion(features);
+  // Audio corroboration: if a transient fired near this motion event, boost confidence
+  const auBoost = (auEnabled && auActive && now - auLastEvent < AU_SWING_WINDOW_MS && auLastScore >= 0.5) ? 0.15 : 0;
+  const score = Math.min(1.0, motionScore + auBoost);
   if (atIsTrained() && score >= AT_CONF_AUTO) {
     atExecuteSwing();
     return;
