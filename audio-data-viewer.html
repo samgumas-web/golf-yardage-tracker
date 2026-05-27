@@ -31,7 +31,13 @@
 <div id="status">Loading Firebase…</div>
 
 <div id="sign-in-area" style="display:none">
-  <button id="signin-btn" onclick="signIn()">Sign in with Google</button>
+  <div style="max-width:320px">
+    <input id="email-inp" type="email" placeholder="Email" value="samgumas@g.ucla.edu"
+      style="width:100%;padding:8px 10px;background:#111;border:1px solid #1e3a1e;border-radius:6px;color:#ccc;font-size:13px;margin-bottom:8px;display:block">
+    <input id="pw-inp" type="password" placeholder="Password"
+      style="width:100%;padding:8px 10px;background:#111;border:1px solid #1e3a1e;border-radius:6px;color:#ccc;font-size:13px;margin-bottom:10px;display:block">
+    <button onclick="signIn()">Sign In</button>
+  </div>
 </div>
 
 <div id="main" style="display:none">
