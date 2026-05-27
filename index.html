@@ -3607,6 +3607,7 @@ async function forceUploadAudioToPool() {
         await batch.commit();
       }
       auLearnData.poolCount = auLearnData.samples.length;
+      auLearnData.poolVersion = AU_POOL_VERSION;
       auSaveLearnData();
     } catch(e) {
       uploadOk = false;
