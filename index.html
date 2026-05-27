@@ -3503,7 +3503,8 @@ function auSaveLearnData() {
 
 function fbAudioSample(features, type) {
   if (!fbDb || !activeProfile) return;
-  fbDb.collection('users').doc(activeProfile.id).collection('audioPool').add({
+  fbDb.collection('trainingPool').doc('audioPool').collection('samples').add({
+    uid:           activeProfile.id,
     type,
     club:          features.club     || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
     location:      features.location || phoneLocation,
