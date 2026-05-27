@@ -1721,6 +1721,29 @@ let atPoolData       = { shots: [], nonShots: [] }; // global training pool from
 // Feature weights for k-NN distance — recomputed from pool data on each load (Fisher's criterion)
 let atFeatureWeights = { rot: 0.20, acc: 0.05, accY: 0.15, rotG: 0.30, rotB: 0.20, stable: 0.10 };
 
+// ── Audio Shot Detection ─────────────────────────────────────
+let auContext      = null;
+let auAnalyser     = null;
+let auStream       = null;
+let auActive       = false;
+let auEnabled      = false;         // loaded from localStorage in initApp
+let auLastEvent    = 0;             // timestamp of last detected audio transient
+let auLastScore    = 0;             // k-NN score of that transient
+let auPending      = null;          // features of last transient (awaiting confirm)
+let auBaselineRms  = 0.01;          // rolling quiet-period RMS floor
+let auTimeBuf      = null;          // Float32Array reused each analysis tick
+let auFreqBuf      = null;          // Float32Array for frequency data
+let auLearnData    = { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 };
+let auPoolData     = { shots: [], nonShots: [] };
+let auFeatureWeights = { peak: 0.30, rms: 0.25, zcr: 0.15, centroid: 0.20, attack: 0.10 };
+const AU_LEARN_KEY       = 'gy_audio_learn';
+const AU_POOL_CACHE_KEY  = 'gy_audio_pool_v1';
+const AU_POOL_CACHE_TTL  = 24 * 60 * 60 * 1000;
+const AU_DEBOUNCE_MS     = 2000;    // min ms between audio triggers
+const AU_TRIGGER_RATIO   = 6;       // RMS must be this × baseline to fire
+const AU_MIN_PEAK        = 0.07;    // absolute min peak (0–1 scale) to avoid silence triggers
+const AU_SWING_WINDOW_MS = 2500;    // audio within this window of motion boosts confidence
+
 function computeFeatureWeights(shots, nonShots) {
   if (shots.length < 5 || nonShots.length < 5) return;
   const features = ['rot', 'acc', 'accY', 'rotG', 'rotB', 'stable'];
