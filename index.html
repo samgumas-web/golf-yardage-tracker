@@ -6041,11 +6041,18 @@ function dismissRangeCard() {
 function rLearnSwing(yes) {
   clearTimeout(rConfirmTimer);
   if (rPendingFeatures) {
+    const sampleType = yes ? 'SHOT' : 'NOT_SHOT';
     if (yes) { atLearnData.shots.push(rPendingFeatures);    atLearnData.poolShotCount    = (atLearnData.poolShotCount    || 0) + 1; }
     else     { atLearnData.nonShots.push(rPendingFeatures); atLearnData.poolNonShotCount = (atLearnData.poolNonShotCount || 0) + 1; }
     atSaveLearnData();
-    fbPoolTrainingSample(rPendingFeatures, yes ? 'SHOT' : 'NOT_SHOT');
-    // Sync to Google Sheets training log (same as on-course auto-track)
+    fbPoolTrainingSample(rPendingFeatures, sampleType);
+    if (auEnabled && auPending && Date.now() - auLastEvent < AU_SWING_WINDOW_MS * 2) {
+      if (yes) { auLearnData.shots.push(auPending);    auLearnData.poolShotCount    = (auLearnData.poolShotCount    || 0) + 1; }
+      else     { auLearnData.nonShots.push(auPending); auLearnData.poolNonShotCount = (auLearnData.poolNonShotCount || 0) + 1; }
+      auSaveLearnData();
+      fbAudioSample(auPending, sampleType);
+      auPending = null;
+    }
     gsSync('training', {
       timestamp: new Date().toISOString(),
       user_email: activeProfile?.email || 'anonymous',
