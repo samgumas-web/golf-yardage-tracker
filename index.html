@@ -6682,6 +6682,19 @@ function auSaveTrainingAndClose() {
   auCloseTraining();
 }
 
+function auSetTrainLoc(loc) {
+  phoneLocation = loc;
+  localStorage.setItem('gy_phone_loc', loc);
+  ['ground','pocket','bag'].forEach(l => {
+    const b = document.getElementById('au-loc-' + l);
+    if (!b) return;
+    const active = l === loc;
+    b.style.background  = active ? '#14532d' : 'var(--card2)';
+    b.style.borderColor = active ? '#16a34a' : 'var(--border)';
+    b.style.color       = active ? '#4ade80' : 'var(--muted)';
+  });
+}
+
 function auSetClub(club) {
   auSelectedClub = club;
   // Highlight selected club button
