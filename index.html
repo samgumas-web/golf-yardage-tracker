@@ -3406,12 +3406,25 @@ function auLoop() {
   const rms = Math.sqrt(sumSq / n);
   // Update baseline only during quiet periods so shots don't raise the floor
   if (rms < auBaselineRms * 2) auBaselineRms = auBaselineRms * 0.995 + rms * 0.005;
+  // Drive training modal level meter
+  if (auTrainMode) {
+    const meter = document.getElementById('au-train-meter');
+    if (meter) meter.style.width = Math.min(100, rms * 500) + '%';
+  }
   const now = Date.now();
   if (rms > auBaselineRms * AU_TRIGGER_RATIO && peak > AU_MIN_PEAK && now - auLastEvent > AU_DEBOUNCE_MS) {
     auLastEvent = now;
     const f     = auBuildFeatures(rms, peak);
     auLastScore = auScoreAudio(f);
     auPending   = f;
+    // Training modal: flash indicator when transient is ready to label
+    if (auTrainMode) {
+      const flash = document.getElementById('au-train-flash');
+      if (flash) {
+        flash.textContent = '⚡ Sound captured — label it now!';
+        flash.style.color = '#facc15';
+      }
+    }
   }
 }
 
