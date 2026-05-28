@@ -3542,7 +3542,7 @@ function auSaveLearnData() {
 
 function fbAudioSample(features, type) {
   if (!fbDb || !activeProfile) return;
-  fbDb.collection('trainingPool').doc('audioPool').collection('samples').add({
+  fbDb.collection('trainingPool').doc('audioTraining').collection('samples').add({
     uid:           activeProfile.id,
     type,
     club:          features.club     || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
@@ -3576,7 +3576,7 @@ async function fbLoadAudioPool() {
     }
   } catch {}
   try {
-    const snap = await fbDb.collection('trainingPool').doc('audioPool').collection('samples').limit(500).get();
+    const snap = await fbDb.collection('trainingPool').doc('audioTraining').collection('samples').limit(500).get();
     const samples = [];
     snap.forEach(doc => {
       const d = doc.data();
@@ -3605,7 +3605,7 @@ async function forceUploadAudioToPool() {
   const newSamples = auLearnData.samples.slice(auLearnData.poolCount || 0);
   let uploadOk = true;
   if (newSamples.length) {
-    const pool = fbDb.collection('trainingPool').doc('audioPool').collection('samples');
+    const pool = fbDb.collection('trainingPool').doc('audioTraining').collection('samples');
     try {
       for (let i = 0; i < newSamples.length; i += 499) {
         const batch = fbDb.batch();
@@ -6961,7 +6961,7 @@ async function migrateAudioToGround() {
   try {
     // Update pool documents
     if (!activeProfile) return;
-    const snap = await fbDb.collection('trainingPool').doc('audioPool').collection('samples').limit(500).get();
+    const snap = await fbDb.collection('trainingPool').doc('audioTraining').collection('samples').limit(500).get();
     for (let i = 0; i < snap.docs.length; i += 499) {
       const batch = fbDb.batch();
       snap.docs.slice(i, i + 499).forEach(doc => {
