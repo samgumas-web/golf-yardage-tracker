@@ -3631,8 +3631,11 @@ async function forceUploadAudioToPool() {
       console.warn('forceUploadAudioToPool:', e);
     }
   }
-  localStorage.removeItem(AU_POOL_CACHE_KEY);
-  await fbLoadAudioPool();
+  // Only bust the audio pool cache and re-read if the upload actually succeeded
+  if (uploadOk && newSamples.length > 0) {
+    localStorage.removeItem(AU_POOL_CACHE_KEY);
+    await fbLoadAudioPool();
+  }
   if (btn) { btn.disabled=false; btn.textContent='↑ Upload Audio Training Data'; }
   if (!uploadOk) {
     toast('Upload failed — check connection and try again');
