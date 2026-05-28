@@ -2586,10 +2586,13 @@ function gsSync(type, data) {
 
 // ── Firebase data ──────────────────────────────────────────
 
+const FB_SYNC_TTL = 12 * 60 * 60 * 1000; // re-read shots/rounds from Firestore at most every 12h
+
 async function fbLoadUserData(uid) {
   let hadShots = false;
   try {
     const ref = fbDb.collection('users').doc(uid).collection('data');
+    // Always fetch the 3 small metadata docs — they're cheap and keep profile data in sync
     const [clubsDoc, trainDoc, audioDoc] = await Promise.all([
       ref.doc('clubs').get(),
       ref.doc('trainingModel').get(),
@@ -2609,7 +2612,6 @@ async function fbLoadUserData(uid) {
           .catch(() => {});
       }
       localStorage.setItem(AT_LEARN_KEY, JSON.stringify(trainData));
-      // One-time seed: push all existing samples to the shared pool if not done yet
       if (!trainData.poolSeeded) {
         fbSeedUserToPool(uid, trainData);
       }
@@ -2626,13 +2628,23 @@ async function fbLoadUserData(uid) {
         }
       } catch { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(remoteAudio)); }
     }
-    const shotsSnap = await fbDb.collection('users').doc(uid).collection('shots')
-      .orderBy('id', 'desc').limit(500).get();
-    if (!shotsSnap.empty) {
-      const loaded = [];
-      shotsSnap.forEach(d => loaded.push(d.data()));
-      localStorage.setItem(userKey('gy_shots'), JSON.stringify(loaded));
-      hadShots = true;
+
+    // Only read shots from Firestore if local cache is empty or stale (> 12h old)
+    const shotsSyncTs = parseInt(localStorage.getItem(userKey('gy_shots_sync_ts')) || '0', 10);
+    const localShots  = loadShots();
+    const shotsCacheOk = localShots.length > 0 && (Date.now() - shotsSyncTs) < FB_SYNC_TTL;
+    if (!shotsCacheOk) {
+      const shotsSnap = await fbDb.collection('users').doc(uid).collection('shots')
+        .orderBy('id', 'desc').limit(500).get();
+      if (!shotsSnap.empty) {
+        const loaded = [];
+        shotsSnap.forEach(d => loaded.push(d.data()));
+        localStorage.setItem(userKey('gy_shots'), JSON.stringify(loaded));
+        localStorage.setItem(userKey('gy_shots_sync_ts'), String(Date.now()));
+        hadShots = true;
+      }
+    } else {
+      hadShots = localShots.length > 0;
     }
   } catch (e) { console.warn('fbLoadUserData:', e); }
   return hadShots;
