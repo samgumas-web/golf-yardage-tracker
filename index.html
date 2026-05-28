@@ -3346,7 +3346,7 @@ async function fbLoadTrainingPool() {
       const oldSnap = await fbDb.collection('trainingPool').limit(remaining + 2).get();
       oldSnap.forEach(doc => {
         const d = doc.data();
-        if (!d.type) return; // skip container docs (audioPool, motionSwingTraining)
+        if (!d.type) return; // skip container docs (audioTraining, motionTraining)
         if (d.type === 'SHOT') shots.push(parseDoc(d));
         else if (d.type === 'NOT_SHOT') nonShots.push(parseDoc(d));
       });
