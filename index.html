@@ -7026,6 +7026,34 @@ async function migrateMotionToSubcollection() {
   }
 }
 
+async function deleteAudioPool() {
+  if (!fbDb || !activeProfile) return;
+  const btn = document.getElementById('delete-audiopool-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try {
+    const samplesRef = fbDb.collection('trainingPool').doc('audioPool').collection('samples');
+    let totalDeleted = 0;
+    let keepGoing = true;
+    while (keepGoing) {
+      const snap = await samplesRef.limit(499).get();
+      if (snap.empty) { keepGoing = false; break; }
+      const batch = fbDb.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      totalDeleted += snap.docs.length;
+      if (snap.docs.length < 499) keepGoing = false;
+    }
+    // Delete the container document itself
+    await fbDb.collection('trainingPool').doc('audioPool').delete();
+    toast(`Deleted audioPool (${totalDeleted} samples removed) ✓`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('deleteAudioPool:', e);
+    toast('Delete failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry delete audioPool'; }
+  }
+}
+
 // Keyboard
 document.getElementById('new-club').addEventListener('keypress', e => { if (e.key==='Enter') addClub(); });
 document.getElementById('mb-new-club').addEventListener('keypress', e => { if (e.key==='Enter') mbAddClub(); });
