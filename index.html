@@ -2709,6 +2709,10 @@ function fbSaveRound(round) {
 }
 
 async function fbLoadRounds(uid) {
+  // Skip Firestore read if local rounds exist and were synced within 12h
+  const roundsSyncTs  = parseInt(localStorage.getItem(userKey('gy_rounds_sync_ts')) || '0', 10);
+  const localRounds   = loadPastRounds();
+  if (localRounds.length > 0 && (Date.now() - roundsSyncTs) < FB_SYNC_TTL) return;
   try {
     const snap = await fbDb.collection('users').doc(uid).collection('rounds')
       .orderBy('id', 'desc').limit(100).get();
@@ -2716,6 +2720,7 @@ async function fbLoadRounds(uid) {
       const loaded = [];
       snap.forEach(d => loaded.push(d.data()));
       localStorage.setItem(userKey('gy_past_rounds'), JSON.stringify(loaded));
+      localStorage.setItem(userKey('gy_rounds_sync_ts'), String(Date.now()));
     }
   } catch (e) { console.warn('fbLoadRounds:', e); }
 }
