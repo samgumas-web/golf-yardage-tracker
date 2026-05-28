@@ -3250,7 +3250,7 @@ async function forceUploadToPool() {
 function fbPoolTrainingSample(features, type) {
   if (!fbDb || !activeProfile) return;
   const f = features;
-  fbDb.collection('trainingPool').doc('motionSwingTraining').collection('samples').add({
+  fbDb.collection('trainingPool').doc('motionTraining').collection('samples').add({
     uid: activeProfile.id,
     type,
     rot:    parseFloat((f.rot    || 0).toFixed(3)),
@@ -3282,7 +3282,7 @@ async function fbSeedUserToPool(uid, trainData) {
       .update({ poolSeeded: true, poolShotCount: shots.length, poolNonShotCount: nonShots.length }).catch(() => {});
     return;
   }
-  const pool = fbDb.collection('trainingPool').doc('motionSwingTraining').collection('samples');
+  const pool = fbDb.collection('trainingPool').doc('motionTraining').collection('samples');
   try {
     for (let i = 0; i < all.length; i += 499) {
       const batch = fbDb.batch();
@@ -3333,7 +3333,7 @@ async function fbLoadTrainingPool() {
     const shots = [], nonShots = [];
 
     // New path: trainingPool/motionSwingTraining/samples
-    const newSnap = await fbDb.collection('trainingPool').doc('motionSwingTraining').collection('samples').limit(400).get();
+    const newSnap = await fbDb.collection('trainingPool').doc('motionTraining').collection('samples').limit(400).get();
     newSnap.forEach(doc => {
       const d = doc.data();
       if (d.type === 'SHOT') shots.push(parseDoc(d));
