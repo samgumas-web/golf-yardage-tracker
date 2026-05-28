@@ -3332,7 +3332,7 @@ async function fbLoadTrainingPool() {
     const parseDoc = d => ({ rot: d.rot || 0, acc: d.acc || 0, stable: d.stable || 0, accY: d.accY || 0, rotA: d.rotA || 0, rotB: d.rotB || 0, rotG: d.rotG || 0 });
     const shots = [], nonShots = [];
 
-    // New path: trainingPool/motionSwingTraining/samples
+    // New path: trainingPool/motionTraining/samples
     const newSnap = await fbDb.collection('trainingPool').doc('motionTraining').collection('samples').limit(400).get();
     newSnap.forEach(doc => {
       const d = doc.data();
