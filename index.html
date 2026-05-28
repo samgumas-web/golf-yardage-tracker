@@ -6990,37 +6990,37 @@ async function migrateMotionToSubcollection() {
   if (!fbDb || !activeProfile) return;
   const btn = document.getElementById('motion-migrate-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Migrating…'; }
-  let moved = 0, skipped = 0;
+  let moved = 0;
   try {
-    const dest = fbDb.collection('trainingPool').doc('motionTraining').collection('samples');
-    // Read up to 500 flat docs at a time
-    let lastDoc = null;
+    const src  = fbDb.collection('trainingPool');
+    const dest = src.doc('motionTraining').collection('samples');
+
     let keepGoing = true;
     while (keepGoing) {
-      let q = fbDb.collection('trainingPool').limit(499);
-      if (lastDoc) q = q.startAfter(lastDoc);
-      const snap = await q.get();
-      const validDocs = snap.docs.filter(d => d.data().type === 'SHOT' || d.data().type === 'NOT_SHOT');
-      if (!validDocs.length || snap.docs.length < 499) keepGoing = false;
-      if (validDocs.length) {
-        const writeBatch = fbDb.batch();
-        validDocs.forEach(d => {
-          writeBatch.set(dest.doc(), { ...d.data(), migratedFrom: 'flat' });
-          moved++;
-        });
-        await writeBatch.commit();
-      }
-      if (snap.docs.length > 0) lastDoc = snap.docs[snap.docs.length - 1];
-      else keepGoing = false;
+      // Fetch up to 200 flat motion docs at a time (leave room for paired deletes in same batch)
+      const snap = await src.where('type', 'in', ['SHOT', 'NOT_SHOT']).limit(200).get();
+      if (snap.empty) { keepGoing = false; break; }
+
+      const batch = fbDb.batch();
+      snap.docs.forEach(d => {
+        batch.set(dest.doc(), d.data());   // write to new location
+        batch.delete(d.ref);               // remove from flat collection
+      });
+      await batch.commit();
+      moved += snap.docs.length;
+
+      if (btn) btn.textContent = `Migrating… ${moved} moved`;
+      if (snap.docs.length < 200) keepGoing = false;
     }
-    localStorage.removeItem('gy_pool_cache_v2'); // bust old motion pool cache
+
+    localStorage.removeItem('gy_pool_cache_v2');
     localStorage.removeItem('gy_pool_cache_v3');
     await fbLoadTrainingPool();
-    toast(`Migrated ${moved} motion samples → motionTraining. ${skipped} skipped.`);
+    toast(`Moved ${moved} motion samples into motionTraining ✓`);
     if (btn) btn.style.display = 'none';
   } catch (e) {
     console.warn('migrateMotionToSubcollection:', e);
-    toast('Migration error: ' + e.message);
+    toast('Migration failed: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry motion migration'; }
   }
 }
