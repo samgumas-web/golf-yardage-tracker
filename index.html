@@ -3437,6 +3437,58 @@ function auStopListening() {
   auAnalyser = auTimeBuf = auFreqBuf = null;
 }
 
+// Returns a Promise<Blob|null> — grabs the rolling pre-roll buffer + 1s post-impact audio
+function auCaptureClip() {
+  return new Promise(resolve => {
+    if (!auMediaRecorder || auMediaRecorder.state === 'inactive') { resolve(null); return; }
+    auPostChunks    = [];
+    auCapturingPost = true;
+    auPostResolve   = chunks => {
+      if (!chunks.length) { resolve(null); return; }
+      const mime = auMediaRecorder ? auMediaRecorder.mimeType : 'audio/webm';
+      resolve(new Blob(chunks, { type: mime }));
+    };
+    // Safety: resolve after 2s with whatever we have
+    setTimeout(() => {
+      if (auCapturingPost && auPostResolve) {
+        const res2  = auPostResolve;
+        auPostResolve   = null;
+        auCapturingPost = false;
+        const chunks = [...auRollingChunks.slice(-AU_PRE_CHUNKS), ...auPostChunks];
+        const mime   = auMediaRecorder ? auMediaRecorder.mimeType : 'audio/webm';
+        res2(chunks.length ? new Blob(chunks, { type: mime }) : null);
+      }
+    }, 2000);
+  });
+}
+
+// Uploads a Blob to Firebase Storage; returns the download URL or null on failure
+async function auUploadClip(blob, club, faceLocation) {
+  if (!blob || !activeProfile) return null;
+  try {
+    const ext  = blob.type.includes('ogg') ? 'ogg' : 'webm';
+    const face = (faceLocation || 'Unknown').replace(/\s+/g, '_');
+    const clb  = (club        || 'Unknown').replace(/[\s\/]+/g, '_');
+    const path = `audioSamples/${activeProfile.id}/${Date.now()}_${clb}_${face}.${ext}`;
+    const ref  = fbStorage.ref(path);
+    await ref.put(blob, { contentType: blob.type });
+    return await ref.getDownloadURL();
+  } catch (e) { console.warn('auUploadClip failed:', e); return null; }
+}
+
+// Highlights the chosen face-contact button and stores the selection
+function auSetFace(face) {
+  auSelectedFace = face;
+  document.querySelectorAll('.au-face-btn').forEach(b => {
+    const on = b.dataset.face === face;
+    b.style.background  = on ? '#1a472a'       : 'var(--card2)';
+    b.style.color       = on ? '#4ade80'        : 'var(--muted)';
+    b.style.borderColor = on ? '#16a34a'        : 'var(--border)';
+  });
+  const lbl = document.getElementById('au-selected-face-lbl');
+  if (lbl) lbl.textContent = face ? `Face: ${face}` : 'No face location selected (optional)';
+}
+
 function auLoop() {
   if (!auActive || !auAnalyser) return;
   setTimeout(auLoop, 25); // ~40 checks/sec
