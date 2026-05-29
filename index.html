@@ -7193,6 +7193,41 @@ async function deleteAudioPool() {
   }
 }
 
+async function clearAudioTrainingSamples() {
+  if (!fbDb || !activeProfile) return;
+  if (!confirm('Delete ALL audio training samples from Firestore AND local storage? This cannot be undone.')) return;
+  const btn = document.getElementById('clear-audio-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try {
+    const col = fbDb.collection('trainingPool').doc('audioTraining').collection('samples');
+    let totalDeleted = 0;
+    let keepGoing = true;
+    while (keepGoing) {
+      const snap = await col.limit(400).get();
+      if (snap.empty) { keepGoing = false; break; }
+      const batch = fbDb.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      totalDeleted += snap.docs.length;
+      if (snap.docs.length < 400) keepGoing = false;
+    }
+    // Clear local audio training data too
+    auLearnData.samples    = [];
+    auLearnData.poolCount  = 0;
+    auLearnData.poolVersion = AU_POOL_VERSION;
+    auSaveLearnData();
+    localStorage.removeItem(AU_POOL_CACHE_KEY);
+    auComputeClassifier();
+    updateAudioUI();
+    toast(`Deleted ${totalDeleted} audio training samples ✓`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('clearAudioTrainingSamples:', e);
+    toast('Delete failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry delete audio samples'; }
+  }
+}
+
 // Keyboard
 document.getElementById('new-club').addEventListener('keypress', e => { if (e.key==='Enter') addClub(); });
 document.getElementById('mb-new-club').addEventListener('keypress', e => { if (e.key==='Enter') mbAddClub(); });
