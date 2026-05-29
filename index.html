@@ -7348,7 +7348,7 @@ async function moveRecentToClub(srcClub, srcFace, destClub, destFace) {
   const btn = document.getElementById(btnId);
   if (btn) { btn.disabled = true; btn.textContent = 'Moving…'; }
   try {
-    const cutoff = Date.now() - 48 * 60 * 60 * 1000; // last 48 hours
+    const cutoff = Date.now() - 6 * 60 * 1000; // last 6 minutes
     const srcCol  = fbDb.collection('trainingPool').doc('audioTraining')
       .collection('golfClubAudio').doc(auSanitizeId(srcClub))
       .collection('faceLocation').doc(auSanitizeId(srcFace))
