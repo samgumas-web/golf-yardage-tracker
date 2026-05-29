@@ -1775,7 +1775,17 @@ const AUDIO_CLUB_LIST = [
 
 let auTrainMode    = false;          // true while Audio Training modal is open
 let auTrainSession = { shots: 0, nonShots: 0 }; // labeled counts for this session
-let auSelectedClub = '';             // club chosen in training modal for next SHOT label
+let auSelectedClub      = '';        // club chosen in training modal for next SHOT label
+let auSelectedFace      = '';        // face location chosen: Heel|Flush|Toe|Thin|Fat
+// Rolling audio recorder — keeps a pre-roll buffer so we can save audio before the label tap
+let auMediaRecorder     = null;
+let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~5s pre-roll)
+let auPostChunks        = [];        // chunks captured after the transient
+let auCapturingPost     = false;
+let auPostResolve       = null;
+const AU_CHUNK_MS       = 250;
+const AU_PRE_CHUNKS     = 20;        // 5 seconds of pre-roll
+const AU_POST_CHUNKS    = 4;         // 1 second post-impact
 
 function computeFeatureWeights(shots, nonShots) {
   if (shots.length < 5 || nonShots.length < 5) return;
