@@ -3711,18 +3711,23 @@ async function forceUploadAudioToPool() {
     try {
       for (let i = 0; i < newSamples.length; i += 499) {
         const batch = fbDb.batch();
-        newSamples.slice(i, i+499).forEach(s => batch.set(pool.doc(), {
-          uid:           activeProfile.id,
-          type:          s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT',
-          club:          s.club          || 'SHOT_UNKNOWN',
-          location:      s.location      || phoneLocation,
-          snr:           parseFloat((s.snr          ||0).toFixed(4)),
-          impulsiveness: parseFloat((s.impulsiveness||0).toFixed(4)),
-          zcr:           parseFloat((s.zcr          ||0).toFixed(4)),
-          centroid:      parseFloat((s.centroid     ||0).toFixed(4)),
-          attack:        parseFloat((s.attack       ||0).toFixed(4)),
-          ts: Date.now()
-        }));
+        newSamples.slice(i, i+499).forEach(s => {
+          const doc = {
+            uid:           activeProfile.id,
+            type:          s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT',
+            club:          s.club          || 'SHOT_UNKNOWN',
+            faceLocation:  s.faceLocation  || '',
+            location:      s.location      || phoneLocation,
+            snr:           parseFloat((s.snr          ||0).toFixed(4)),
+            impulsiveness: parseFloat((s.impulsiveness||0).toFixed(4)),
+            zcr:           parseFloat((s.zcr          ||0).toFixed(4)),
+            centroid:      parseFloat((s.centroid     ||0).toFixed(4)),
+            attack:        parseFloat((s.attack       ||0).toFixed(4)),
+            ts: Date.now()
+          };
+          if (s.audioUrl) doc.audioUrl = s.audioUrl;
+          batch.set(pool.doc(), doc);
+        });
         await batch.commit();
       }
       auLearnData.poolCount = auLearnData.samples.length;
