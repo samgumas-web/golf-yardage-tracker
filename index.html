@@ -7318,6 +7318,66 @@ async function migrateDriverNoneToFlush() {
   }
 }
 
+// Creates a placeholder document for every club in golfClubAudio so all folders appear in Firestore
+async function initAllClubFolders() {
+  if (!fbDb || !activeProfile) return;
+  const btn = document.getElementById('init-clubs-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  try {
+    const base = fbDb.collection('trainingPool').doc('audioTraining').collection('golfClubAudio');
+    const batch = fbDb.batch();
+    AUDIO_CLUB_LIST.forEach(club => {
+      batch.set(base.doc(auSanitizeId(club)), { clubName: club, initialized: true }, { merge: true });
+    });
+    // Also add NOT_SHOT folder
+    batch.set(base.doc('NOT_SHOT'), { clubName: 'NOT_SHOT', initialized: true }, { merge: true });
+    await batch.commit();
+    toast(`Created ${AUDIO_CLUB_LIST.length + 1} club folders in Firestore ✓`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('initAllClubFolders:', e);
+    toast('Failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry create club folders'; }
+  }
+}
+
+// Moves audio clips from one club/face location to another (most recent 24 hours)
+async function moveRecentToClub(srcClub, srcFace, destClub, destFace) {
+  if (!fbDb || !activeProfile) return;
+  const btnId = 'move-3wood-btn';
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.disabled = true; btn.textContent = 'Moving…'; }
+  try {
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000; // last 48 hours
+    const srcCol  = fbDb.collection('trainingPool').doc('audioTraining')
+      .collection('golfClubAudio').doc(auSanitizeId(srcClub))
+      .collection('faceLocation').doc(auSanitizeId(srcFace))
+      .collection('audioClips');
+    const destCol = fbDb.collection('trainingPool').doc('audioTraining')
+      .collection('golfClubAudio').doc(auSanitizeId(destClub))
+      .collection('faceLocation').doc(auSanitizeId(destFace))
+      .collection('audioClips');
+    const snap = await srcCol.where('ts', '>=', cutoff).get();
+    if (snap.empty) { toast('No recent samples found in that location'); if (btn) { btn.disabled = false; } return; }
+    let moved = 0;
+    for (let i = 0; i < snap.docs.length; i += 499) {
+      const batch = fbDb.batch();
+      snap.docs.slice(i, i + 499).forEach(d => {
+        batch.set(destCol.doc(), { ...d.data(), club: destClub, faceLocation: destFace });
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+      moved += Math.min(499, snap.docs.length - i);
+    }
+    toast(`Moved ${moved} clips: ${srcClub}/${srcFace} → ${destClub}/${destFace} ✓`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('moveRecentToClub:', e);
+    toast('Move failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry move'; }
+  }
+}
+
 // Keyboard
 document.getElementById('new-club').addEventListener('keypress', e => { if (e.key==='Enter') addClub(); });
 document.getElementById('mb-new-club').addEventListener('keypress', e => { if (e.key==='Enter') mbAddClub(); });
