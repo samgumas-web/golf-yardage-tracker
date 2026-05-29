@@ -3512,12 +3512,21 @@ function auLoop() {
     const f     = auBuildFeatures(rms, peak);
     auLastScore = auScoreAudio(f);
     auPending   = f;
-    // Training modal: flash indicator when transient is ready to label
+    // Training modal: only flash if classifier thinks it might be a shot
     if (auTrainMode) {
       const flash = document.getElementById('au-train-flash');
       if (flash) {
-        flash.textContent = '⚡ Sound captured — label it now!';
-        flash.style.color = '#facc15';
+        const { shots, nonShots } = auMergedData();
+        const hasModel = shots.length >= 5 && nonShots.length >= 10;
+        if (hasModel && auLastScore < 0.25) {
+          // Classifier is confident this is background noise — filter it silently
+          auFilteredCount++;
+          flash.textContent = `Background noise filtered (${auFilteredCount} this session)`;
+          flash.style.color = '#4b5563';
+        } else {
+          flash.textContent = '⚡ Sound captured — label it now!';
+          flash.style.color = '#facc15';
+        }
       }
     }
     // Bag / ground mode: audio alone triggers the shot confirmation (no motion needed)
