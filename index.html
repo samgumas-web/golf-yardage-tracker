@@ -7245,6 +7245,51 @@ async function clearAudioTrainingSamples() {
   }
 }
 
+async function migrateDriverNoneToFlush() {
+  if (!fbDb || !activeProfile) return;
+  const btn = document.getElementById('driver-flush-migrate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Moving…'; }
+  try {
+    const srcCol  = fbDb.collection('trainingPool').doc('audioTraining')
+      .collection('golfClubAudio').doc('Driver')
+      .collection('faceLocation').doc('None')
+      .collection('audioClips');
+    const destCol = fbDb.collection('trainingPool').doc('audioTraining')
+      .collection('golfClubAudio').doc('Driver')
+      .collection('faceLocation').doc('Flush')
+      .collection('audioClips');
+    let moved = 0;
+    let keepGoing = true;
+    while (keepGoing) {
+      const snap = await srcCol.limit(400).get();
+      if (snap.empty) { keepGoing = false; break; }
+      const batch = fbDb.batch();
+      snap.docs.forEach(d => {
+        batch.set(destCol.doc(), { ...d.data(), faceLocation: 'Flush' });
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+      moved += snap.docs.length;
+      if (snap.docs.length < 400) keepGoing = false;
+    }
+    // Also fix local samples: Driver clips with no faceLocation → Flush
+    let localFixed = 0;
+    (auLearnData.samples || []).forEach(s => {
+      if (s.club === 'Driver' && !s.faceLocation) {
+        s.faceLocation = 'Flush';
+        localFixed++;
+      }
+    });
+    if (localFixed) auSaveLearnData();
+    toast(`Moved ${moved} Driver clips → Flush ✓ (${localFixed} local samples updated)`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('migrateDriverNoneToFlush:', e);
+    toast('Migration failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry move Driver/None → Flush'; }
+  }
+}
+
 // Keyboard
 document.getElementById('new-club').addEventListener('keypress', e => { if (e.key==='Enter') addClub(); });
 document.getElementById('mb-new-club').addEventListener('keypress', e => { if (e.key==='Enter') mbAddClub(); });
