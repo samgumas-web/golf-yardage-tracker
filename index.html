@@ -7054,9 +7054,8 @@ async function auCaptureSystemAudio() {
     if (auStream)  { auStream.getTracks().forEach(t => t.stop()); auStream = null; }
     if (auContext) { auContext.close().catch(() => {}); auContext = null; }
     auActive = false;
-    // Chrome requires video:true for getDisplayMedia; stop the video track immediately
+    // Chrome requires video:true for getDisplayMedia; keep video tracks alive (stopping them kills the stream)
     const stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
-    stream.getVideoTracks().forEach(t => t.stop());
     if (!stream.getAudioTracks().length) {
       toast('No audio track — tick "Share tab audio" when prompted');
       if (btn) { btn.textContent = '🖥 Use System Audio (Desktop Chrome)'; btn.disabled = false; }
