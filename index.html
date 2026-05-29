@@ -7217,7 +7217,6 @@ async function clearAudioTrainingSamples() {
     auLearnData.poolVersion = AU_POOL_VERSION;
     auSaveLearnData();
     localStorage.removeItem(AU_POOL_CACHE_KEY);
-    auComputeClassifier();
     updateAudioUI();
     toast(`Deleted ${totalDeleted} audio training samples ✓`);
     if (btn) btn.style.display = 'none';
