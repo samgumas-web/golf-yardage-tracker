@@ -3633,6 +3633,11 @@ function auSaveLearnData() {
   }
 }
 
+// Converts a club or face name to a safe Firestore document ID
+function auSanitizeId(s) {
+  return (s || 'Unknown').replace(/[\s\/\\]+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '') || 'Unknown';
+}
+
 function fbAudioSample(features, type) {
   if (!fbDb || !activeProfile) return;
   const doc = {
