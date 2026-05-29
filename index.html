@@ -6839,9 +6839,10 @@ function renderStats() {
 function auOpenTraining() {
   const modal = document.getElementById('au-train-modal');
   if (!modal) return;
-  auTrainSession = { shots: 0, nonShots: 0 };
-  auTrainMode    = true;
-  auSelectedClub = '';
+  auTrainSession  = { shots: 0, nonShots: 0 };
+  auFilteredCount = 0;
+  auTrainMode     = true;
+  auSelectedClub  = '';
   modal.style.display = 'block';
   auUpdateTrainCount();
   auSetTrainLoc(phoneLocation); // sync location buttons to current setting
