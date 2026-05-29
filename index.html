@@ -7001,35 +7001,23 @@ async function auTrainLabel(yes) {
   if (!f) { toast('No sound captured yet — wait for the yellow flash'); return; }
   if (yes && !auSelectedClub) { toast('Select a club first, then tap SHOT'); return; }
 
-  const flash = document.getElementById('au-train-flash');
-  if (flash) { flash.textContent = '⏫ Saving audio clip…'; flash.style.color = '#facc15'; }
+  const club = yes ? auSelectedClub : 'NOT_SHOT';
+  const face = yes ? (auSelectedFace || '') : '';
 
-  // Capture rolling-buffer audio clip and encode as base64 for Firestore storage
-  const blob  = await auCaptureClip();
-  const club  = yes ? auSelectedClub : 'NOT_SHOT';
-  const face  = yes ? (auSelectedFace || '') : '';
-  let audioData = null, audioMime = null;
-  if (blob) {
-    try { audioData = await auBlobToBase64(blob); audioMime = blob.type; } catch {}
-  }
-
+  // Save features immediately — no audio blob locally, keeps storage small and fast
   const sample = { ...f, club, faceLocation: face, location: phoneLocation };
-  if (audioData) { sample.audioData = audioData; sample.audioMime = audioMime; }
-
   auLearnData.samples.push(sample);
   auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
   if (yes) auTrainSession.shots++;
   else     auTrainSession.nonShots++;
-
   auPending = null;
   auUpdateTrainCount();
   auSaveLearnData();
-  fbAudioSample(sample, yes ? 'SHOT' : 'NOT_SHOT');
 
-  // Toast so the confirmation is visible even if the flash gets overwritten by the next sound
   const faceLabel = yes && face ? ` / ${face}` : '';
-  toast(yes ? `✓ Saved: ${club}${faceLabel}${audioData ? ' + audio' : ''}` : '✗ Non-shot saved');
+  toast(yes ? `✓ Saved: ${club}${faceLabel}` : '✗ Non-shot saved');
 
+  const flash = document.getElementById('au-train-flash');
   if (flash) {
     flash.textContent = yes ? `✓ ${auSelectedClub} shot labeled!` : '✗ Non-shot labeled';
     flash.style.color = yes ? '#4ade80' : '#f87171';
@@ -7040,6 +7028,15 @@ async function auTrainLabel(yes) {
       }
     }, 1400);
   }
+
+  // Capture + upload audio to Firestore in the background — does not block the UI
+  const type = yes ? 'SHOT' : 'NOT_SHOT';
+  auCaptureClip().then(blob => {
+    if (!blob) { fbAudioSample(sample, type); return; }
+    auBlobToBase64(blob).then(audioData => {
+      fbAudioSample({ ...sample, audioData, audioMime: blob.type }, type);
+    }).catch(() => fbAudioSample(sample, type));
+  }).catch(() => fbAudioSample(sample, type));
 }
 
 function auUpdateTrainCount() {
