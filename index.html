@@ -3685,7 +3685,7 @@ async function fbLoadAudioPool() {
   } catch {}
   try {
     // Collection group query across all audioClips subcollections in the nested hierarchy
-    const snap = await fbDb.collectionGroup('audioClips').limit(500).get();
+    const snap = await fbDb.collectionGroup('audioClips').orderBy('ts').limit(500).get();
     const samples = [];
     snap.forEach(doc => {
       const d = doc.data();
