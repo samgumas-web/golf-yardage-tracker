@@ -3424,6 +3424,14 @@ async function auStartListening() {
 
 function auStopListening() {
   auActive = false;
+  if (auMediaRecorder && auMediaRecorder.state !== 'inactive') {
+    try { auMediaRecorder.stop(); } catch {}
+  }
+  auMediaRecorder = null;
+  auRollingChunks = [];
+  auPostChunks    = [];
+  auCapturingPost = false;
+  if (auPostResolve) { auPostResolve([]); auPostResolve = null; }
   if (auStream)  { auStream.getTracks().forEach(t => t.stop()); auStream = null; }
   if (auContext) { auContext.close().catch(() => {}); auContext = null; }
   auAnalyser = auTimeBuf = auFreqBuf = null;
