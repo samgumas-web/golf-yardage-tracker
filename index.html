@@ -7282,6 +7282,19 @@ function startGPSTimeout() {
       <div id="au-selected-club-lbl" style="font-size:11px;color:var(--muted);margin-top:5px;text-align:center">No club selected</div>
     </div>
 
+    <!-- Face contact picker (SHOT labels only) -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Face contact <span style="color:#4b5563">(optional — SHOT labels only)</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        <button class="au-face-btn" data-face="Flush" onclick="auSetFace('Flush')" style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">Flush</button>
+        <button class="au-face-btn" data-face="Heel"  onclick="auSetFace('Heel')"  style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">Heel</button>
+        <button class="au-face-btn" data-face="Toe"   onclick="auSetFace('Toe')"   style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">Toe</button>
+        <button class="au-face-btn" data-face="Thin"  onclick="auSetFace('Thin')"  style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">Thin</button>
+        <button class="au-face-btn" data-face="Fat"   onclick="auSetFace('Fat')"   style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer">Fat</button>
+      </div>
+      <div id="au-selected-face-lbl" style="font-size:11px;color:var(--muted);margin-top:5px;text-align:center">No face location selected (optional)</div>
+    </div>
+
     <!-- Label buttons -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <button onclick="auTrainLabel(true)" style="padding:18px 8px;background:#14532d;border:2px solid #16a34a;border-radius:10px;color:#4ade80;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">
