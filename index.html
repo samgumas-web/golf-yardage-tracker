@@ -3640,10 +3640,14 @@ function auSanitizeId(s) {
 
 function fbAudioSample(features, type) {
   if (!fbDb || !activeProfile) return;
+  const club   = features.club || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT');
+  const face   = features.faceLocation || 'None';
+  const clubId = auSanitizeId(club);
+  const faceId = auSanitizeId(face);
   const doc = {
     uid:           activeProfile.id,
     type,
-    club:          features.club         || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+    club,
     faceLocation:  features.faceLocation || '',
     location:      features.location     || phoneLocation,
     snr:           parseFloat((features.snr          ||0).toFixed(4)),
@@ -3654,7 +3658,10 @@ function fbAudioSample(features, type) {
     ts: Date.now()
   };
   if (features.audioData) { doc.audioData = features.audioData; doc.audioMime = features.audioMime || 'audio/webm'; }
-  fbDb.collection('trainingPool').doc('audioTraining').collection('samples').add(doc).catch(() => {});
+  fbDb.collection('trainingPool').doc('audioTraining')
+    .collection('golfClubAudio').doc(clubId)
+    .collection('faceLocation').doc(faceId)
+    .collection('audioClips').add(doc).catch(() => {});
 }
 
 async function fbLoadAudioPool() {
