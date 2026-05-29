@@ -6978,22 +6978,33 @@ function auSetClub(club) {
   if (lbl) lbl.textContent = club ? `Club: ${club}` : 'No club selected';
 }
 
-function auTrainLabel(yes) {
+async function auTrainLabel(yes) {
   const f = auPending;
   if (!f) { toast('No sound captured yet — wait for the yellow flash'); return; }
-  if (yes) {
-    if (!auSelectedClub) { toast('Select a club first, then tap SHOT'); return; }
-    const sample = { ...f, club: auSelectedClub, location: phoneLocation };
-    auLearnData.samples.push(sample);
-    auTrainSession.shots++;
-  } else {
-    const sample = { ...f, club: 'NOT_SHOT', location: phoneLocation };
-    auLearnData.samples.push(sample);
-    auTrainSession.nonShots++;
-  }
+  if (yes && !auSelectedClub) { toast('Select a club first, then tap SHOT'); return; }
+
+  const flash = document.getElementById('au-train-flash');
+  if (flash) { flash.textContent = '⏫ Saving audio clip…'; flash.style.color = '#facc15'; }
+
+  // Capture rolling-buffer audio clip and upload to Storage
+  const blob     = await auCaptureClip();
+  const club     = yes ? auSelectedClub : 'NOT_SHOT';
+  const face     = yes ? (auSelectedFace || '') : '';
+  const audioUrl = blob ? await auUploadClip(blob, club, face) : null;
+
+  const sample = { ...f, club, faceLocation: face, location: phoneLocation };
+  if (audioUrl) sample.audioUrl = audioUrl;
+
+  auLearnData.samples.push(sample);
+  auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
+  if (yes) auTrainSession.shots++;
+  else     auTrainSession.nonShots++;
+
   auPending = null;
   auUpdateTrainCount();
-  const flash = document.getElementById('au-train-flash');
+  auSaveLearnData();
+  fbAudioSample(sample, yes ? 'SHOT' : 'NOT_SHOT');
+
   if (flash) {
     flash.textContent = yes ? `✓ ${auSelectedClub} shot labeled!` : '✗ Non-shot labeled';
     flash.style.color = yes ? '#4ade80' : '#f87171';
