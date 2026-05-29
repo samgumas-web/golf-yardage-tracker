@@ -7025,6 +7025,10 @@ async function auTrainLabel(yes) {
   auUpdateTrainCount();
   auSaveLearnData();
 
+  // Write to Firestore pool immediately — never skipped
+  const type = yes ? 'SHOT' : 'NOT_SHOT';
+  fbAudioSample(sample, type);
+
   const faceLabel = yes && face ? ` / ${face}` : '';
   toast(yes ? `✓ Saved: ${club}${faceLabel}` : '✗ Non-shot saved');
 
@@ -7040,14 +7044,23 @@ async function auTrainLabel(yes) {
     }, 1400);
   }
 
-  // Capture + upload audio to Firestore in the background — does not block the UI
-  const type = yes ? 'SHOT' : 'NOT_SHOT';
-  auCaptureClip().then(blob => {
-    if (!blob) { fbAudioSample(sample, type); return; }
-    auBlobToBase64(blob).then(audioData => {
-      fbAudioSample({ ...sample, audioData, audioMime: blob.type }, type);
-    }).catch(() => fbAudioSample(sample, type));
-  }).catch(() => fbAudioSample(sample, type));
+  // Attempt to attach the actual audio clip in the background (best-effort, non-blocking)
+  // Uses a snapshot of the current rolling buffer so concurrent labels don't interfere
+  const preChunks = auRollingChunks.slice(-AU_PRE_CHUNKS);
+  if (auMediaRecorder && auMediaRecorder.state !== 'inactive' && preChunks.length) {
+    const mime = auMediaRecorder.mimeType || 'audio/webm';
+    setTimeout(() => {
+      const allChunks = [...preChunks, ...auPostChunks.slice(0, AU_POST_CHUNKS)];
+      if (!allChunks.length) return;
+      auBlobToBase64(new Blob(allChunks, { type: mime })).then(audioData => {
+        fbDb.collection('trainingPool').doc('audioTraining')
+          .collection('golfClubAudio').doc(auSanitizeId(club))
+          .collection('faceLocation').doc(auSanitizeId(face || 'None'))
+          .collection('audioClips').add({ ...sample, type, audioData, audioMime: mime, ts: Date.now() })
+          .catch(() => {});
+      }).catch(() => {});
+    }, AU_POST_CHUNKS * AU_CHUNK_MS + 100);
+  }
 }
 
 function auUpdateTrainCount() {
