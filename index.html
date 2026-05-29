@@ -3460,18 +3460,14 @@ function auCaptureClip() {
   });
 }
 
-// Uploads a Blob to Firebase Storage; returns the download URL or null on failure
-async function auUploadClip(blob, club, faceLocation) {
-  if (!blob || !activeProfile) return null;
-  try {
-    const ext  = blob.type.includes('ogg') ? 'ogg' : 'webm';
-    const face = (faceLocation || 'Unknown').replace(/\s+/g, '_');
-    const clb  = (club        || 'Unknown').replace(/[\s\/]+/g, '_');
-    const path = `audioSamples/${activeProfile.id}/${Date.now()}_${clb}_${face}.${ext}`;
-    const ref  = fbStorage.ref(path);
-    await ref.put(blob, { contentType: blob.type });
-    return await ref.getDownloadURL();
-  } catch (e) { console.warn('auUploadClip failed:', e); return null; }
+// Converts a Blob to a base64 string (without the data: URI prefix)
+function auBlobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 // Highlights the chosen face-contact button and stores the selection
