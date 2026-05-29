@@ -1839,8 +1839,9 @@ firebase.initializeApp({
   messagingSenderId: '172351445870',
   appId:             '1:172351445870:web:11772be91aeb54d1dfbf7f'
 });
-const fbAuth = firebase.auth();
-const fbDb   = firebase.firestore();
+const fbAuth    = firebase.auth();
+const fbDb      = firebase.firestore();
+const fbStorage = firebase.storage();
 
 fbAuth.onAuthStateChanged(async user => {
   if (user) {
