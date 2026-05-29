@@ -3684,20 +3684,21 @@ async function fbLoadAudioPool() {
     }
   } catch {}
   try {
-    const snap = await fbDb.collection('trainingPool').doc('audioTraining').collection('samples').limit(500).get();
+    // Collection group query across all audioClips subcollections in the nested hierarchy
+    const snap = await fbDb.collectionGroup('audioClips').limit(500).get();
     const samples = [];
     snap.forEach(doc => {
       const d = doc.data();
-      // Support both old format (peak/rms) and new format (snr/impulsiveness)
       const snr           = d.snr           !== undefined ? d.snr           : (d.peak || 0) / 0.01;
       const impulsiveness = d.impulsiveness !== undefined ? d.impulsiveness : (d.peak > 0 ? (d.rms||0)/d.peak : 0.5);
       samples.push({
         snr, impulsiveness,
-        zcr:      d.zcr      || 0,
-        centroid: d.centroid || 0,
-        attack:   d.attack   || 0,
-        club:     d.club     || (d.type==='SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
-        location: d.location || 'ground'
+        zcr:         d.zcr         || 0,
+        centroid:    d.centroid    || 0,
+        attack:      d.attack      || 0,
+        club:        d.club        || (d.type==='SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+        faceLocation:d.faceLocation|| '',
+        location:    d.location    || 'ground'
       });
     });
     auPoolData = { samples };
