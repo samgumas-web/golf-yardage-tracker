@@ -3648,7 +3648,7 @@ function fbAudioSample(features, type) {
     attack:        parseFloat((features.attack       ||0).toFixed(4)),
     ts: Date.now()
   };
-  if (features.audioUrl) doc.audioUrl = features.audioUrl;
+  if (features.audioData) { doc.audioData = features.audioData; doc.audioMime = features.audioMime || 'audio/webm'; }
   fbDb.collection('trainingPool').doc('audioTraining').collection('samples').add(doc).catch(() => {});
 }
 
