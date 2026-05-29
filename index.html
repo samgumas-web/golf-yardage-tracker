@@ -3714,15 +3714,20 @@ async function forceUploadAudioToPool() {
   const newSamples = auLearnData.samples.slice(auLearnData.poolCount || 0);
   let uploadOk = true;
   if (newSamples.length) {
-    const pool = fbDb.collection('trainingPool').doc('audioTraining').collection('samples');
+    const base = fbDb.collection('trainingPool').doc('audioTraining').collection('golfClubAudio');
     try {
       for (let i = 0; i < newSamples.length; i += 499) {
         const batch = fbDb.batch();
         newSamples.slice(i, i+499).forEach(s => {
+          const club   = s.club || 'SHOT_UNKNOWN';
+          const face   = s.faceLocation || 'None';
+          const clipRef = base.doc(auSanitizeId(club))
+            .collection('faceLocation').doc(auSanitizeId(face))
+            .collection('audioClips').doc();
           const doc = {
             uid:           activeProfile.id,
             type:          s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT',
-            club:          s.club          || 'SHOT_UNKNOWN',
+            club,
             faceLocation:  s.faceLocation  || '',
             location:      s.location      || phoneLocation,
             snr:           parseFloat((s.snr          ||0).toFixed(4)),
@@ -3733,7 +3738,7 @@ async function forceUploadAudioToPool() {
             ts: Date.now()
           };
           if (s.audioData) { doc.audioData = s.audioData; doc.audioMime = s.audioMime || 'audio/webm'; }
-          batch.set(pool.doc(), doc);
+          batch.set(clipRef, doc);
         });
         await batch.commit();
       }
