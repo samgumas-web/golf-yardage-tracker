@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GolfYards — Audio Feature Visualizer</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a1a0a; color: #ccc; font-family: -apple-system, monospace; font-size: 13px; }
+  h1  { color: #4ade80; font-size: 18px; padding: 20px 24px 4px; }
+  .subtitle { color: #6b7280; font-size: 12px; padding: 0 24px 16px; }
+
+  #auth-panel {
+    max-width: 340px; margin: 60px auto; background: #111;
+    border: 1px solid #1e3a1e; border-radius: 10px; padding: 28px;
+  }
+  #auth-panel h2 { color: #4ade80; margin-bottom: 18px; font-size: 16px; }
+  .inp {
+    width: 100%; padding: 9px 11px; background: #0a1a0a;
+    border: 1px solid #1e3a1e; border-radius: 6px;
+    color: #ccc; font-size: 13px; margin-bottom: 10px; display: block;
+  }
+  .btn {
+    background: #14532d; border: 1px solid #166534; color: #4ade80;
+    padding: 9px 18px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    margin-right: 8px;
+  }
+  .btn:hover { background: #166534; }
+  .btn-ghost { background: transparent; border-color: #374151; color: #6b7280; }
+
+  #status { color: #facc15; padding: 10px 24px; min-height: 28px; font-size: 12px; }
+
+  #main { display: none; padding: 0 16px 40px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 10px 0 18px; border-bottom: 1px solid #1e3a1e; margin-bottom: 20px;
+  }
+  .controls label { color: #6b7280; font-size: 11px; margin-right: 4px; }
+  select {
+    background: #111; border: 1px solid #1e3a1e; color: #ccc;
+    padding: 6px 10px; border-radius: 6px; font-size: 12px;
+  }
+
+  .stat-row {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .stat {
+    background: #111; border: 1px solid #1e3a1e; border-radius: 8px;
+    padding: 10px 16px; min-width: 120px;
+  }
+  .stat .lbl { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+  .stat .val { font-size: 22px; font-weight: 700; margin-top: 2px; }
+  .val.green { color: #4ade80; }
+  .val.red   { color: #f87171; }
+  .val.blue  { color: #60a5fa; }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .chart-grid.full { grid-template-columns: 1fr; }
+  @media (max-width: 800px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: #0d1f0d; border: 1px solid #1e3a1e;
+    border-radius: 10px; padding: 14px; overflow: hidden;
+  }
+  .chart-card h3 { color: #4ade80; font-size: 12px; text-transform: uppercase;
+    letter-spacing: .07em; margin-bottom: 10px; }
+  .chart-card p  { color: #6b7280; font-size: 11px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>GolfYards — Audio Feature Visualizer</h1>
+<div class="subtitle">Crowdsourced training pool · trainingPool/audioTraining/samples</div>
+<div id="status">Loading Firebase…</div>
+
+<div id="auth-panel">
+  <h2>Sign In</h2>
+  <input id="email" class="inp" type="email" placeholder="GolfYards email">
+  <input id="pw"    class="inp" type="password" placeholder="Password">
+  <button class="btn" onclick="signIn()">Sign In</button>
+</div>
+
+<div id="main">
+  <div class="controls">
+    <div>
+      <label>Club filter</label>
+      <select id="club-filter" onchange="applyFilters()">
+        <option value="ALL">All clubs</option>
+      </select>
+    </div>
+    <div>
+      <label>Scatter X</label>
+      <select id="scatter-x" onchange="renderScatter()">
+        <option value="snr">SNR</option>
+        <option value="zcr" selected>ZCR</option>
+        <option value="centroid">Centroid</option>
+        <option value="attack">Attack</option>
+        <option value="impulsiveness">Impulsiveness</option>
+      </select>
+    </div>
+    <div>
+      <label>Scatter Y</label>
+      <select id="scatter-y" onchange="renderScatter()">
+        <option value="snr">SNR</option>
+        <option value="zcr">ZCR</option>
+        <option value="centroid" selected>Centroid</option>
+        <option value="attack">Attack</option>
+        <option value="impulsiveness">Impulsiveness</option>
+      </select>
+    </div>
+    <button class="btn btn-ghost" onclick="loadData()">↻ Refresh</button>
+    <button class="btn btn-ghost" onclick="auth.signOut()" style="margin-left:auto">Sign out</button>
+  </div>
+
+  <div class="stat-row" id="stats"></div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Feature Distributions — Shots vs Non-Shots</h3>
+      <div id="box-plot"></div>
+      <p>Box spans 25th–75th percentile · line = median · whiskers = 5th–95th</p>
+    </div>
+    <div class="chart-card">
+      <h3>Scatter Plot</h3>
+      <div id="scatter-plot"></div>
+      <p>Green = shot · Red = non-shot · Use selectors above to change axes</p>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Fisher Discrimination Score — Feature Importance</h3>
+      <div id="fisher-plot"></div>
+      <p>Higher = feature better separates shots from non-shots</p>
+    </div>
+    <div class="chart-card">
+      <h3>Sample Count by Club</h3>
+      <div id="club-plot"></div>
+      <p>Shot samples only · grow this to improve per-club classification</p>
+    </div>
+  </div>
+
+  <div class="chart-grid full">
+    <div class="chart-card">
+      <h3>Feature Means — Shots vs Non-Shots</h3>
+      <div id="radar-plot"></div>
+      <p>Normalised 0–1 per feature · gap between lines = separability</p>
+    </div>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey:            'AIzaSyCrOToPLYqbDnknhcWcVlQrOchs8YGTB9g',
+  authDomain:        'golfyards-16f37.firebaseapp.com',
+  projectId:         'golfyards-16f37',
+  storageBucket:     'golfyards-16f37.firebasestorage.app',
+  messagingSenderId: '172351445870',
+  appId:             '1:172351445870:web:11772be91aeb54d1dfbf7f'
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+const FEATURES = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack'];
+const FEAT_LABEL = { snr: 'SNR', impulsiveness: 'Impulsiveness', zcr: 'ZCR', centroid: 'Centroid', attack: 'Attack' };
+const PLOTLY_LAYOUT = {
+  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+  font: { color: '#9ca3af', size: 11 },
+  margin: { t: 10, b: 40, l: 50, r: 10 },
+  legend: { bgcolor: 'transparent' }
+};
+
+let allShots = [], allNonShots = [];
+let filtShots = [], filtNonShots = [];
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById('auth-panel').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    setStatus(`Signed in as ${user.email}`);
+    loadData();
+  } else {
+    document.getElementById('auth-panel').style.display = 'block';
+    document.getElementById('main').style.display = 'none';
+    setStatus('Sign in to view data');
+  }
+});
+
+function signIn() {
+  const e = document.getElementById('email').value.trim();
+  const p = document.getElementById('pw').value;
+  if (!e || !p) { setStatus('Enter email and password'); return; }
+  setStatus('Signing in…');
+  auth.signInWithEmailAndPassword(e, p).catch(err => setStatus('Error: ' + err.message));
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+async function loadData() {
+  setStatus('Fetching from Firestore…');
+  try {
+    const snap = await db.collection('trainingPool').doc('audioTraining')
+      .collection('samples').limit(1000).get();
+
+    allShots = []; allNonShots = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const s = {
+        snr:           d.snr           || 0,
+        impulsiveness: d.impulsiveness || 0,
+        zcr:           d.zcr           || 0,
+        centroid:      d.centroid      || 0,
+        attack:        d.attack        || 0,
+        club:          d.club          || 'SHOT_UNKNOWN',
+        location:      d.location      || 'unknown',
+        type:          d.type
+      };
+      if (d.type === 'SHOT') allShots.push(s);
+      else allNonShots.push(s);
+    });
+
+    // Populate club filter
+    const clubs = [...new Set(allShots.map(s => s.club))].sort();
+    const sel = document.getElementById('club-filter');
+    sel.innerHTML = '<option value="ALL">All clubs</option>' +
+      clubs.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    setStatus(`Loaded ${allShots.length} shots · ${allNonShots.length} non-shots`);
+    applyFilters();
+  } catch (e) {
+    setStatus('Error: ' + e.message);
+    console.error(e);
+  }
+}
+
+function applyFilters() {
+  const club = document.getElementById('club-filter').value;
+  filtShots    = club === 'ALL' ? allShots    : allShots.filter(s => s.club === club);
+  filtNonShots = club === 'ALL' ? allNonShots : allNonShots;
+  renderAll();
+}
+
+function renderAll() {
+  renderStats();
+  renderBoxPlots();
+  renderScatter();
+  renderFisher();
+  renderClubBar();
+  renderRadar();
+}
+
+function renderStats() {
+  const total = filtShots.length + filtNonShots.length;
+  const clubs = new Set(filtShots.map(s => s.club)).size;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="lbl">Total Samples</div><div class="val blue">${total}</div></div>
+    <div class="stat"><div class="lbl">Shot Samples</div><div class="val green">${filtShots.length}</div></div>
+    <div class="stat"><div class="lbl">Non-Shot Samples</div><div class="val red">${filtNonShots.length}</div></div>
+    <div class="stat"><div class="lbl">Club Categories</div><div class="val blue">${clubs}</div></div>
+  `;
+}
+
+function vals(arr, feat) { return arr.map(s => s[feat]); }
+
+function renderBoxPlots() {
+  const traces = [];
+  FEATURES.forEach(f => {
+    traces.push({
+      type: 'box', name: FEAT_LABEL[f],
+      y: vals(filtShots, f), legendgroup: 'shot',
+      showlegend: f === 'snr',
+      marker: { color: '#4ade80' },
+      line:   { color: '#4ade80' },
+      boxmean: true,
+      x: FEATURES.map(() => FEAT_LABEL[f]).fill(FEAT_LABEL[f], 0, filtShots.length),
+      offsetgroup: 'shot',
+      xaxis: FEATURES.indexOf(f) === 0 ? 'x' : `x${FEATURES.indexOf(f)+1}`
+    });
+    traces.push({
+      type: 'box', name: 'Non-Shot',
+      y: vals(filtNonShots, f), legendgroup: 'nonshot',
+      showlegend: f === 'snr',
+      marker: { color: '#f87171' },
+      line:   { color: '#f87171' },
+      boxmean: true,
+      offsetgroup: 'nonshot',
+      xaxis: FEATURES.indexOf(f) === 0 ? 'x' : `x${FEATURES.indexOf(f)+1}`
+    });
+  });
+
+  // Simpler: one box per feature per class, all on same x-axis grouped by feature
+  const t2 = [];
+  FEATURES.forEach(f => {
+    t2.push({
+      type: 'box', y: vals(filtShots, f), x: Array(filtShots.length).fill(FEAT_LABEL[f]),
+      name: 'Shot', legendgroup: 'shot', showlegend: f === 'snr',
+      marker: { color: '#4ade80' }, line: { color: '#4ade80' },
+      boxmean: true, offsetgroup: 'shot'
+    });
+    t2.push({
+      type: 'box', y: vals(filtNonShots, f), x: Array(filtNonShots.length).fill(FEAT_LABEL[f]),
+      name: 'Non-Shot', legendgroup: 'nonshot', showlegend: f === 'snr',
+      marker: { color: '#f87171' }, line: { color: '#f87171' },
+      boxmean: true, offsetgroup: 'nonshot'
+    });
+  });
+
+  Plotly.newPlot('box-plot', t2, {
+    ...PLOTLY_LAYOUT,
+    boxmode: 'group',
+    xaxis: { gridcolor: '#1e3a1e', zerolinecolor: '#1e3a1e' },
+    yaxis: { gridcolor: '#1e3a1e', zerolinecolor: '#1e3a1e', title: 'Value' },
+    height: 320
+  }, { responsive: true, displayModeBar: false });
+}
+
+function renderScatter() {
+  const xf = document.getElementById('scatter-x').value;
+  const yf = document.getElementById('scatter-y').value;
+
+  Plotly.newPlot('scatter-plot', [
+    {
+      type: 'scatter', mode: 'markers', name: 'Shot',
+      x: vals(filtShots, xf), y: vals(filtShots, yf),
+      marker: { color: 'rgba(74,222,128,0.6)', size: 7, line: { color: '#4ade80', width: 1 } }
+    },
+    {
+      type: 'scatter', mode: 'markers', name: 'Non-Shot',
+      x: vals(filtNonShots, xf), y: vals(filtNonShots, yf),
+      marker: { color: 'rgba(248,113,113,0.6)', size: 7, line: { color: '#f87171', width: 1 } }
+    }
+  ], {
+    ...PLOTLY_LAYOUT,
+    xaxis: { title: FEAT_LABEL[xf], gridcolor: '#1e3a1e', zerolinecolor: '#1e3a1e' },
+    yaxis: { title: FEAT_LABEL[yf], gridcolor: '#1e3a1e', zerolinecolor: '#1e3a1e' },
+    height: 320
+  }, { responsive: true, displayModeBar: false });
+}
+
+function fisher(sVals, nVals) {
+  const mean = arr => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+  const variance = arr => { const m = mean(arr); return arr.reduce((a,b)=>a+(b-m)**2,0)/(arr.length||1); };
+  const ms = mean(sVals), mn = mean(nVals);
+  return (ms - mn) ** 2 / (variance(sVals) + variance(nVals) + 1e-9);
+}
+
+function renderFisher() {
+  const scores = FEATURES.map(f => ({
+    f,
+    score: fisher(vals(filtShots, f), vals(filtNonShots, f))
+  })).sort((a, b) => b.score - a.score);
+
+  const maxScore = scores[0].score;
+  const colors = scores.map(s => {
+    const t = s.score / maxScore;
+    const r = Math.round(74 + (248-74)*(1-t));
+    const g = Math.round(222 + (113-222)*(1-t));
+    const b = Math.round(128 + (113-128)*(1-t));
+    return `rgb(${r},${g},${b})`;
+  });
+
+  Plotly.newPlot('fisher-plot', [{
+    type: 'bar',
+    x: scores.map(s => FEAT_LABEL[s.f]),
+    y: scores.map(s => s.score),
+    marker: { color: colors },
+    text: scores.map(s => s.score.toFixed(3)),
+    textposition: 'outside'
+  }], {
+    ...PLOTLY_LAYOUT,
+    xaxis: { gridcolor: '#1e3a1e' },
+    yaxis: { gridcolor: '#1e3a1e', zerolinecolor: '#1e3a1e', title: 'Fisher Score' },
+    height: 300
+  }, { responsive: true, displayModeBar: false });
+}
+
+function renderClubBar() {
+  const counts = {};
+  allShots.forEach(s => { counts[s.club] = (counts[s.club] || 0) + 1; });
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  Plotly.newPlot('club-plot', [{
+    type: 'bar',
+    x: entries.map(e => e[0].replace('SHOT_UNKNOWN', 'Unknown')),
+    y: entries.map(e => e[1]),
+    marker: { color: '#4ade80', opacity: 0.8 },
+    text: entries.map(e => e[1]),
+    textposition: 'outside'
+  }], {
+    ...PLOTLY_LAYOUT,
+    xaxis: { gridcolor: '#1e3a1e', tickangle: -35 },
+    yaxis: { gridcolor: '#1e3a1e', zerolinecolor: '#1e3a1e', title: 'Count' },
+    height: 300
+  }, { responsive: true, displayModeBar: false });
+}
+
+function renderRadar() {
+  if (!filtShots.length || !filtNonShots.length) return;
+
+  const mean = arr => arr.reduce((a,b)=>a+b,0)/(arr.length||1);
+  // Normalize each feature 0-1 across both groups combined
+  const norm = {};
+  FEATURES.forEach(f => {
+    const all = [...vals(filtShots, f), ...vals(filtNonShots, f)];
+    const mx = Math.max(...all) || 1;
+    norm[f] = mx;
+  });
+
+  const sMeans = FEATURES.map(f => mean(vals(filtShots, f)) / norm[f]);
+  const nMeans = FEATURES.map(f => mean(vals(filtNonShots, f)) / norm[f]);
+  const labels = FEATURES.map(f => FEAT_LABEL[f]);
+
+  Plotly.newPlot('radar-plot', [
+    {
+      type: 'scatterpolar', name: 'Shot',
+      r: [...sMeans, sMeans[0]], theta: [...labels, labels[0]],
+      fill: 'toself', fillcolor: 'rgba(74,222,128,0.15)',
+      line: { color: '#4ade80', width: 2 }
+    },
+    {
+      type: 'scatterpolar', name: 'Non-Shot',
+      r: [...nMeans, nMeans[0]], theta: [...labels, labels[0]],
+      fill: 'toself', fillcolor: 'rgba(248,113,113,0.15)',
+      line: { color: '#f87171', width: 2 }
+    }
+  ], {
+    ...PLOTLY_LAYOUT,
+    polar: {
+      bgcolor: 'transparent',
+      radialaxis: { visible: true, gridcolor: '#1e3a1e', color: '#4b5563' },
+      angularaxis: { gridcolor: '#1e3a1e', color: '#9ca3af' }
+    },
+    height: 360,
+    margin: { t: 20, b: 20, l: 60, r: 60 }
+  }, { responsive: true, displayModeBar: false });
+}
+</script>
+</body>
+</html>
