@@ -3719,7 +3719,7 @@ async function forceUploadAudioToPool() {
             attack:        parseFloat((s.attack       ||0).toFixed(4)),
             ts: Date.now()
           };
-          if (s.audioUrl) doc.audioUrl = s.audioUrl;
+          if (s.audioData) { doc.audioData = s.audioData; doc.audioMime = s.audioMime || 'audio/webm'; }
           batch.set(pool.doc(), doc);
         });
         await batch.commit();
