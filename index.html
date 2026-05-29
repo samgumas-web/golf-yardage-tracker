@@ -3393,6 +3393,31 @@ async function auStartListening() {
     auFreqBuf     = new Float32Array(auAnalyser.frequencyBinCount);
     auActive      = true;
     auBaselineRms = 0.01;
+    // Start rolling MediaRecorder buffer for pre-roll audio capture
+    try {
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus' : 'audio/webm';
+      auMediaRecorder = new MediaRecorder(auStream, { mimeType });
+      auRollingChunks = [];
+      auPostChunks    = [];
+      auCapturingPost = false;
+      auMediaRecorder.ondataavailable = e => {
+        if (!e.data || e.data.size === 0) return;
+        if (auCapturingPost) {
+          auPostChunks.push(e.data);
+          if (auPostChunks.length >= AU_POST_CHUNKS && auPostResolve) {
+            const res = auPostResolve;
+            auPostResolve   = null;
+            auCapturingPost = false;
+            res([...auRollingChunks.slice(-AU_PRE_CHUNKS), ...auPostChunks]);
+          }
+        } else {
+          auRollingChunks.push(e.data);
+          if (auRollingChunks.length > AU_PRE_CHUNKS) auRollingChunks.shift();
+        }
+      };
+      auMediaRecorder.start(AU_CHUNK_MS);
+    } catch (me) { console.warn('MediaRecorder init failed:', me); }
     auLoop();
   } catch (e) { console.warn('auStartListening:', e); auActive = false; }
 }
