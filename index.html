@@ -6985,14 +6985,17 @@ async function auTrainLabel(yes) {
   const flash = document.getElementById('au-train-flash');
   if (flash) { flash.textContent = '⏫ Saving audio clip…'; flash.style.color = '#facc15'; }
 
-  // Capture rolling-buffer audio clip and upload to Storage
-  const blob     = await auCaptureClip();
-  const club     = yes ? auSelectedClub : 'NOT_SHOT';
-  const face     = yes ? (auSelectedFace || '') : '';
-  const audioUrl = blob ? await auUploadClip(blob, club, face) : null;
+  // Capture rolling-buffer audio clip and encode as base64 for Firestore storage
+  const blob  = await auCaptureClip();
+  const club  = yes ? auSelectedClub : 'NOT_SHOT';
+  const face  = yes ? (auSelectedFace || '') : '';
+  let audioData = null, audioMime = null;
+  if (blob) {
+    try { audioData = await auBlobToBase64(blob); audioMime = blob.type; } catch {}
+  }
 
   const sample = { ...f, club, faceLocation: face, location: phoneLocation };
-  if (audioUrl) sample.audioUrl = audioUrl;
+  if (audioData) { sample.audioData = audioData; sample.audioMime = audioMime; }
 
   auLearnData.samples.push(sample);
   auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
