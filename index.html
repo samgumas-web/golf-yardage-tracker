@@ -3641,18 +3641,21 @@ function auSaveLearnData() {
 
 function fbAudioSample(features, type) {
   if (!fbDb || !activeProfile) return;
-  fbDb.collection('trainingPool').doc('audioTraining').collection('samples').add({
+  const doc = {
     uid:           activeProfile.id,
     type,
-    club:          features.club     || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
-    location:      features.location || phoneLocation,
+    club:          features.club         || (type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+    faceLocation:  features.faceLocation || '',
+    location:      features.location     || phoneLocation,
     snr:           parseFloat((features.snr          ||0).toFixed(4)),
     impulsiveness: parseFloat((features.impulsiveness||0).toFixed(4)),
     zcr:           parseFloat((features.zcr          ||0).toFixed(4)),
     centroid:      parseFloat((features.centroid     ||0).toFixed(4)),
     attack:        parseFloat((features.attack       ||0).toFixed(4)),
     ts: Date.now()
-  }).catch(() => {});
+  };
+  if (features.audioUrl) doc.audioUrl = features.audioUrl;
+  fbDb.collection('trainingPool').doc('audioTraining').collection('samples').add(doc).catch(() => {});
 }
 
 async function fbLoadAudioPool() {
