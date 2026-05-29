@@ -7026,6 +7026,10 @@ async function auTrainLabel(yes) {
   auSaveLearnData();
   fbAudioSample(sample, yes ? 'SHOT' : 'NOT_SHOT');
 
+  // Toast so the confirmation is visible even if the flash gets overwritten by the next sound
+  const faceLabel = yes && face ? ` / ${face}` : '';
+  toast(yes ? `✓ Saved: ${club}${faceLabel}${audioData ? ' + audio' : ''}` : '✗ Non-shot saved');
+
   if (flash) {
     flash.textContent = yes ? `✓ ${auSelectedClub} shot labeled!` : '✗ Non-shot labeled';
     flash.style.color = yes ? '#4ade80' : '#f87171';
