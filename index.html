@@ -3529,7 +3529,9 @@ function auLoop() {
           flash.textContent = `Background noise filtered (${auFilteredCount} this session)`;
           flash.style.color = '#4b5563';
         } else {
-          flash.textContent = '⚡ Sound captured — label it now!';
+          const match = auIdentifyClub(f);
+          const hint  = (match && match.count >= 3) ? ` — looks like ${match.club}` : '';
+          flash.textContent = `⚡ Sound captured — label it now!${hint}`;
           flash.style.color = '#facc15';
         }
       }
