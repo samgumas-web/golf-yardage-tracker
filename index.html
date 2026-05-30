@@ -3595,6 +3595,50 @@ function auMergedData() {
   };
 }
 
+// Builds per-club/face mean feature vectors from all available training data
+function buildClubProfiles() {
+  const KEYS = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack'];
+  const samples = [...(auLearnData.samples || []), ...(auPoolData.samples || [])];
+  const raw = {};
+  samples.forEach(s => {
+    if (s.club === 'NOT_SHOT' || s.club === 'SHOT_UNKNOWN') return;
+    const face = s.faceLocation || 'Unknown';
+    const key  = `${s.club}||${face}`;
+    if (!raw[key]) raw[key] = { club: s.club, face, vals: {} };
+    KEYS.forEach(k => { if (!raw[key].vals[k]) raw[key].vals[k] = []; raw[key].vals[k].push(s[k] || 0); });
+  });
+  auClubProfiles = {};
+  Object.values(raw).forEach(({ club, face, vals }) => {
+    const count = (vals[KEYS[0]] || []).length;
+    if (count < 1) return;
+    if (!auClubProfiles[club]) auClubProfiles[club] = {};
+    const mean = {};
+    KEYS.forEach(k => { mean[k] = vals[k].reduce((a, b) => a + b, 0) / count; });
+    auClubProfiles[club][face] = { mean, count };
+  });
+}
+
+// Returns the closest club/face profile to features f, or null if no profiles exist
+function auIdentifyClub(f) {
+  const KEYS = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack'];
+  const w    = auFeatureWeights;
+  const all  = [...(auLearnData.samples || []), ...(auPoolData.samples || [])];
+  if (!all.length) return null;
+  function p95(arr) { const s = arr.slice().sort((a, b) => a - b); return Math.max(s[Math.floor(s.length * 0.95)] || 1, 1); }
+  const caps = {}; KEYS.forEach(k => { caps[k] = p95(all.map(e => e[k] || 0)); });
+  const cl = (v, mx) => Math.min(Math.max(v, 0), mx);
+  let best = null, bestDist = Infinity;
+  Object.entries(auClubProfiles).forEach(([club, faces]) => {
+    Object.entries(faces).forEach(([face, profile]) => {
+      if (profile.count < 3) return;
+      const d = Math.sqrt(KEYS.reduce((sum, k) =>
+        sum + w[k] * ((cl(f[k], caps[k]) - cl(profile.mean[k], caps[k])) / caps[k]) ** 2, 0));
+      if (d < bestDist) { bestDist = d; best = { club, face, dist: d, count: profile.count }; }
+    });
+  });
+  return best;
+}
+
 function auScoreAudio(f) {
   const { shots, nonShots } = auMergedData();
   if (shots.length < 3) return f.snr > 8 ? 0.55 : 0.1; // cold-start: snr>8 means clearly louder than ambient
