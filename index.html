@@ -7237,6 +7237,56 @@ async function migrateAudioToGround() {
   }
 }
 
+// ── Migration: move trainingPool/motionTraining/samples → swingMotion ──
+async function migrateSamplesToSwingMotion() {
+  if (!fbDb || !activeProfile) return;
+  const btn = document.getElementById('migrate-swing-motion-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Migrating…'; }
+  let moved = 0;
+  try {
+    const src  = fbDb.collection('trainingPool').doc('motionTraining').collection('samples');
+    const dest = fbDb.collection('trainingPool').doc('motionTraining').collection('swingMotion');
+    let keepGoing = true;
+    while (keepGoing) {
+      const snap = await src.limit(200).get();
+      if (snap.empty) { keepGoing = false; break; }
+      const batch = fbDb.batch();
+      snap.docs.forEach(d => {
+        batch.set(dest.doc(), d.data());
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+      moved += snap.docs.length;
+      if (btn) btn.textContent = `Migrating… ${moved} moved`;
+      if (snap.docs.length < 200) keepGoing = false;
+    }
+    localStorage.removeItem('gy_pool_cache_v2');
+    localStorage.removeItem('gy_pool_cache_v3');
+    await fbLoadTrainingPool();
+    toast(`Moved ${moved} motion samples → swingMotion ✓`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('migrateSamplesToSwingMotion:', e);
+    toast('Migration failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry (samples → swingMotion)'; }
+  }
+}
+
+async function initPhoneOnGroundCollection() {
+  if (!fbDb || !activeProfile) return;
+  const btn = document.getElementById('init-pog-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  try {
+    await fbDb.collection('trainingPool').doc('motionTraining')
+      .collection('phoneOnGround').doc('_placeholder').set({ initialized: true, ts: Date.now() });
+    toast('phoneOnGround collection created ✓');
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    toast('Error: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry'; }
+  }
+}
+
 // ── One-time migration: move flat trainingPool docs → trainingPool/motionTraining/samples ──
 async function migrateMotionToSubcollection() {
   if (!fbDb || !activeProfile) return;
