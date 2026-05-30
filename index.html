@@ -3662,7 +3662,22 @@ function auScoreAudio(f) {
   ].sort((a,b) => dist(f,a.f)-dist(f,b.f)).slice(0,k);
   const kS = neighbors.filter(n=>n.lbl===1).length, kN = k-kS;
   const sD = kS/(shots.length||1), nD = kN/(nonShots.length||1);
-  return sD / (sD + nD + 1e-9);
+  let score = sD / (sD + nD + 1e-9);
+
+  // Boost score when the sound closely matches a known flush club profile
+  let bestMatch = '', bestBoost = 0;
+  Object.entries(auClubProfiles).forEach(([club, faces]) => {
+    const profile = faces['Flush'];
+    if (!profile || profile.count < 3) return;
+    const d = dist(f, profile.mean);
+    if (d < 0.4) {
+      const boost = ((0.4 - d) / 0.4) * 0.2; // up to +0.2 for very close match
+      if (boost > bestBoost) { bestBoost = boost; bestMatch = club; }
+    }
+  });
+  if (bestMatch) auLastClub = bestMatch;
+
+  return Math.min(1, score + bestBoost);
 }
 
 function computeAudioWeights(shots, nonShots) {
