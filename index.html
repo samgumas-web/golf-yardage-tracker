@@ -7342,6 +7342,43 @@ async function initAllClubFolders() {
   }
 }
 
+// Creates placeholder faceLocation documents under every club so all folders appear in Firestore
+async function initAllFaceFolders() {
+  if (!fbDb || !activeProfile) return;
+  const btn = document.getElementById('init-faces-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  const FACES = ['Flush', 'Heel', 'Toe', 'Thin', 'Fat', 'Hosel'];
+  try {
+    const base  = fbDb.collection('trainingPool').doc('audioTraining').collection('golfClubAudio');
+    const clubs = [...AUDIO_CLUB_LIST, 'NOT_SHOT'];
+    // Batch in groups of 499 (each club×face is one write)
+    const allWrites = [];
+    clubs.forEach(club => {
+      const facesToCreate = club === 'NOT_SHOT' ? ['None'] : FACES;
+      facesToCreate.forEach(face => {
+        allWrites.push({ clubId: auSanitizeId(club), faceId: auSanitizeId(face), face });
+      });
+    });
+    for (let i = 0; i < allWrites.length; i += 499) {
+      const batch = fbDb.batch();
+      allWrites.slice(i, i + 499).forEach(({ clubId, faceId, face }) => {
+        batch.set(
+          base.doc(clubId).collection('faceLocation').doc(faceId),
+          { faceName: face, initialized: true },
+          { merge: true }
+        );
+      });
+      await batch.commit();
+    }
+    toast(`Created face location folders for ${clubs.length} clubs ✓`);
+    if (btn) btn.style.display = 'none';
+  } catch (e) {
+    console.warn('initAllFaceFolders:', e);
+    toast('Failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '⚠ Retry create face folders'; }
+  }
+}
+
 // Moves audio clips from one club/face location to another (most recent 24 hours)
 async function moveRecentToClub(srcClub, srcFace, destClub, destFace) {
   if (!fbDb || !activeProfile) return;
