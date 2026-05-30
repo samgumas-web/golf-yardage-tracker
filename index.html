@@ -3301,7 +3301,7 @@ async function fbSeedUserToPool(uid, trainData) {
       .update({ poolSeeded: true, poolShotCount: shots.length, poolNonShotCount: nonShots.length }).catch(() => {});
     return;
   }
-  const pool = fbDb.collection('trainingPool').doc('motionTraining').collection('samples');
+  const pool = fbDb.collection('trainingPool').doc('motionTraining').collection('swingMotion');
   try {
     for (let i = 0; i < all.length; i += 499) {
       const batch = fbDb.batch();
