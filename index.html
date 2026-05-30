@@ -3778,6 +3778,7 @@ async function fbLoadAudioPool() {
     });
     auPoolData = { samples };
     computeAudioWeights(samples.filter(s=>s.club!=='NOT_SHOT'), samples.filter(s=>s.club==='NOT_SHOT'));
+    buildClubProfiles();
     localStorage.setItem(AU_POOL_CACHE_KEY, JSON.stringify({ samples, ts: Date.now() }));
   } catch (e) { console.warn('fbLoadAudioPool:', e); }
 }
