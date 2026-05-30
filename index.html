@@ -3755,6 +3755,7 @@ async function fbLoadAudioPool() {
       });
       auPoolData = { samples };
       computeAudioWeights(samples.filter(s=>s.club!=='NOT_SHOT'), samples.filter(s=>s.club==='NOT_SHOT'));
+      buildClubProfiles();
       return;
     }
   } catch {}
