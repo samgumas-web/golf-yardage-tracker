@@ -7259,6 +7259,99 @@ async function migrateAudioToGround() {
   }
 }
 
+// ── Phone-on-ground placement detection ──────────────────────────────
+function pogDetect(rot, acc, now) {
+  const MOVE_ROT  = 35;   // dps — rotation that signals phone is being moved
+  const STILL_ROT = 18;   // dps — below this = settled/still
+  const MIN_MS    = 600;  // ms — minimum motion duration for a valid placement
+  const MAX_MS    = 6000; // ms — longer = walking around, not placing
+
+  if (pogState === 'idle') {
+    if (rot > MOVE_ROT) {
+      pogState = 'moving'; pogMoveStart = now; pogPeakRot = rot; pogPeakAcc = acc;
+    }
+  } else if (pogState === 'moving') {
+    if (rot > pogPeakRot) pogPeakRot = rot;
+    if (acc > pogPeakAcc) pogPeakAcc = acc;
+    const elapsed = now - pogMoveStart;
+    if (rot < STILL_ROT) {
+      if (elapsed >= MIN_MS && elapsed <= MAX_MS) {
+        pogState = 'settling'; pogSettleStart = now;
+      } else {
+        pogState = 'idle';
+      }
+    } else if (elapsed > MAX_MS) {
+      pogState = 'idle';
+    }
+  } else if (pogState === 'settling') {
+    if (rot > MOVE_ROT) {
+      pogState = 'idle';
+    } else if (now - pogSettleStart > 800) {
+      onPhoneGroundPlacement({ peakRot: pogPeakRot, peakAcc: pogPeakAcc, motionMs: pogSettleStart - pogMoveStart });
+      pogState = 'idle';
+    }
+  }
+}
+
+function onPhoneGroundPlacement(features) {
+  lastGroundPlacement = Date.now();
+  updateGroundGateUI();
+  if (pogTrainingArmed) {
+    pogTrainingArmed = false;
+    if (fbDb && activeProfile) {
+      fbDb.collection('trainingPool').doc('motionTraining').collection('phoneOnGround').add({
+        uid:      activeProfile.id,
+        type:     'PLACEMENT',
+        peakRot:  parseFloat(features.peakRot.toFixed(2)),
+        peakAcc:  parseFloat(features.peakAcc.toFixed(3)),
+        motionMs: Math.round(features.motionMs),
+        ts:       Date.now()
+      }).catch(() => {});
+    }
+    toast('✓ Phone placement captured!');
+    updatePogTrainBtn();
+  }
+}
+
+function updateGroundGateUI() {
+  const el = document.getElementById('ground-gate-status');
+  if (!el) return;
+  if (phoneLocation !== 'ground' || !autoTrack) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const remaining = Math.max(0, GROUND_GATE_MS - (Date.now() - lastGroundPlacement));
+  if (remaining > 0) {
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    el.textContent = `✓ Phone placed — ready (${mins}:${secs.toString().padStart(2,'0')})`;
+    el.style.color  = '#4ade80';
+  } else {
+    el.textContent = '⬇ Place phone near ball to arm';
+    el.style.color  = '#facc15';
+  }
+}
+
+function updatePogTrainBtn() {
+  const btn = document.getElementById('pog-train-btn');
+  if (!btn) return;
+  if (pogTrainingArmed) {
+    btn.textContent      = '🔴 Listening — place phone on ground now…';
+    btn.style.background = '#7f1d1d';
+    btn.style.borderColor = '#991b1b';
+    btn.style.color      = '#fca5a5';
+  } else {
+    btn.textContent      = '📱 Capture Phone Placement Sample';
+    btn.style.background = 'var(--card2)';
+    btn.style.borderColor = 'var(--border)';
+    btn.style.color      = 'var(--muted)';
+  }
+}
+
+function armPogTraining() {
+  pogTrainingArmed = !pogTrainingArmed;
+  updatePogTrainBtn();
+  if (pogTrainingArmed) toast('Ready — place your phone on the ground when you hear the beep');
+}
+
 // ── Migration: move trainingPool/motionTraining/samples → swingMotion ──
 async function migrateSamplesToSwingMotion() {
   if (!fbDb || !activeProfile) return;
