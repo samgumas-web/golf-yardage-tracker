@@ -7326,8 +7326,25 @@ function cancelGroundPlacement() {
   }
   lastGroundPlacement = 0;
   pogLastFeatures = null;
+  pogConfirmed    = false;
   updateGroundGateUI();
   toast('Placement cancelled');
+}
+
+function confirmGroundPlacement() {
+  pogConfirmed = true;
+  if (fbDb && activeProfile && pogLastFeatures) {
+    fbDb.collection('trainingPool').doc('motionTraining').collection('phoneOnGround').add({
+      uid:       activeProfile.id,
+      type:      'PLACEMENT',
+      confirmed: true,
+      peakRot:   parseFloat(pogLastFeatures.peakRot.toFixed(2)),
+      peakAcc:   parseFloat(pogLastFeatures.peakAcc.toFixed(3)),
+      motionMs:  Math.round(pogLastFeatures.motionMs),
+      ts:        Date.now()
+    }).catch(() => {});
+  }
+  updateGroundGateUI();
 }
 
 function updateGroundGateUI() {
