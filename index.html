@@ -7289,6 +7289,79 @@ async function migrateAudioToGround() {
   }
 }
 
+// ── Phone-on-ground pool: load, calibrate, score ─────────────────────
+async function fbLoadPogPool() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(POG_POOL_CACHE_KEY) || 'null');
+    if (cached && (Date.now() - cached.ts) < POG_POOL_CACHE_TTL) {
+      pogPoolData = { placements: cached.placements, nonPlacements: cached.nonPlacements };
+      pogComputeThresholds();
+      return;
+    }
+  } catch {}
+  try {
+    const snap = await fbDb.collection('trainingPool').doc('motionTraining')
+      .collection('phoneOnGround').limit(300).get();
+    const placements = [], nonPlacements = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (typeof d.peakRot !== 'number') return; // skip placeholder docs
+      const s = { peakRot: d.peakRot, peakAcc: d.peakAcc || 0, motionMs: d.motionMs || 0,
+                  type: d.type, confirmed: !!d.confirmed };
+      if (d.type === 'PLACEMENT')     placements.push(s);
+      else if (d.type === 'NOT_PLACEMENT') nonPlacements.push(s);
+    });
+    pogPoolData = { placements, nonPlacements };
+    pogComputeThresholds();
+    localStorage.setItem(POG_POOL_CACHE_KEY, JSON.stringify({ placements, nonPlacements, ts: Date.now() }));
+  } catch (e) { console.warn('fbLoadPogPool:', e); }
+}
+
+function pogComputeThresholds() {
+  const pl = pogPoolData.placements || [];
+  if (pl.length < 5) return; // not enough data — keep defaults
+  const rotVals = pl.map(s => s.peakRot).sort((a, b) => a - b);
+  const msVals  = pl.map(s => s.motionMs).sort((a, b) => a - b);
+  // Trigger at 75% of the 10th-percentile rotation so we catch nearly all real placements
+  const p10rot = rotVals[Math.floor(rotVals.length * 0.10)];
+  pogAdaptiveMoveRot = Math.max(15, parseFloat((p10rot * 0.75).toFixed(1)));
+  // Timing window: 5th–95th percentile of observed durations, with 30% margin each side
+  const p05ms = msVals[Math.floor(msVals.length * 0.05)];
+  const p95ms = msVals[Math.floor(msVals.length * 0.95)];
+  pogAdaptiveMinMs = Math.max(250, Math.floor(p05ms * 0.70));
+  pogAdaptiveMaxMs = Math.min(9000, Math.ceil(p95ms * 1.30));
+}
+
+function pogScore(f) {
+  const pl  = pogPoolData.placements    || [];
+  const npl = pogPoolData.nonPlacements || [];
+  const all = [...pl, ...npl];
+  if (all.length < 6) return 1.0; // not enough data — allow everything through
+
+  const rots = all.map(s => s.peakRot);
+  const accs = all.map(s => s.peakAcc);
+  const mss  = all.map(s => s.motionMs);
+  const rRot = (Math.max(...rots) - Math.min(...rots)) || 1;
+  const rAcc = (Math.max(...accs) - Math.min(...accs)) || 1;
+  const rMs  = (Math.max(...mss)  - Math.min(...mss))  || 1;
+
+  const scored = all.map(s => ({
+    isPlacement: s.type === 'PLACEMENT',
+    weight:      s.confirmed ? 2 : 1,
+    dist: Math.sqrt(
+      ((f.peakRot  - s.peakRot)  / rRot) ** 2 +
+      ((f.peakAcc  - s.peakAcc)  / rAcc) ** 2 +
+      ((f.motionMs - s.motionMs) / rMs)  ** 2
+    )
+  })).sort((a, b) => a.dist - b.dist);
+
+  const k = Math.min(7, scored.length);
+  const neighbors = scored.slice(0, k);
+  const placementW = neighbors.reduce((s, n) => s + (n.isPlacement ? n.weight : 0), 0);
+  const totalW     = neighbors.reduce((s, n) => s + n.weight, 0);
+  return placementW / totalW;
+}
+
 // ── Phone-on-ground placement detection ──────────────────────────────
 function pogDetect(rot, acc, now) {
   const MOVE_ROT  = pogAdaptiveMoveRot;
