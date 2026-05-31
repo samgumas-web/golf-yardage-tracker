@@ -5293,6 +5293,12 @@ function updateATUI() {
       btn.textContent = 'Waiting for shot';
   }
   updateGroundGateUI();
+  // Swap profile pill ↔ manual ground button in ground+auto mode
+  const groundActive = autoTrack && phoneLocation === 'ground';
+  const profPill  = document.getElementById('profile-pill');
+  const manualBtn = document.getElementById('manual-ground-btn');
+  if (profPill)  profPill.style.display  = groundActive ? 'none'  : '';
+  if (manualBtn) manualBtn.style.display = groundActive ? ''      : 'none';
 }
 
 function clearHole(n) {
