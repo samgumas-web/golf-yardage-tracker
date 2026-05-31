@@ -4834,6 +4834,8 @@ function atMotionTick(e) {
   const cutoff = now - 1500; // 1.5s window captures the full swing arc
   while (atMotionBuf.length && atMotionBuf[0].t < cutoff) atMotionBuf.shift();
 
+  if (phoneLocation === 'ground') pogDetect(rot, acc, now);
+
   const trig = atIsTrained() ? atAdaptiveTrig() : AT_PRETRIG_DPS;
   if (rot >= trig || acc >= AT_SWING_G) {
     onSwingDetected(atExtractFeatures(atMotionBuf));
