@@ -7358,10 +7358,15 @@ function updateGroundGateUI() {
     const secs = Math.floor((remaining % 60000) / 1000);
     el.style.padding    = '7px 10px';
     el.style.background = 'rgba(0,60,0,.85)';
+    const btnRow = pogConfirmed
+      ? `<div style="color:#86efac;font-size:10px">✓ Confirmed · ${mins}:${secs.toString().padStart(2,'0')} remaining</div>`
+      : `<div style="display:flex;gap:6px;margin-top:5px">` +
+          `<button onclick="confirmGroundPlacement()" style="font-size:10px;padding:3px 10px;background:rgba(0,100,0,.6);border:1px solid #16a34a;border-radius:4px;color:#4ade80;cursor:pointer;-webkit-tap-highlight-color:transparent">✓ Yes</button>` +
+          `<button onclick="cancelGroundPlacement()" style="font-size:10px;padding:3px 9px;background:rgba(0,0,0,.4);border:1px solid #4b5563;border-radius:4px;color:#9ca3af;cursor:pointer;-webkit-tap-highlight-color:transparent">✕ Not placing for a shot</button>` +
+        `</div>`;
     el.innerHTML =
       `<div style="color:#4ade80;font-weight:600;font-size:11px;margin-bottom:3px">📍 Phone on ground — listening for shot</div>` +
-      `<div style="color:#86efac;font-size:10px;margin-bottom:5px">${mins}:${secs.toString().padStart(2,'0')} remaining</div>` +
-      `<button onclick="cancelGroundPlacement()" style="font-size:10px;padding:3px 9px;background:rgba(0,0,0,.4);border:1px solid #4b5563;border-radius:4px;color:#9ca3af;cursor:pointer;-webkit-tap-highlight-color:transparent">✕ Not placing for a shot</button>`;
+      btnRow;
   } else {
     el.style.padding    = '4px 8px';
     el.style.background = 'rgba(0,0,0,.6)';
