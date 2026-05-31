@@ -7297,6 +7297,7 @@ function pogDetect(rot, acc, now) {
 function onPhoneGroundPlacement(features) {
   lastGroundPlacement = Date.now();
   pogLastFeatures = features;
+  pogConfirmed    = false;
   updateGroundGateUI();
   // Always upload to Firebase — every detection is a training sample
   if (fbDb && activeProfile) {
