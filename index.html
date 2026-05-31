@@ -4322,6 +4322,7 @@ function setPhoneLocation(loc) {
   localStorage.setItem('gy_phone_loc', loc);
   const modal = document.getElementById('phone-loc-modal');
   if (modal) modal.style.display = 'none';
+  updateGroundGateUI();
   _finishSelectCourse();
 }
 
