@@ -7347,6 +7347,13 @@ function cancelGroundPlacement() {
   toast('Placement cancelled');
 }
 
+function manualGroundPlacement() {
+  lastGroundPlacement = Date.now();
+  pogLastFeatures  = null;  // no sensor data for manual trigger — skip Firebase upload
+  pogConfirmed     = true;  // user explicitly triggered it
+  updateGroundGateUI();
+}
+
 function confirmGroundPlacement() {
   pogConfirmed = true;
   if (fbDb && activeProfile && pogLastFeatures) {
