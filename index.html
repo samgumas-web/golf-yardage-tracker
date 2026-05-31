@@ -1874,6 +1874,7 @@ fbAuth.onAuthStateChanged(async user => {
     fbLoadAudioPool();
     migrateLegacyData();
     initUserData();
+    setInterval(updateGroundGateUI, 15000); // keep countdown fresh
     render();
     const poolBtn = document.getElementById('force-pool-btn');
     if (poolBtn) poolBtn.style.display = user.uid === 'SoLiL4NCAcRCpnq74ekdFQvXbG13' ? '' : 'none';
