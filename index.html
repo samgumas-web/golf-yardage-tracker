@@ -7456,6 +7456,7 @@ function confirmGroundPlacement() {
       motionMs:  Math.round(pogLastFeatures.motionMs),
       ts:        Date.now()
     }).catch(() => {});
+    localStorage.removeItem(POG_POOL_CACHE_KEY); // next load picks up new confirmed PLACEMENT
   }
   updateGroundGateUI();
 }
