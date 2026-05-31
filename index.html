@@ -4838,7 +4838,7 @@ function atMotionTick(e) {
   if (phoneLocation === 'ground') pogDetect(rot, acc, now);
 
   const trig = atIsTrained() ? atAdaptiveTrig() : AT_PRETRIG_DPS;
-  if (rot >= trig || acc >= AT_SWING_G) {
+  if (phoneLocation !== 'ground' && (rot >= trig || acc >= AT_SWING_G)) {
     onSwingDetected(atExtractFeatures(atMotionBuf));
   }
 }
