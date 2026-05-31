@@ -3548,9 +3548,15 @@ function auLoop() {
         }
       }
     }
-    // Bag / ground mode: audio alone triggers the shot confirmation (no motion needed)
-    if ((phoneLocation === 'bag' || phoneLocation === 'ground') && auEnabled && autoTrack && auLastScore >= 0.55) {
+    // Bag mode: audio alone triggers (no placement gate needed)
+    if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) {
       onAudioShot();
+    }
+    // Ground mode: audio triggers only if phone was recently placed on ground (hard gate)
+    if (phoneLocation === 'ground' && auEnabled && autoTrack && auLastScore >= 0.55) {
+      if (Date.now() - lastGroundPlacement < GROUND_GATE_MS) {
+        onAudioShot();
+      }
     }
   }
 }
