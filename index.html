@@ -5267,6 +5267,11 @@ function updateATUI() {
     btn.className   = 'auto-pill off';
     btn.textContent = 'Auto';
     if (cfm) cfm.style.display = 'none';
+    const profPill  = document.getElementById('profile-pill');
+    const manualBtn = document.getElementById('manual-ground-btn');
+    if (profPill)  profPill.style.display  = '';
+    if (manualBtn) manualBtn.style.display = 'none';
+    updateGroundGateUI();
     return;
   }
 
