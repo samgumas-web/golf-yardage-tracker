@@ -7428,6 +7428,7 @@ function cancelGroundPlacement() {
       motionMs: Math.round(pogLastFeatures.motionMs),
       ts:       Date.now()
     }).catch(() => {});
+    localStorage.removeItem(POG_POOL_CACHE_KEY); // next load picks up new NOT_PLACEMENT
   }
   lastGroundPlacement = 0;
   pogLastFeatures = null;
