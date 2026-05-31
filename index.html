@@ -7291,10 +7291,10 @@ async function migrateAudioToGround() {
 
 // ── Phone-on-ground placement detection ──────────────────────────────
 function pogDetect(rot, acc, now) {
-  const MOVE_ROT  = 35;   // dps — rotation that signals phone is being moved
-  const STILL_ROT = 18;   // dps — below this = settled/still
-  const MIN_MS    = 600;  // ms — minimum motion duration for a valid placement
-  const MAX_MS    = 6000; // ms — longer = walking around, not placing
+  const MOVE_ROT  = pogAdaptiveMoveRot;
+  const STILL_ROT = Math.max(12, pogAdaptiveMoveRot * 0.5);
+  const MIN_MS    = pogAdaptiveMinMs;
+  const MAX_MS    = pogAdaptiveMaxMs;
 
   if (pogState === 'idle') {
     if (rot > MOVE_ROT) {
@@ -7317,7 +7317,10 @@ function pogDetect(rot, acc, now) {
     if (rot > MOVE_ROT) {
       pogState = 'idle';
     } else if (now - pogSettleStart > 800) {
-      onPhoneGroundPlacement({ peakRot: pogPeakRot, peakAcc: pogPeakAcc, motionMs: pogSettleStart - pogMoveStart });
+      const features = { peakRot: pogPeakRot, peakAcc: pogPeakAcc, motionMs: pogSettleStart - pogMoveStart };
+      if (pogScore(features) >= 0.4) {
+        onPhoneGroundPlacement(features);
+      }
       pogState = 'idle';
     }
   }
