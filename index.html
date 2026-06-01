@@ -7315,6 +7315,7 @@ async function fbLoadPogPool() {
       const d = doc.data();
       if (typeof d.peakRot !== 'number') return; // skip placeholder docs
       const s = { peakRot: d.peakRot, peakAcc: d.peakAcc || 0, peakAccY: d.peakAccY || 0,
+                  flatAtSettle: d.flatAtSettle || 0,
                   motionMs: d.motionMs || 0, type: d.type, confirmed: !!d.confirmed };
       if (d.type === 'PLACEMENT')     placements.push(s);
       else if (d.type === 'NOT_PLACEMENT') nonPlacements.push(s);
