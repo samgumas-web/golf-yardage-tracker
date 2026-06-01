@@ -7433,6 +7433,7 @@ function onPhoneGroundPlacement(features) {
       type:     'PLACEMENT',
       peakRot:  parseFloat(features.peakRot.toFixed(2)),
       peakAcc:  parseFloat(features.peakAcc.toFixed(3)),
+      peakAccY: parseFloat((features.peakAccY || 0).toFixed(3)),
       motionMs: Math.round(features.motionMs),
       ts:       Date.now()
     }).then(() => {
