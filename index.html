@@ -7322,14 +7322,14 @@ function pogComputeThresholds() {
   if (pl.length < 5) return; // not enough data — keep defaults
   const rotVals = pl.map(s => s.peakRot).sort((a, b) => a - b);
   const msVals  = pl.map(s => s.motionMs).sort((a, b) => a - b);
-  // Trigger at 75% of the 10th-percentile rotation so we catch nearly all real placements
+  // Trigger at 55% of 10th-percentile rotation — very sensitive to catch low-rotation placements
   const p10rot = rotVals[Math.floor(rotVals.length * 0.10)];
-  pogAdaptiveMoveRot = Math.max(15, parseFloat((p10rot * 0.75).toFixed(1)));
-  // Timing window: 5th–95th percentile of observed durations, with 30% margin each side
+  pogAdaptiveMoveRot = Math.max(8, parseFloat((p10rot * 0.55).toFixed(1)));
+  // Timing: 5th–95th percentile with generous margin
   const p05ms = msVals[Math.floor(msVals.length * 0.05)];
   const p95ms = msVals[Math.floor(msVals.length * 0.95)];
-  pogAdaptiveMinMs = Math.max(250, Math.floor(p05ms * 0.70));
-  pogAdaptiveMaxMs = Math.min(9000, Math.ceil(p95ms * 1.30));
+  pogAdaptiveMinMs = Math.max(200, Math.floor(p05ms * 0.60));
+  pogAdaptiveMaxMs = Math.min(10000, Math.ceil(p95ms * 1.50));
 }
 
 function pogScore(f) {
