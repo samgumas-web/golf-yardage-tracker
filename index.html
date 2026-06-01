@@ -1888,6 +1888,7 @@ fbAuth.onAuthStateChanged(async user => {
     await fbLoadRounds(user.uid);
     await fbLoadTrainingPool();
     fbLoadAudioPool();
+    localStorage.removeItem(POG_POOL_CACHE_KEY); // force fresh calibration on every login
     fbLoadPogPool();
     migrateLegacyData();
     initUserData();
