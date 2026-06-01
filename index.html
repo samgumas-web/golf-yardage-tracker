@@ -7365,42 +7365,54 @@ function pogScore(f) {
 }
 
 // ── Phone-on-ground placement detection ──────────────────────────────
-function pogDetect(rot, acc, now) {
-  // acc = accelerationIncludingGravity magnitude (~9.81 when still).
-  // accDev measures how far we are from resting gravity — i.e. the phone is moving.
+function pogDetect(rot, acc, accY, now) {
+  // acc  = accelerationIncludingGravity magnitude (~9.81 when still).
+  // accY = gravity-free vertical (Y-axis) linear acceleration — key signal for
+  //        a 2-foot downward drop: spikes to 3-8 m/s² during descent.
   const accDev    = Math.abs(acc - 9.81);
-  const MOVE_ROT  = pogAdaptiveMoveRot;               // dps — default 12
+  const MOVE_ROT  = pogAdaptiveMoveRot;
   const STILL_ROT = Math.max(6, pogAdaptiveMoveRot * 0.5);
-  const MOVE_ACC  = 1.8;   // m/s² deviation → phone is being carried/moved
-  const STILL_ACC = 0.7;   // m/s² → phone has settled
-  const MIN_MS    = pogAdaptiveMinMs;                 // default 250 ms
-  const MAX_MS    = pogAdaptiveMaxMs;                 // default 8000 ms
+  const MOVE_ACC  = 1.8;   // m/s² total deviation → phone is moving
+  const MOVE_ACCY = 1.2;   // m/s² vertical linear → phone descending/ascending
+  const STILL_ACC = 0.7;
+  const MIN_MS    = pogAdaptiveMinMs;
+  const MAX_MS    = pogAdaptiveMaxMs;
 
   if (pogState === 'idle') {
-    // Trigger on rotation OR linear movement — catches all carrying styles
-    if (rot > MOVE_ROT || accDev > MOVE_ACC) {
-      pogState = 'moving'; pogMoveStart = now; pogPeakRot = rot; pogPeakAcc = acc;
+    // Trigger on rotation, total acc deviation, OR vertical linear movement
+    if (rot > MOVE_ROT || accDev > MOVE_ACC || accY > MOVE_ACCY) {
+      pogState = 'moving'; pogMoveStart = now;
+      pogPeakRot = rot; pogPeakAcc = acc; pogPeakAccY = accY;
     }
   } else if (pogState === 'moving') {
-    if (rot > pogPeakRot) pogPeakRot = rot;
-    if (acc > pogPeakAcc) pogPeakAcc = acc;
+    if (rot  > pogPeakRot)  pogPeakRot  = rot;
+    if (acc  > pogPeakAcc)  pogPeakAcc  = acc;
+    if (accY > pogPeakAccY) pogPeakAccY = accY;
     const elapsed = now - pogMoveStart;
     const isStill = rot < STILL_ROT && accDev < STILL_ACC;
     if (isStill) {
       if (elapsed >= MIN_MS && elapsed <= MAX_MS) {
         pogState = 'settling'; pogSettleStart = now;
       } else {
-        pogState = 'idle'; // too short (bump) or too long (walking)
+        pogPeakAccY = 0;
+        pogState = 'idle';
       }
     } else if (elapsed > MAX_MS) {
+      pogPeakAccY = 0;
       pogState = 'idle';
     }
   } else if (pogState === 'settling') {
-    // Phone moved again after starting to settle — cancel only after brief grace period
     if ((rot > MOVE_ROT || accDev > MOVE_ACC) && now - pogSettleStart > 350) {
+      pogPeakAccY = 0;
       pogState = 'idle';
     } else if (now - pogSettleStart > 500) {
-      const features = { peakRot: pogPeakRot, peakAcc: pogPeakAcc, motionMs: pogSettleStart - pogMoveStart };
+      const features = {
+        peakRot:  pogPeakRot,
+        peakAcc:  pogPeakAcc,
+        peakAccY: pogPeakAccY,
+        motionMs: pogSettleStart - pogMoveStart
+      };
+      pogPeakAccY = 0;
       if (pogScore(features) >= 0.4) {
         onPhoneGroundPlacement(features);
       }
