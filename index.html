@@ -7349,21 +7349,24 @@ function pogScore(f) {
 
   const rots  = all.map(s => s.peakRot);
   const accs  = all.map(s => s.peakAcc);
-  const accYs = all.map(s => s.peakAccY || 0);
+  const accYs = all.map(s => s.peakAccY     || 0);
+  const flats = all.map(s => s.flatAtSettle || 0);
   const mss   = all.map(s => s.motionMs);
   const rRot  = (Math.max(...rots)  - Math.min(...rots))  || 1;
   const rAcc  = (Math.max(...accs)  - Math.min(...accs))  || 1;
   const rAccY = (Math.max(...accYs) - Math.min(...accYs)) || 1;
+  const rFlat = (Math.max(...flats) - Math.min(...flats)) || 0.1;
   const rMs   = (Math.max(...mss)   - Math.min(...mss))   || 1;
 
   const scored = all.map(s => ({
     isPlacement: s.type === 'PLACEMENT',
     weight:      s.confirmed ? 2 : 1,
     dist: Math.sqrt(
-      1.0 * ((f.peakRot  - s.peakRot)          / rRot)  ** 2 +
-      0.8 * ((f.peakAcc  - s.peakAcc)          / rAcc)  ** 2 +
-      2.0 * ((f.peakAccY - (s.peakAccY || 0))  / rAccY) ** 2 +  // vertical drop weighted 2×
-      0.8 * ((f.motionMs - s.motionMs)          / rMs)   ** 2
+      0.8 * ((f.peakRot                    - s.peakRot)          / rRot)  ** 2 +
+      0.6 * ((f.peakAcc                    - s.peakAcc)          / rAcc)  ** 2 +
+      1.5 * ((f.peakAccY                   - (s.peakAccY || 0))  / rAccY) ** 2 +
+      3.0 * (((f.flatAtSettle || 0)        - (s.flatAtSettle||0))/ rFlat) ** 2 +  // flatness weighted 3× — strongest discriminator
+      0.6 * ((f.motionMs                   - s.motionMs)         / rMs)   ** 2
     )
   })).sort((a, b) => a.dist - b.dist);
 
