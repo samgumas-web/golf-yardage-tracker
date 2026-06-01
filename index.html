@@ -7422,7 +7422,13 @@ function onPhoneGroundPlacement(features) {
       peakAcc:  parseFloat(features.peakAcc.toFixed(3)),
       motionMs: Math.round(features.motionMs),
       ts:       Date.now()
-    }).catch(() => {});
+    }).then(() => {
+      toast('📍 Placement logged ✓');
+    }).catch(() => {
+      toast('⚠ Placement detected but not saved — check connection');
+    });
+  } else {
+    toast('📍 Phone on ground (not logged — sign in to save data)');
   }
 }
 
