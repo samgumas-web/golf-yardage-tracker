@@ -7454,6 +7454,7 @@ function cancelGroundPlacement() {
       type:     'NOT_PLACEMENT',
       peakRot:  parseFloat(pogLastFeatures.peakRot.toFixed(2)),
       peakAcc:  parseFloat(pogLastFeatures.peakAcc.toFixed(3)),
+      peakAccY: parseFloat((pogLastFeatures.peakAccY || 0).toFixed(3)),
       motionMs: Math.round(pogLastFeatures.motionMs),
       ts:       Date.now()
     }).catch(() => {});
