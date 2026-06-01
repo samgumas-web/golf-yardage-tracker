@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GolfYards — Phone Placement Data Viewer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a1a0a; color: #ccc; font-family: monospace; font-size: 13px; padding: 20px; }
+  h1 { color: #4ade80; margin-bottom: 6px; font-size: 18px; }
+  h2 { color: #86efac; font-size: 13px; font-weight: normal; margin-bottom: 16px; }
+  #status { color: #facc15; margin-bottom: 14px; min-height: 20px; }
+  button { background: #1a472a; border: 1px solid #166534; color: #4ade80; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 8px; margin-bottom: 12px; }
+  button:hover { background: #14532d; }
+  #sign-in-area { margin-bottom: 20px; max-width: 320px; }
+  input { width:100%; padding:8px 10px; background:#111; border:1px solid #1e3a1e; border-radius:6px; color:#ccc; font-size:13px; margin-bottom:8px; display:block; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin-bottom: 24px; }
+  .stat-card { background: #111; border: 1px solid #1e3a1e; border-radius: 8px; padding: 10px 14px; }
+  .stat-card .label { font-size: 11px; color: #6b7280; margin-bottom: 2px; }
+  .stat-card .value { font-size: 18px; font-weight: bold; }
+  .green { color: #4ade80; } .red { color: #f87171; } .blue { color: #93c5fd; } .yellow { color: #facc15; }
+
+  .plots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; margin-bottom: 28px; }
+  .plot-card { background: #0f1f0f; border: 1px solid #1e3a1e; border-radius: 10px; padding: 14px; }
+  .plot-title { color: #86efac; font-size: 12px; margin-bottom: 8px; font-weight: bold; letter-spacing: .04em; }
+  .plot-subtitle { color: #4b5563; font-size: 11px; margin-bottom: 10px; }
+  canvas { width: 100% !important; }
+
+  .sep-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; }
+  .sep-table th { background: #111; color: #4ade80; text-align: left; padding: 6px 10px; border-bottom: 1px solid #1e3a1e; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .sep-table td { padding: 5px 10px; border-bottom: 1px solid #1a2e1a; }
+  .sep-table tr:hover td { background: #0f2010; }
+  .sep-bar { display: inline-block; height: 8px; border-radius: 4px; vertical-align: middle; margin-left: 6px; }
+  .good { color: #4ade80; } .bad { color: #f87171; } .ok { color: #facc15; }
+
+  .section-label { color: #4ade80; font-size: 13px; font-weight: bold; margin: 20px 0 8px; border-bottom: 1px solid #1e3a1e; padding-bottom: 4px; }
+  #raw-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  #raw-table th { background: #111; color: #4ade80; text-align: left; padding: 5px 8px; border-bottom: 1px solid #1e3a1e; font-size: 10px; text-transform: uppercase; }
+  #raw-table td { padding: 4px 8px; border-bottom: 1px solid #1a2e1a; }
+  #raw-table tr:hover td { background: #0f2010; }
+  .p { color: #4ade80; } .np { color: #f87171; } .pc { color: #86efac; font-weight: bold; }
+  .num { color: #93c5fd; }
+</style>
+</head>
+<body>
+<h1>📍 Phone Placement — Data Viewer</h1>
+<h2>Scatter plots of phoneOnGround training data · PLACEMENT vs NOT_PLACEMENT</h2>
+<div id="status">Loading Firebase…</div>
+
+<div id="sign-in-area" style="display:none">
+  <input id="email-inp" type="email" placeholder="GolfYards account email">
+  <input id="pw-inp"    type="password" placeholder="Password">
+  <button onclick="signIn()">Sign In</button>
+</div>
+
+<div id="main" style="display:none">
+  <button onclick="loadData()">↻ Refresh</button>
+  <button onclick="signOut()" style="background:#1a1a2e;border-color:#374151;color:#9ca3af">Sign out</button>
+
+  <div id="stats-area" class="stats-grid"></div>
+
+  <div class="section-label">Feature Separation Summary</div>
+  <table class="sep-table" id="sep-table">
+    <tr><th>Feature</th><th>PLACEMENT mean ± sd</th><th>NOT_PLACEMENT mean ± sd</th><th>Separation</th></tr>
+  </table>
+
+  <div class="section-label">Scatter Plots</div>
+  <div class="plots-grid" id="plots-area"></div>
+
+  <div class="section-label">Raw Data</div>
+  <div id="raw-area"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            'AIzaSyCrOToPLYqbDnknhcWcVlQrOchs8YGTB9g',
+  authDomain:        'golfyards-16f37.firebaseapp.com',
+  projectId:         'golfyards-16f37',
+  storageBucket:     'golfyards-16f37.firebasestorage.app',
+  messagingSenderId: '172351445870',
+  appId:             '1:172351445870:web:11772be91aeb54d1dfbf7f'
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+Chart.defaults.color = '#6b7280';
+Chart.defaults.borderColor = '#1e3a1e';
+
+const STATUS = document.getElementById('status');
+const charts = [];
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    STATUS.textContent = `Signed in as ${user.email}`;
+    document.getElementById('sign-in-area').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    loadData();
+  } else {
+    STATUS.textContent = 'Not signed in';
+    document.getElementById('sign-in-area').style.display = 'block';
+    document.getElementById('main').style.display = 'none';
+  }
+});
+
+function signIn() {
+  const email = document.getElementById('email-inp').value.trim();
+  const pw    = document.getElementById('pw-inp').value;
+  if (!email || !pw) { STATUS.textContent = 'Enter email and password'; return; }
+  STATUS.textContent = 'Signing in…';
+  auth.signInWithEmailAndPassword(email, pw).catch(e => STATUS.textContent = 'Sign-in failed: ' + e.message);
+}
+function signOut() { auth.signOut(); }
+
+// ── Data loading ──────────────────────────────────────────────────────
+async function loadData() {
+  STATUS.textContent = 'Loading data from Firestore…';
+  charts.forEach(c => c.destroy());
+  charts.length = 0;
+  document.getElementById('stats-area').innerHTML = '<div style="color:#4b5563">Loading…</div>';
+  document.getElementById('plots-area').innerHTML = '';
+  document.getElementById('sep-table').innerHTML  =
+    '<tr><th>Feature</th><th>PLACEMENT mean ± sd</th><th>NOT_PLACEMENT mean ± sd</th><th>Separation</th></tr>';
+  document.getElementById('raw-area').innerHTML   = '';
+
+  try {
+    const snap = await db.collection('trainingPool').doc('motionTraining')
+      .collection('phoneOnGround').orderBy('ts').limit(500).get();
+
+    const placements    = [];
+    const nonPlacements = [];
+
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (typeof d.peakRot !== 'number') return;
+      const s = {
+        peakRot:      d.peakRot      || 0,
+        peakAcc:      d.peakAcc      || 0,
+        peakAccY:     d.peakAccY     || 0,
+        flatAtSettle: d.flatAtSettle || 0,
+        motionMs:     d.motionMs     || 0,
+        type:         d.type,
+        confirmed:    !!d.confirmed,
+        ts:           d.ts
+      };
+      if (d.type === 'PLACEMENT')      placements.push(s);
+      else if (d.type === 'NOT_PLACEMENT') nonPlacements.push(s);
+    });
+
+    if (!placements.length && !nonPlacements.length) {
+      STATUS.textContent = 'No data found.';
+      document.getElementById('stats-area').innerHTML = '<div style="color:#4b5563">No samples yet.</div>';
+      return;
+    }
+
+    renderStats(placements, nonPlacements);
+    renderSeparation(placements, nonPlacements);
+    renderPlots(placements, nonPlacements);
+    renderRawTable(placements, nonPlacements);
+    STATUS.textContent = `Loaded ${placements.length + nonPlacements.length} samples`;
+  } catch (e) {
+    STATUS.textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+}
+
+// ── Stats cards ───────────────────────────────────────────────────────
+function renderStats(pl, npl) {
+  const confirmed = pl.filter(s => s.confirmed).length;
+  document.getElementById('stats-area').innerHTML = `
+    <div class="stat-card"><div class="label">Total Samples</div><div class="value blue">${pl.length + npl.length}</div></div>
+    <div class="stat-card"><div class="label">PLACEMENT</div><div class="value green">${pl.length}</div></div>
+    <div class="stat-card"><div class="label">Confirmed ✓</div><div class="value" style="color:#86efac">${confirmed}</div></div>
+    <div class="stat-card"><div class="label">NOT_PLACEMENT</div><div class="value red">${npl.length}</div></div>
+  `;
+}
+
+// ── Separation summary ────────────────────────────────────────────────
+function stats(arr) {
+  if (!arr.length) return { mean: 0, sd: 0, min: 0, max: 0 };
+  const mean = arr.reduce((a,b)=>a+b,0) / arr.length;
+  const sd   = Math.sqrt(arr.reduce((s,v)=>s+(v-mean)**2,0) / arr.length);
+  return { mean, sd, min: Math.min(...arr), max: Math.max(...arr) };
+}
+
+// Fisher's discriminant ratio: (μ1-μ2)² / (σ1²+σ2²)
+function separationScore(a, b) {
+  const sa = stats(a), sb = stats(b);
+  const denom = sa.sd**2 + sb.sd**2;
+  return denom < 1e-9 ? 0 : (sa.mean - sb.mean)**2 / denom;
+}
+
+function renderSeparation(pl, npl) {
+  const FEATS = [
+    { key: 'flatAtSettle', label: 'flatAtSettle',  fmt: v => v.toFixed(3) },
+    { key: 'peakAccY',     label: 'peakAccY (m/s²)',fmt: v => v.toFixed(2) },
+    { key: 'peakRot',      label: 'peakRot (dps)', fmt: v => v.toFixed(1) },
+    { key: 'peakAcc',      label: 'peakAcc (m/s²)',fmt: v => v.toFixed(2) },
+    { key: 'motionMs',     label: 'motionMs (ms)', fmt: v => v.toFixed(0) },
+  ];
+  const tbl = document.getElementById('sep-table');
+
+  FEATS.forEach(f => {
+    const plVals  = pl.map(s => s[f.key]);
+    const nplVals = npl.map(s => s[f.key]);
+    if (!plVals.length && !nplVals.length) return;
+    const sp = stats(plVals), sn = stats(nplVals);
+    const score = separationScore(plVals, nplVals);
+    const barW  = Math.min(120, Math.round(score * 30));
+    const cls   = score > 1.5 ? 'good' : score > 0.3 ? 'ok' : 'bad';
+    const label = score > 1.5 ? '✓ Well separated' : score > 0.3 ? '~ Moderate' : '✗ Overlapping';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#e5e7eb;font-weight:600">${f.label}</td>
+      <td class="num">${f.fmt(sp.mean)} ± ${f.fmt(sp.sd)}</td>
+      <td class="num">${nplVals.length ? f.fmt(sn.mean) + ' ± ' + f.fmt(sn.sd) : '—'}</td>
+      <td class="${cls}">${label}
+        <span class="sep-bar" style="width:${barW}px;background:${cls==='good'?'#16a34a':cls==='ok'?'#ca8a04':'#dc2626'}"></span>
+      </td>`;
+    tbl.appendChild(tr);
+  });
+}
+
+// ── Scatter plots ─────────────────────────────────────────────────────
+const PLACEMENT_AUTO  = { bg: 'rgba(74,222,128,0.75)',  border: '#16a34a', r: 5,  label: 'PLACEMENT (auto)'       };
+const PLACEMENT_CONF  = { bg: 'rgba(134,239,172,0.95)', border: '#4ade80', r: 7,  label: 'PLACEMENT (confirmed ✓)' };
+const NOT_PLACEMENT   = { bg: 'rgba(248,113,113,0.75)', border: '#dc2626', r: 5,  label: 'NOT_PLACEMENT'           };
+
+function mkDataset(samples, style) {
+  return {
+    label:           style.label,
+    data:            samples,
+    backgroundColor: style.bg,
+    borderColor:     style.border,
+    borderWidth:     1,
+    pointRadius:     style.r,
+    pointHoverRadius: style.r + 2
+  };
+}
+
+function makeScatter(containerId, title, subtitle, xKey, yKey, xLabel, yLabel, pl, npl) {
+  const card = document.createElement('div');
+  card.className = 'plot-card';
+  card.innerHTML = `<div class="plot-title">${title}</div>
+                    <div class="plot-subtitle">${subtitle}</div>
+                    <canvas id="${containerId}" height="280"></canvas>`;
+  document.getElementById('plots-area').appendChild(card);
+
+  const plAuto = pl.filter(s => !s.confirmed).map(s => ({ x: s[xKey], y: s[yKey] }));
+  const plConf = pl.filter(s =>  s.confirmed).map(s => ({ x: s[xKey], y: s[yKey] }));
+  const nplPts = npl.map(s => ({ x: s[xKey], y: s[yKey] }));
+
+  const ctx = document.getElementById(containerId).getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: [
+      mkDataset(nplPts,  NOT_PLACEMENT),
+      mkDataset(plAuto,  PLACEMENT_AUTO),
+      mkDataset(plConf,  PLACEMENT_CONF),
+    ]},
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: {
+        legend: { labels: { color: '#9ca3af', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: '#0f2010',
+          titleColor: '#4ade80',
+          bodyColor: '#ccc',
+          callbacks: {
+            label: ctx => `${xLabel}: ${ctx.parsed.x.toFixed(3)}  ${yLabel}: ${ctx.parsed.y.toFixed(3)}`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: xLabel, color: '#6b7280', font: { size: 11 } },
+             ticks: { color: '#4b5563' }, grid: { color: '#1a2e1a' } },
+        y: { title: { display: true, text: yLabel, color: '#6b7280', font: { size: 11 } },
+             ticks: { color: '#4b5563' }, grid: { color: '#1a2e1a' } }
+      }
+    }
+  });
+  charts.push(chart);
+}
+
+function makeHistogram(containerId, title, subtitle, key, label, pl, npl, bins) {
+  const card = document.createElement('div');
+  card.className = 'plot-card';
+  card.innerHTML = `<div class="plot-title">${title}</div>
+                    <div class="plot-subtitle">${subtitle}</div>
+                    <canvas id="${containerId}" height="280"></canvas>`;
+  document.getElementById('plots-area').appendChild(card);
+
+  const allVals = [...pl.map(s=>s[key]), ...npl.map(s=>s[key])];
+  const mn = Math.min(...allVals), mx = Math.max(...allVals);
+  const step = (mx - mn) / bins || 1;
+  const edges = Array.from({length: bins}, (_,i) => mn + i*step);
+  const countBin = (arr, i) => arr.filter(s => s[key] >= edges[i] && s[key] < edges[i]+step).length;
+
+  const ctx = document.getElementById(containerId).getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: edges.map(v => v.toFixed(2)),
+      datasets: [
+        { label: 'NOT_PLACEMENT', data: edges.map((_,i)=>countBin(npl,i)), backgroundColor: 'rgba(248,113,113,0.6)', borderColor:'#dc2626', borderWidth:1 },
+        { label: 'PLACEMENT',     data: edges.map((_,i)=>countBin(pl,i)),  backgroundColor: 'rgba(74,222,128,0.6)',  borderColor:'#16a34a', borderWidth:1 }
+      ]
+    },
+    options: {
+      responsive: true, animation: false,
+      plugins: { legend: { labels: { color: '#9ca3af', font:{size:11}, boxWidth:12 } } },
+      scales: {
+        x: { stacked: false, title:{display:true,text:label,color:'#6b7280',font:{size:11}}, ticks:{color:'#4b5563',maxRotation:45}, grid:{color:'#1a2e1a'} },
+        y: { title:{display:true,text:'Count',color:'#6b7280',font:{size:11}}, ticks:{color:'#4b5563'}, grid:{color:'#1a2e1a'} }
+      }
+    }
+  });
+  charts.push(chart);
+}
+
+function renderPlots(pl, npl) {
+  document.getElementById('plots-area').innerHTML = '';
+
+  // Histogram of flatAtSettle — the primary discriminator
+  makeHistogram('h-flat', 'flatAtSettle Distribution',
+    'Phone flat on ground → right side.  Phone upright after pickup → left side.',
+    'flatAtSettle', 'flatAtSettle (0=upright, 1=flat)', pl, npl, 20);
+
+  // Histogram of peakAccY — vertical drop signal
+  makeHistogram('h-accy', 'peakAccY Distribution',
+    'Gravity-free vertical acceleration during motion. 2-ft drop → higher values.',
+    'peakAccY', 'peakAccY (m/s²)', pl, npl, 20);
+
+  // Scatter: flatAtSettle vs peakAccY — the two key features
+  makeScatter('s-flat-accy', 'flatAtSettle  vs  peakAccY',
+    'Best 2D view — placement cluster should be top-right, pickup/other bottom-left.',
+    'flatAtSettle', 'peakAccY', 'flatAtSettle', 'peakAccY (m/s²)', pl, npl);
+
+  // Scatter: flatAtSettle vs motionMs
+  makeScatter('s-flat-ms', 'flatAtSettle  vs  motionMs',
+    'Duration of motion window vs final flatness.',
+    'flatAtSettle', 'motionMs', 'flatAtSettle', 'motionMs (ms)', pl, npl);
+
+  // Scatter: flatAtSettle vs peakRot
+  makeScatter('s-flat-rot', 'flatAtSettle  vs  peakRot',
+    'Rotation during motion vs final flatness.',
+    'flatAtSettle', 'peakRot', 'flatAtSettle', 'peakRot (dps)', pl, npl);
+
+  // Scatter: peakAccY vs peakRot
+  makeScatter('s-accy-rot', 'peakAccY  vs  peakRot',
+    'Vertical drop signal vs rotation signal.',
+    'peakAccY', 'peakRot', 'peakAccY (m/s²)', 'peakRot (dps)', pl, npl);
+
+  // Scatter: peakAcc vs motionMs
+  makeScatter('s-acc-ms', 'peakAcc (total)  vs  motionMs',
+    'Peak total acceleration vs duration of motion.',
+    'peakAcc', 'motionMs', 'peakAcc (m/s²)', 'motionMs (ms)', pl, npl);
+}
+
+// ── Raw data table ────────────────────────────────────────────────────
+function renderRawTable(pl, npl) {
+  const all = [
+    ...pl.map(s  => ({...s, typeCls: s.confirmed ? 'pc' : 'p', typeLabel: s.confirmed ? 'PLACEMENT ✓' : 'PLACEMENT'})),
+    ...npl.map(s => ({...s, typeCls: 'np', typeLabel: 'NOT_PLACEMENT'}))
+  ].sort((a,b) => (b.ts||0) - (a.ts||0));
+
+  const rows = all.map(s => `<tr>
+    <td class="${s.typeCls}">${s.typeLabel}</td>
+    <td class="num">${s.flatAtSettle.toFixed(3)}</td>
+    <td class="num">${s.peakAccY.toFixed(3)}</td>
+    <td class="num">${s.peakRot.toFixed(1)}</td>
+    <td class="num">${s.peakAcc.toFixed(2)}</td>
+    <td class="num">${s.motionMs}</td>
+    <td style="color:#4b5563;font-size:10px">${s.ts ? new Date(s.ts).toLocaleString() : '—'}</td>
+  </tr>`).join('');
+
+  document.getElementById('raw-area').innerHTML = `
+    <table id="raw-table">
+      <tr>
+        <th>Type</th><th>flatAtSettle</th><th>peakAccY</th>
+        <th>peakRot</th><th>peakAcc</th><th>motionMs</th><th>Time</th>
+      </tr>
+      ${rows}
+    </table>`;
+}
+</script>
+</body>
+</html>
