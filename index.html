@@ -7494,14 +7494,15 @@ function confirmGroundPlacement() {
   pogConfirmed = true;
   if (fbDb && activeProfile && pogLastFeatures) {
     fbDb.collection('trainingPool').doc('motionTraining').collection('phoneOnGround').add({
-      uid:       activeProfile.id,
-      type:      'PLACEMENT',
-      confirmed: true,
-      peakRot:   parseFloat(pogLastFeatures.peakRot.toFixed(2)),
-      peakAcc:   parseFloat(pogLastFeatures.peakAcc.toFixed(3)),
-      peakAccY:  parseFloat((pogLastFeatures.peakAccY || 0).toFixed(3)),
-      motionMs:  Math.round(pogLastFeatures.motionMs),
-      ts:        Date.now()
+      uid:          activeProfile.id,
+      type:         'PLACEMENT',
+      confirmed:    true,
+      peakRot:      parseFloat(pogLastFeatures.peakRot.toFixed(2)),
+      peakAcc:      parseFloat(pogLastFeatures.peakAcc.toFixed(3)),
+      peakAccY:     parseFloat((pogLastFeatures.peakAccY    || 0).toFixed(3)),
+      flatAtSettle: parseFloat((pogLastFeatures.flatAtSettle || 0).toFixed(3)),
+      motionMs:     Math.round(pogLastFeatures.motionMs),
+      ts:           Date.now()
     }).catch(() => {});
     localStorage.removeItem(POG_POOL_CACHE_KEY); // next load picks up new confirmed PLACEMENT
   }
