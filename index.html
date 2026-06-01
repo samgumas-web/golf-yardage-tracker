@@ -7374,24 +7374,25 @@ function pogScore(f) {
 }
 
 // ── Phone-on-ground placement detection ──────────────────────────────
-function pogDetect(rot, acc, accY, now) {
-  // acc  = accelerationIncludingGravity magnitude (~9.81 when still).
-  // accY = gravity-free vertical (Y-axis) linear acceleration — key signal for
-  //        a 2-foot downward drop: spikes to 3-8 m/s² during descent.
+function pogDetect(rot, acc, accY, flatness, now) {
+  // flatness = |ai.z| / acc — fraction of gravity in the Z (screen-perpendicular) axis.
+  //   Phone flat on ground  →  ~0.85–1.0
+  //   Phone upright in hand →  ~0.0–0.25
+  // This is the primary discriminator between placing (→flat) and picking up (→upright).
   const accDev    = Math.abs(acc - 9.81);
   const MOVE_ROT  = pogAdaptiveMoveRot;
   const STILL_ROT = Math.max(6, pogAdaptiveMoveRot * 0.5);
-  const MOVE_ACC  = 1.8;   // m/s² total deviation → phone is moving
-  const MOVE_ACCY = 1.2;   // m/s² vertical linear → phone descending/ascending
+  const MOVE_ACC  = 1.8;
+  const MOVE_ACCY = 1.2;
   const STILL_ACC = 0.7;
   const MIN_MS    = pogAdaptiveMinMs;
   const MAX_MS    = pogAdaptiveMaxMs;
+  const FLAT_MIN  = 0.55; // phone must be at least this flat at settle time
 
   if (pogState === 'idle') {
-    // Trigger on rotation, total acc deviation, OR vertical linear movement
     if (rot > MOVE_ROT || accDev > MOVE_ACC || accY > MOVE_ACCY) {
       pogState = 'moving'; pogMoveStart = now;
-      pogPeakRot = rot; pogPeakAcc = acc; pogPeakAccY = accY;
+      pogPeakRot = rot; pogPeakAcc = acc; pogPeakAccY = accY; pogSettleFlatness = flatness;
     }
   } else if (pogState === 'moving') {
     if (rot  > pogPeakRot)  pogPeakRot  = rot;
@@ -7401,27 +7402,31 @@ function pogDetect(rot, acc, accY, now) {
     const isStill = rot < STILL_ROT && accDev < STILL_ACC;
     if (isStill) {
       if (elapsed >= MIN_MS && elapsed <= MAX_MS) {
-        pogState = 'settling'; pogSettleStart = now;
+        pogState = 'settling'; pogSettleStart = now; pogSettleFlatness = flatness;
       } else {
-        pogPeakAccY = 0;
-        pogState = 'idle';
+        pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
       }
     } else if (elapsed > MAX_MS) {
-      pogPeakAccY = 0;
-      pogState = 'idle';
+      pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
     }
   } else if (pogState === 'settling') {
+    pogSettleFlatness = flatness; // keep updating — phone orientation continues to settle
     if ((rot > MOVE_ROT || accDev > MOVE_ACC) && now - pogSettleStart > 350) {
-      pogPeakAccY = 0;
-      pogState = 'idle';
+      pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
     } else if (now - pogSettleStart > 500) {
+      // Hard gate: phone must be lying flat — rejects pickups (phone ends up upright)
+      if (pogSettleFlatness < FLAT_MIN) {
+        pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
+        return;
+      }
       const features = {
-        peakRot:  pogPeakRot,
-        peakAcc:  pogPeakAcc,
-        peakAccY: pogPeakAccY,
-        motionMs: pogSettleStart - pogMoveStart
+        peakRot:       pogPeakRot,
+        peakAcc:       pogPeakAcc,
+        peakAccY:      pogPeakAccY,
+        flatAtSettle:  pogSettleFlatness,
+        motionMs:      pogSettleStart - pogMoveStart
       };
-      pogPeakAccY = 0;
+      pogPeakAccY = 0; pogSettleFlatness = 0;
       if (pogScore(features) >= 0.4) {
         onPhoneGroundPlacement(features);
       }
