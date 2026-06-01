@@ -1788,6 +1788,7 @@ let pogAdaptiveMoveRot = 12;   // dps — low default; catches slow/linear place
 let pogAdaptiveMinMs   = 250;  // ms — allow quick placements
 let pogAdaptiveMaxMs   = 8000; // ms — allow slow careful placements
 let pogPeakAccY        = 0;    // peak gravity-free vertical acceleration during motion window
+let pogSettleFlatness  = 0;    // |ai.z|/acc at settle time — ~1.0 = flat on ground, ~0 = upright in hand
 let _pendingCourse   = null; // held while phone-location picker is shown
 const AU_LEARN_KEY       = 'gy_audio_learn';
 const AU_POOL_CACHE_KEY  = 'gy_audio_pool_v4'; // v4: nested golfClubAudio/faceLocation/audioClips path
