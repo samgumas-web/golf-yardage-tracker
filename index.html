@@ -7391,7 +7391,8 @@ function pogDetect(rot, acc, accY, flatness, now) {
   const STILL_ACC = 0.7;
   const MIN_MS    = pogAdaptiveMinMs;
   const MAX_MS    = pogAdaptiveMaxMs;
-  const FLAT_MIN  = 0.55; // phone must be at least this flat at settle time
+  // cos(19°) ≈ 0.9455 — steepest legal golf course slope; anything more tilted is being held, not on the ground
+  const FLAT_MIN  = Math.cos(19 * Math.PI / 180);
 
   if (pogState === 'idle') {
     if (rot > MOVE_ROT || accDev > MOVE_ACC || accY > MOVE_ACCY) {
