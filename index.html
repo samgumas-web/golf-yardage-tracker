@@ -7408,7 +7408,7 @@ function pogDetect(rot, acc, accY, flatness, now) {
     const isStill = rot < STILL_ROT && accDev < STILL_ACC;
     if (isStill) {
       if (elapsed >= MIN_MS && elapsed <= MAX_MS) {
-        pogState = 'settling'; pogSettleStart = now; pogSettleFlatness = flatness;
+        pogState = 'settling'; pogSettleStart = now; pogSettleFlatness = flatness; pogSettleSamples = [];
       } else {
         pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
       }
