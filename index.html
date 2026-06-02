@@ -7433,11 +7433,13 @@ function pogDetect(rot, acc, accY, flatness, now) {
         const m = arr.reduce((a, b) => a + b, 0) / arr.length;
         return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
       };
-      const sdAccDev = sdOf(pogSettleSamples.map(s => s.accDev));
-      const sdRot    = sdOf(pogSettleSamples.map(s => s.rot));
+      // Skip the first ~1s of samples — phone may still be vibrating from impact; only use the tail
+      const trimmed  = pogSettleSamples.length > 60 ? pogSettleSamples.slice(60) : pogSettleSamples;
+      const sdAccDev = sdOf(trimmed.map(s => s.accDev));
+      const sdRot    = sdOf(trimmed.map(s => s.rot));
       pogSettleSamples = [];
-      // Thresholds: on-ground ≈ 0.01–0.04 m/s² / 0.1–0.4 dps; hand tremor ≈ 0.06+ m/s² / 1.0+ dps
-      if (sdAccDev > 0.06 || sdRot > 1.0) {
+      // Thresholds: on-ground ≈ 0.01–0.05 m/s² / 0.1–0.6 dps; hand tremor ≈ 0.10+ m/s² / 1.5+ dps
+      if (sdAccDev > 0.10 || sdRot > 1.5) {
         pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
         return;
       }
