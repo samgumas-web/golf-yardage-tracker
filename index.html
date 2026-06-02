@@ -7467,14 +7467,16 @@ function onPhoneGroundPlacement(features) {
   // Always upload to Firebase — every detection is a training sample
   if (fbDb && activeProfile) {
     fbDb.collection('trainingPool').doc('motionTraining').collection('phoneOnGround').add({
-      uid:          activeProfile.id,
-      type:         'PLACEMENT',
-      peakRot:      parseFloat(features.peakRot.toFixed(2)),
-      peakAcc:      parseFloat(features.peakAcc.toFixed(3)),
-      peakAccY:     parseFloat((features.peakAccY    || 0).toFixed(3)),
-      flatAtSettle: parseFloat((features.flatAtSettle || 0).toFixed(3)),
-      motionMs:     Math.round(features.motionMs),
-      ts:           Date.now()
+      uid:            activeProfile.id,
+      type:           'PLACEMENT',
+      peakRot:        parseFloat(features.peakRot.toFixed(2)),
+      peakAcc:        parseFloat(features.peakAcc.toFixed(3)),
+      peakAccY:       parseFloat((features.peakAccY      || 0).toFixed(3)),
+      flatAtSettle:   parseFloat((features.flatAtSettle   || 0).toFixed(3)),
+      settleAccDevSD: parseFloat((features.settleAccDevSD || 0).toFixed(4)),
+      settleRotSD:    parseFloat((features.settleRotSD    || 0).toFixed(4)),
+      motionMs:       Math.round(features.motionMs),
+      ts:             Date.now()
     }).then(() => {
       toast('📍 Placement logged ✓');
     }).catch(() => {
