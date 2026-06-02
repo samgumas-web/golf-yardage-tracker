@@ -7417,11 +7417,27 @@ function pogDetect(rot, acc, accY, flatness, now) {
     }
   } else if (pogState === 'settling') {
     pogSettleFlatness = flatness; // keep updating — phone orientation continues to settle
+    pogSettleSamples.push({ accDev, rot });
     if ((rot > MOVE_ROT || accDev > MOVE_ACC) && now - pogSettleStart > 350) {
-      pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
+      pogPeakAccY = 0; pogSettleFlatness = 0; pogSettleSamples = []; pogState = 'idle';
     } else if (now - pogSettleStart > 3000) {
-      // Hard gate: phone must be lying flat — rejects pickups (phone ends up upright)
+      // Hard gate 1: phone must be lying flat — rejects pickups (phone ends up upright)
       if (pogSettleFlatness < FLAT_MIN) {
+        pogPeakAccY = 0; pogSettleFlatness = 0; pogSettleSamples = []; pogState = 'idle';
+        return;
+      }
+      // Hard gate 2: micro-tremor check — compute stdDev of accDev and rot over the settle window.
+      // A phone on the ground is truly still; a held phone always has physiological hand tremor (8–12 Hz).
+      const sdOf = arr => {
+        if (arr.length < 2) return 0;
+        const m = arr.reduce((a, b) => a + b, 0) / arr.length;
+        return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
+      };
+      const sdAccDev = sdOf(pogSettleSamples.map(s => s.accDev));
+      const sdRot    = sdOf(pogSettleSamples.map(s => s.rot));
+      pogSettleSamples = [];
+      // Thresholds: on-ground ≈ 0.01–0.04 m/s² / 0.1–0.4 dps; hand tremor ≈ 0.06+ m/s² / 1.0+ dps
+      if (sdAccDev > 0.06 || sdRot > 1.0) {
         pogPeakAccY = 0; pogSettleFlatness = 0; pogState = 'idle';
         return;
       }
@@ -7430,7 +7446,9 @@ function pogDetect(rot, acc, accY, flatness, now) {
         peakAcc:       pogPeakAcc,
         peakAccY:      pogPeakAccY,
         flatAtSettle:  pogSettleFlatness,
-        motionMs:      pogSettleStart - pogMoveStart
+        motionMs:      pogSettleStart - pogMoveStart,
+        settleAccDevSD: parseFloat(sdAccDev.toFixed(4)),
+        settleRotSD:    parseFloat(sdRot.toFixed(4))
       };
       pogPeakAccY = 0; pogSettleFlatness = 0;
       if (pogScore(features) >= 0.4) {
