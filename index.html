@@ -5091,7 +5091,13 @@ function toggleAutoTrack() {
       atMotionHandler = atMotionTick;
       window.addEventListener('devicemotion', atMotionHandler, { passive: true });
     }
-    auStartListening();
+    // Ground mode: start mic now (needs user-gesture for iOS permission) but suspend immediately —
+    // the context resumes only when placement is detected, not before.
+    if (phoneLocation === 'ground') {
+      auStartListening().then(() => { if (auContext) auContext.suspend().catch(() => {}); });
+    } else {
+      auStartListening();
+    }
     toast('Auto-tracking on');
   } else {
     auStopListening();
