@@ -7484,6 +7484,12 @@ function onPhoneGroundPlacement(features) {
   lastGroundPlacement = Date.now();
   pogLastFeatures = features;
   pogConfirmed    = false;
+  // Phone is on the ground — start listening for the shot sound now
+  if (auContext && auContext.state === 'suspended') {
+    auContext.resume().catch(() => {});
+  } else if (!auActive) {
+    auStartListening(); // fallback if mic wasn't pre-warmed (e.g. manual ground button)
+  }
   updateGroundGateUI();
   // Always upload to Firebase — every detection is a training sample
   if (fbDb && activeProfile) {
