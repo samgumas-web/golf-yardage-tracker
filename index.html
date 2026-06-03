@@ -5006,6 +5006,7 @@ function onSwingDetected(features) {
   atConfirmTimer = setTimeout(() => {
     if (atPhase === 'swing_confirm') {
       atPendingFeatures = null;
+      atAudioHint = null;
       atLastSwing = 0;
       atPhase = 'ready';
       updateATUI();
