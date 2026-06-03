@@ -3432,6 +3432,8 @@ async function auStartListening() {
   try {
     auStream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     auContext  = new (window.AudioContext || window.webkitAudioContext)();
+    // Chrome suspends AudioContext created after an await — force it running
+    await auContext.resume();
     const src  = auContext.createMediaStreamSource(auStream);
     auAnalyser = auContext.createAnalyser();
     auAnalyser.fftSize               = 1024;
