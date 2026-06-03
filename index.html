@@ -5115,7 +5115,7 @@ function toggleAutoTrack() {
     // Ground mode: start mic now (needs user-gesture for iOS permission) but suspend immediately —
     // the context resumes only when placement is detected, not before.
     if (phoneLocation === 'ground') {
-      auStartListening().then(() => { if (auContext) auContext.suspend().catch(() => {}); });
+      auStartListening().then(() => { if (!auTrainMode && auContext) auContext.suspend().catch(() => {}); });
     } else {
       auStartListening();
     }
