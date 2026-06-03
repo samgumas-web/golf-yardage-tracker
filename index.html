@@ -4353,7 +4353,13 @@ function setPhoneLocation(loc) {
     auEnabled = true;
     localStorage.setItem('gy_audio_enabled', 'true');
     updateAudioUI();
-    if (autoTrack) auStartListening();
+    if (autoTrack) {
+      // Start mic (needs user gesture here) then immediately suspend — only resumes on placement
+      auStartListening().then(() => { if (auContext) auContext.suspend().catch(() => {}); });
+    }
+  } else if (loc !== 'ground' && auContext && auContext.state === 'suspended') {
+    // Switching away from ground — resume so bag/pocket audio works normally
+    auContext.resume().catch(() => {});
   }
   const modal = document.getElementById('phone-loc-modal');
   if (modal) modal.style.display = 'none';
