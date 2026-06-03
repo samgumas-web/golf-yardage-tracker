@@ -3532,6 +3532,7 @@ function auSetFace(face) {
 function auLoop() {
   if (!auActive || !auAnalyser) return;
   setTimeout(auLoop, 25); // ~40 checks/sec
+  if (auContext && auContext.state !== 'running') return; // suspended — keep loop alive, skip processing
   auAnalyser.getFloatTimeDomainData(auTimeBuf);
   auAnalyser.getFloatFrequencyData(auFreqBuf);
   const n = auTimeBuf.length;
