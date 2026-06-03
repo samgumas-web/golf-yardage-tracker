@@ -3569,23 +3569,16 @@ function auLoop() {
     const f     = auBuildFeatures(rms, peak);
     auLastScore = auScoreAudio(f);
     auPending   = f;
-    // Training modal: only flash if classifier thinks it might be a shot
+    // Training modal: always show every detected sound — never filter silently.
+    // The user's job is to label everything; filtering here would hide shots that
+    // look unfamiliar to the current model (exactly what we're trying to train).
     if (auTrainMode) {
       const flash = document.getElementById('au-train-flash');
       if (flash) {
-        const { shots, nonShots } = auMergedData();
-        const hasModel = shots.length >= 5 && nonShots.length >= 10;
-        if (hasModel && auLastScore < 0.25) {
-          // Classifier is confident this is background noise — filter it silently
-          auFilteredCount++;
-          flash.textContent = `Background noise filtered (${auFilteredCount} this session)`;
-          flash.style.color = '#4b5563';
-        } else {
-          const match = auIdentifyClub(f);
-          const hint  = (match && match.count >= 3) ? ` — looks like ${match.club}` : '';
-          flash.textContent = `⚡ Sound captured — label it now!${hint}`;
-          flash.style.color = '#facc15';
-        }
+        const match = auIdentifyClub(f);
+        const hint  = (match && match.count >= 3) ? ` — looks like ${match.club}` : '';
+        flash.textContent = `⚡ Sound captured — label it now!${hint}`;
+        flash.style.color = '#facc15';
       }
     }
     // Bag mode: audio alone triggers (no placement gate needed)
