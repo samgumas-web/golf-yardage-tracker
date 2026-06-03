@@ -4342,6 +4342,13 @@ function selectCourse(idxOrObj) {
 function setPhoneLocation(loc) {
   phoneLocation = loc;
   localStorage.setItem('gy_phone_loc', loc);
+  // Ground mode requires audio — force it on so the user doesn't have to find the hidden toggle
+  if (loc === 'ground' && !auEnabled) {
+    auEnabled = true;
+    localStorage.setItem('gy_audio_enabled', 'true');
+    updateAudioUI();
+    if (autoTrack) auStartListening();
+  }
   const modal = document.getElementById('phone-loc-modal');
   if (modal) modal.style.display = 'none';
   updateGroundGateUI();
