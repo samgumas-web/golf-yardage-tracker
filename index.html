@@ -7266,6 +7266,8 @@ async function auCaptureSystemAudio() {
     }
     auStream  = stream;
     auContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Chrome suspends AudioContext created after an await — force it running
+    await auContext.resume();
     const src = auContext.createMediaStreamSource(stream);
     auAnalyser = auContext.createAnalyser();
     auAnalyser.fftSize               = 1024;
