@@ -3596,6 +3596,7 @@ function onAudioShot() {
   if (atPhase !== 'ready') return;
   atLastSwing = now;
   atPendingFeatures = null; // no motion — audio-only trigger
+  atAudioHint = auPending ? auIdentifyClub(auPending) : null;
   atPhase = 'swing_confirm';
   vibrate([30]);
   updateATUI();
