@@ -3616,26 +3616,63 @@ function onAudioShot() {
 
 function auBuildFeatures(rms, peak) {
   const n = auTimeBuf.length;
+
+  // Zero-crossing rate
   let zcr = 0;
   for (let i = 1; i < n; i++) { if (auTimeBuf[i] * auTimeBuf[i-1] < 0) zcr++; }
   zcr /= n;
-  // Spectral centroid (normalised 0–1)
-  const fLen = auFreqBuf.length;
-  let wSum = 0, magSum = 0;
+
+  // Kurtosis — 4th standardised moment of the time-domain buffer.
+  // Golf impact in a 23ms window: most samples near-zero, brief spike → kurtosis >> 6.
+  // Sustained background noise fills the whole window uniformly → kurtosis ≈ 3.
+  let tSum = 0;
+  for (let i = 0; i < n; i++) tSum += auTimeBuf[i];
+  const tMean = tSum / n;
+  let m2 = 0, m4 = 0;
+  for (let i = 0; i < n; i++) {
+    const d = auTimeBuf[i] - tMean;
+    m2 += d * d;
+    m4 += d * d * d * d;
+  }
+  const variance  = m2 / n;
+  const kurtosis  = variance > 1e-12 ? (m4 / n) / (variance * variance) : 0;
+
+  // Spectral centroid (normalised 0–1) + high-frequency energy ratio (energy above 2 kHz).
+  // Club-face impacts are rich in 2–8 kHz content; wind/cars are almost entirely below 500 Hz.
+  const fLen      = auFreqBuf.length;
+  const sRate     = auContext ? auContext.sampleRate : 44100;
+  const hfBin     = Math.round(2000 / (sRate / (fLen * 2)));
+  let wSum = 0, magSum = 0, totalEnergy = 0, hfEnergy = 0;
   for (let i = 0; i < fLen; i++) {
     const mag = Math.pow(10, (auFreqBuf[i] + 80) / 20);
+    const e   = mag * mag;
     wSum += i * mag; magSum += mag;
+    totalEnergy += e;
+    if (i >= hfBin) hfEnergy += e;
   }
-  const centroid = magSum > 0 ? wSum / magSum / fLen : 0;
-  // Attack: index of first sample at ≥90% of peak (0=instant, 1=slow)
+  const centroid      = magSum > 0 ? wSum / magSum / fLen : 0;
+  const highFreqRatio = totalEnergy > 0 ? hfEnergy / totalEnergy : 0;
+
+  // Attack: index of first sample ≥90% of peak (0=instant, 1=slow)
   let attackIdx = 0;
   const thresh = peak * 0.9;
   for (let i = 0; i < n; i++) { if (Math.abs(auTimeBuf[i]) >= thresh) { attackIdx = i; break; } }
   const attack = attackIdx / n;
-  // Volume-invariant features: snr = peak relative to ambient floor; impulsiveness = rms/peak shape ratio
-  const snr          = peak / Math.max(auBaselineRms, 0.001);
+
+  // Volume-invariant shape features
+  const snr           = peak / Math.max(auBaselineRms, 0.001);
   const impulsiveness = peak > 0 ? rms / peak : 0; // 0 = pure spike, 1 = sustained burst
-  return { snr, impulsiveness, zcr, centroid, attack };
+
+  return { snr, impulsiveness, zcr, centroid, attack, kurtosis, highFreqRatio };
+}
+
+// Physics gate — runs before k-NN. Rejects sounds that cannot physically be a club impact
+// regardless of training data. Each condition targets a specific background noise type.
+function auPassesPhysicsGate(f) {
+  if (f.kurtosis < 6)             return false; // not spiky enough — wind, traffic, sustained voice
+  if (f.attack > 0.25)            return false; // onset too slow — not an impact transient
+  if ((f.highFreqRatio || 0) < 0.08) return false; // too bass-heavy — wind rumble, car engine
+  return true;
 }
 
 function auMergedData() {
