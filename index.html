@@ -1747,6 +1747,7 @@ let atLastSwing      = 0;
 let atMotionHandler  = null;
 let atMotionBuf      = [];   // rolling 600ms motion samples {t,rot,acc}
 let atPendingFeatures= null; // features of swing awaiting confirmation
+let atAudioHint      = null; // {club, face} from audio classifier at trigger time
 let atConfirmTimer   = null; // auto-dismiss timer for confirm UI
 let atStableTime     = 0;    // timestamp when current stable phase began
 let atLearnData      = { shots: [], nonShots: [], poolShotCount: 0, poolNonShotCount: 0 };
