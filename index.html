@@ -5322,7 +5322,20 @@ function updateATUI() {
     return;
   }
 
-  if (cfm) cfm.style.display = atPhase === 'swing_confirm' ? 'flex' : 'none';
+  if (cfm) {
+    cfm.style.display = atPhase === 'swing_confirm' ? 'flex' : 'none';
+    if (atPhase === 'swing_confirm') {
+      const hintEl = document.getElementById('auto-confirm-hint');
+      if (hintEl) {
+        if (atAudioHint && atAudioHint.count >= 3) {
+          const face = atAudioHint.face && atAudioHint.face !== 'Unknown' ? ` · ${atAudioHint.face}` : '';
+          hintEl.textContent = `Did you just hit your ${atAudioHint.club}${face}?`;
+        } else {
+          hintEl.textContent = 'Did you just hit a shot?';
+        }
+      }
+    }
+  }
 
   switch (atPhase) {
     case 'swing_confirm':
