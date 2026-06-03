@@ -3550,8 +3550,10 @@ function auLoop() {
     if (av > peak) peak = av;
   }
   const rms = Math.sqrt(sumSq / n);
-  // Update baseline only during quiet periods so shots don't raise the floor
-  if (rms < auBaselineRms * 2) auBaselineRms = auBaselineRms * 0.995 + rms * 0.005;
+  // Update baseline only during quiet periods and only outside training mode.
+  // In training mode the baseline must stay fixed — continuous video audio would otherwise
+  // raise it until nothing ever exceeds the threshold again.
+  if (!auTrainMode && rms < auBaselineRms * 2) auBaselineRms = auBaselineRms * 0.995 + rms * 0.005;
   // Drive training modal level meter
   if (auTrainMode) {
     const meter = document.getElementById('au-train-meter');
