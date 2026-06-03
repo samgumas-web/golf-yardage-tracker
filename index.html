@@ -3567,11 +3567,24 @@ function auLoop() {
   if (rms > auBaselineRms * trigRatio && peak > trigPeak && now - auLastEvent > AU_DEBOUNCE_MS) {
     auLastEvent = now;
     const f     = auBuildFeatures(rms, peak);
+
+    // Physics gate: reject sounds that can't be a club impact (wind, traffic, voices).
+    // This runs before k-NN and requires no training data — it's purely signal-physics.
+    if (!auPassesPhysicsGate(f)) {
+      if (auTrainMode) {
+        const flash = document.getElementById('au-train-flash');
+        if (flash) {
+          const why = f.kurtosis < 6 ? 'not impulsive' : f.attack > 0.25 ? 'onset too slow' : 'too bass-heavy';
+          flash.textContent = `Background noise filtered (${why})`;
+          flash.style.color = '#4b5563';
+        }
+      }
+      return;
+    }
+
     auLastScore = auScoreAudio(f);
     auPending   = f;
-    // Training modal: always show every detected sound — never filter silently.
-    // The user's job is to label everything; filtering here would hide shots that
-    // look unfamiliar to the current model (exactly what we're trying to train).
+    // Training modal: show every sound that passes the physics gate for user labelling.
     if (auTrainMode) {
       const flash = document.getElementById('au-train-flash');
       if (flash) {
