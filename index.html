@@ -3556,7 +3556,11 @@ function auLoop() {
     if (meter) meter.style.width = Math.min(100, rms * 500) + '%';
   }
   const now = Date.now();
-  if (rms > auBaselineRms * AU_TRIGGER_RATIO && peak > AU_MIN_PEAK && now - auLastEvent > AU_DEBOUNCE_MS) {
+  // Training mode uses a much lower threshold — false positives are fine since user labels every sound.
+  // System audio from YouTube has constant background audio that lifts the baseline, so 6× is too strict.
+  const trigRatio = auTrainMode ? 1.8 : AU_TRIGGER_RATIO;
+  const trigPeak  = auTrainMode ? 0.01 : AU_MIN_PEAK;
+  if (rms > auBaselineRms * trigRatio && peak > trigPeak && now - auLastEvent > AU_DEBOUNCE_MS) {
     auLastEvent = now;
     const f     = auBuildFeatures(rms, peak);
     auLastScore = auScoreAudio(f);
