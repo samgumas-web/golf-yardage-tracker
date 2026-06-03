@@ -4368,7 +4368,7 @@ function setPhoneLocation(loc) {
     updateAudioUI();
     if (autoTrack) {
       // Start mic (needs user gesture here) then immediately suspend — only resumes on placement
-      auStartListening().then(() => { if (auContext) auContext.suspend().catch(() => {}); });
+      auStartListening().then(() => { if (!auTrainMode && auContext) auContext.suspend().catch(() => {}); });
     }
   } else if (loc !== 'ground' && auContext && auContext.state === 'suspended') {
     // Switching away from ground — resume so bag/pocket audio works normally
