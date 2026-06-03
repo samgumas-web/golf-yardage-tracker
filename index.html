@@ -2544,6 +2544,11 @@ function initUserData() {
     }
   } catch { auLearnData = { samples: [], poolCount: 0, poolVersion: AU_POOL_VERSION }; }
   auEnabled = localStorage.getItem('gy_audio_enabled') === 'true';
+  // Ground mode always needs audio — force it on if the last session left it in ground mode
+  if (phoneLocation === 'ground' && !auEnabled) {
+    auEnabled = true;
+    localStorage.setItem('gy_audio_enabled', 'true');
+  }
   updateAudioUI();
 }
 
