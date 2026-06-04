@@ -8345,9 +8345,22 @@ function startGPSTimeout() {
       Listening…
     </div>
 
-    <!-- Playback verification — shown after a sound is captured -->
-    <div id="au-train-play" style="display:none;text-align:center;margin-bottom:12px">
-      <button onclick="auPlayTrainClip()" style="background:#1a2e1a;border:1px solid #2d4a2d;color:#86efac;font-size:12px;padding:5px 16px;border-radius:6px;cursor:pointer">▶ Play captured audio</button>
+    <!-- Splice waveform editor — shown when a sound is captured -->
+    <div id="au-splice-editor" style="display:none;margin-bottom:12px;background:#0d1f0d;border:1px solid var(--border);border-radius:8px;padding:8px">
+      <div style="font-size:10px;color:#6b7280;text-align:center;margin-bottom:5px">Drag handles to set SHOT region · red = NOT SHOT · green = SHOT</div>
+      <canvas id="au-wave-canvas" height="72"
+        style="width:100%;height:72px;border-radius:4px;display:block;cursor:col-resize;touch-action:none"
+        onpointerdown="auSplicePointerDown(event)"
+        onpointermove="auSplicePointerMove(event)"
+        onpointerup="auSplicePointerUp(event)"
+        onpointerleave="auSplicePointerUp(event)">
+      </canvas>
+      <div style="display:flex;justify-content:center;margin-top:6px">
+        <button id="au-splice-play-btn" onclick="auSpliceTogglePlay()"
+          style="background:#1a2e1a;border:1px solid #2d4a2d;color:#86efac;font-size:12px;padding:5px 20px;border-radius:6px;cursor:pointer">
+          ▶ Play
+        </button>
+      </div>
     </div>
 
     <!-- Training phone location -->
