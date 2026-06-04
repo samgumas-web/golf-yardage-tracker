@@ -1835,9 +1835,10 @@ let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~
 let auPostChunks        = [];        // chunks captured after the transient
 let auCapturingPost     = false;
 let auPostResolve       = null;
-const AU_CHUNK_MS       = 250;
-const AU_PRE_CHUNKS     = 20;        // 5 seconds of pre-roll
-const AU_POST_CHUNKS    = 4;         // 1 second post-impact
+const AU_CHUNK_MS          = 250;
+const AU_PRE_CHUNKS        = 20;   // 5 seconds of rolling pre-roll buffer
+const AU_SPLICE_PRE_CHUNKS = 4;    // 1 second of pre-roll included in each splice clip
+const AU_POST_CHUNKS       = 12;   // 3 seconds post-trigger included in each splice clip
 
 function computeFeatureWeights(shots, nonShots) {
   if (shots.length < 5 || nonShots.length < 5) return;
