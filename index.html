@@ -7102,10 +7102,19 @@ function auOpenTraining() {
   }
 }
 
+function auPlayTrainClip() {
+  if (!auTrainClipUrl) return;
+  const a = new Audio(auTrainClipUrl);
+  a.play().catch(() => {});
+}
+
 function auCloseTraining() {
   const modal = document.getElementById('au-train-modal');
   if (modal) modal.style.display = 'none';
   auTrainMode = false;
+  if (auTrainClipUrl) { URL.revokeObjectURL(auTrainClipUrl); auTrainClipUrl = null; }
+  const playDiv = document.getElementById('au-train-play');
+  if (playDiv) playDiv.style.display = 'none';
   // Stop listening if we started only for training (audio toggle is off)
   if (!auEnabled) auStopListening();
   updateAudioUI();
