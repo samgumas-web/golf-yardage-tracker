@@ -3586,6 +3586,7 @@ function auLoop() {
     auLastScore = auScoreAudio(f);
     auPending   = f;
     if (auTrainMode) {
+      if (auSpliceAudioBuffer) return; // editor is open — don't interrupt while user is reviewing
       const flash = document.getElementById('au-train-flash');
       if (flash) {
         const match = auIdentifyClub(f);
@@ -3593,8 +3594,9 @@ function auLoop() {
         flash.textContent = `⚡ Sound captured — label it now!${hint}`;
         flash.style.color = '#facc15';
       }
-      // Capture clip and open the splice waveform editor
-      auCaptureClip().then(blob => { if (blob) auSpliceOpen(blob); });
+      // Capture blob silently — only decoded and shown if user taps SHOT
+      auSplicePendingBlob = null;
+      auCaptureClip().then(blob => { auSplicePendingBlob = blob; });
     }
     // Bag mode: audio alone triggers (no placement gate needed)
     if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) {
