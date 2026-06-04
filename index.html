@@ -1827,6 +1827,7 @@ let auSpliceStartAt     = 0;         // AudioContext time when playback started
 let auSpliceAnimId      = null;      // rAF handle for playhead animation
 let auSplicePendingBlob    = null;   // blob captured at trigger time, decoded when SHOT is tapped
 let auSplicePendingResolve = null;   // callback set when user taps SHOT before capture finishes
+let auSpliceEditorPending  = false;  // true from SHOT-tap until editor closes — blocks all new triggers
 let auRecordingHeaderChunk = null;   // first MediaRecorder chunk — contains WebM codec init, must prepend every blob
 let auFilteredCount  = 0;           // background sounds auto-filtered this session
 let auSelectedClub      = '';        // club chosen in training modal for next SHOT label
