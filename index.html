@@ -7545,6 +7545,9 @@ function auSetClub(club) {
   });
   const lbl = document.getElementById('au-selected-club-lbl');
   if (lbl) lbl.textContent = club ? `Club: ${club}` : 'No club selected';
+  // Keep confirm button in sync if the splice editor is already open
+  const cfmBtn = document.getElementById('au-splice-confirm-btn');
+  if (cfmBtn && auSpliceAudioBuffer) cfmBtn.textContent = `✓ Save as ${club || '(select club)'}`;
 }
 
 async function auTrainLabel(yes) {
