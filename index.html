@@ -1815,7 +1815,16 @@ const AUDIO_CLUB_LIST = [
 
 let auTrainMode      = false;        // true while Audio Training modal is open
 let auTrainSession   = { shots: 0, nonShots: 0 }; // labeled counts for this session
-let auTrainClipUrl   = null;         // object URL for the most recently captured training clip
+let auTrainClipUrl   = null;         // unused — kept to avoid reference errors
+// Splice waveform editor state
+let auSpliceAudioBuffer = null;      // decoded AudioBuffer for the captured clip
+let auSpliceH1          = 0.25;     // left handle position (fraction 0–1)
+let auSpliceH2          = 0.75;     // right handle position (fraction 0–1)
+let auSpliceDragging    = null;      // null | 'left' | 'right'
+let auSplicePlayCtx     = null;      // AudioContext used for splice playback
+let auSpliceSource      = null;      // current AudioBufferSourceNode
+let auSpliceStartAt     = 0;         // AudioContext time when playback started
+let auSpliceAnimId      = null;      // rAF handle for playhead animation
 let auFilteredCount  = 0;           // background sounds auto-filtered this session
 let auSelectedClub      = '';        // club chosen in training modal for next SHOT label
 let auSelectedFace      = '';        // face location chosen: Heel|Flush|Toe|Thin|Fat
