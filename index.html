@@ -3603,9 +3603,14 @@ function auLoop() {
         flash.textContent = `⚡ Sound captured — label it now!${hint}`;
         flash.style.color = '#facc15';
       }
-      // Capture blob silently — only decoded and shown if user taps SHOT
-      auSplicePendingBlob = null;
-      auCaptureClip().then(blob => { auSplicePendingBlob = blob; });
+      // Capture 1s-before + 3s-after clip silently; editor opens when SHOT is tapped
+      auSplicePendingBlob    = null;
+      auSplicePendingResolve = null;
+      auCaptureClip().then(blob => {
+        auSplicePendingBlob = blob;
+        // If user already tapped SHOT while capture was in progress, open editor now
+        if (auSplicePendingResolve) { const r = auSplicePendingResolve; auSplicePendingResolve = null; r(blob); }
+      });
     }
     // Bag mode: audio alone triggers (no placement gate needed)
     if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) {
