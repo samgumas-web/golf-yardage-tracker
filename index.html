@@ -7366,10 +7366,12 @@ function auSpliceStop() {
   if (btn) btn.textContent = '▶ Play';
 }
 
-// Build a blob from the rolling pre-roll buffer synchronously (fallback when async capture isn't ready)
+// Build a decodable blob from the rolling pre-roll buffer (synchronous fallback)
 function auMakeRollingBlob() {
   if (!auMediaRecorder || !auRollingChunks.length) return null;
-  return new Blob([...auRollingChunks], { type: auMediaRecorder.mimeType || 'audio/webm' });
+  const pre    = auRollingChunks.slice(-AU_SPLICE_PRE_CHUNKS);
+  const chunks = [auRecordingHeaderChunk, ...pre].filter(Boolean);
+  return chunks.length ? new Blob(chunks, { type: auMediaRecorder.mimeType || 'audio/webm' }) : null;
 }
 
 // SHOT button — opens the splice editor so the user can define regions before confirming
