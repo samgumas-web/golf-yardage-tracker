@@ -7666,15 +7666,18 @@ async function auCaptureSystemAudio() {
       auRollingChunks = [];
       auPostChunks    = [];
       auCapturingPost = false;
+      auRecordingHeaderChunk = null;
       auMediaRecorder.ondataavailable = e => {
         if (!e.data || e.data.size === 0) return;
+        if (!auRecordingHeaderChunk) auRecordingHeaderChunk = e.data; // preserve codec init chunk
         if (auCapturingPost) {
           auPostChunks.push(e.data);
           if (auPostChunks.length >= AU_POST_CHUNKS && auPostResolve) {
             const res = auPostResolve;
             auPostResolve   = null;
             auCapturingPost = false;
-            res([...auRollingChunks.slice(-AU_PRE_CHUNKS), ...auPostChunks]);
+            const pre = auRollingChunks.slice(-AU_SPLICE_PRE_CHUNKS);
+            res([auRecordingHeaderChunk, ...pre, ...auPostChunks].filter(Boolean));
           }
         } else {
           auRollingChunks.push(e.data);
