@@ -7112,6 +7112,298 @@ function auCloseTraining() {
   updateAudioUI();
 }
 
+// ── Splice Waveform Editor ────────────────────────────────────────────────
+
+// Simple DFT-based spectral analysis on a PCM slice (N=256 window)
+function auComputeSpectralFromSamples(samples, sampleRate) {
+  const N = 256;
+  const n = Math.min(N, samples.length);
+  const hfBin = Math.round(2000 / (sampleRate / (N * 2)));
+  let wSum = 0, magSum = 0, totalE = 0, hfE = 0;
+  for (let k = 1; k < N / 2; k++) {
+    let re = 0, im = 0;
+    const coeff = 2 * Math.PI * k / N;
+    for (let t = 0; t < n; t++) { re += samples[t] * Math.cos(coeff * t); im -= samples[t] * Math.sin(coeff * t); }
+    const mag = Math.sqrt(re * re + im * im);
+    const e = mag * mag;
+    wSum += k * mag; magSum += mag; totalE += e;
+    if (k >= hfBin) hfE += e;
+  }
+  return {
+    centroid:      magSum > 0 ? wSum / magSum / (N / 2) : 0,
+    highFreqRatio: totalE > 0 ? hfE / totalE : 0
+  };
+}
+
+// Extract the same feature set as auBuildFeatures() but from a decoded AudioBuffer slice
+function auFeaturesFromSlice(audioBuffer, startFrac, endFrac) {
+  const sr     = audioBuffer.sampleRate;
+  const total  = audioBuffer.length;
+  const s0     = Math.floor(startFrac * total);
+  const s1     = Math.ceil(endFrac * total);
+  if (s1 - s0 < 32) return null;
+  const slice = audioBuffer.getChannelData(0).slice(s0, s1);
+  const len   = slice.length;
+
+  let peak = 0, rmsSum = 0;
+  for (let i = 0; i < len; i++) { const a = Math.abs(slice[i]); if (a > peak) peak = a; rmsSum += slice[i] * slice[i]; }
+  const rms = Math.sqrt(rmsSum / len);
+
+  let zcr = 0;
+  for (let i = 1; i < len; i++) if (slice[i] * slice[i - 1] < 0) zcr++;
+  zcr /= len;
+
+  let mean = 0;
+  for (let i = 0; i < len; i++) mean += slice[i];
+  mean /= len;
+  let m2 = 0, m4 = 0;
+  for (let i = 0; i < len; i++) { const d = slice[i] - mean; m2 += d * d; m4 += d * d * d * d; }
+  const variance = m2 / len;
+  const kurtosis = variance > 1e-12 ? (m4 / len) / (variance * variance) : 0;
+
+  let attackIdx = 0;
+  for (let i = 0; i < len; i++) { if (Math.abs(slice[i]) >= peak * 0.9) { attackIdx = i; break; } }
+  const attack = attackIdx / len;
+
+  const { centroid, highFreqRatio } = auComputeSpectralFromSamples(slice, sr);
+  const snr = peak / Math.max(auBaselineRms, 0.001);
+  const impulsiveness = peak > 0 ? rms / peak : 0;
+  return { snr, impulsiveness, zcr, centroid, attack, kurtosis, highFreqRatio };
+}
+
+async function auSpliceOpen(blob) {
+  const editorDiv = document.getElementById('au-splice-editor');
+  if (!editorDiv) return;
+  auSpliceClose(); // stop any in-progress playback
+
+  // Decode blob → AudioBuffer
+  let arrayBuf;
+  try { arrayBuf = await blob.arrayBuffer(); } catch(e) { return; }
+  const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    auSpliceAudioBuffer = await tmpCtx.decodeAudioData(arrayBuf);
+  } catch(e) { tmpCtx.close().catch(() => {}); return; }
+  tmpCtx.close().catch(() => {});
+
+  // Auto-detect peak position and center a window around it
+  const data = auSpliceAudioBuffer.getChannelData(0);
+  let peakIdx = 0, peakVal = 0;
+  for (let i = 0; i < data.length; i++) { const a = Math.abs(data[i]); if (a > peakVal) { peakVal = a; peakIdx = i; } }
+  const pf = peakIdx / data.length;
+  auSpliceH1 = Math.max(0.05, pf - 0.20);
+  auSpliceH2 = Math.min(0.95, pf + 0.15);
+
+  editorDiv.style.display = 'block';
+  const btn = document.getElementById('au-splice-play-btn');
+  if (btn) btn.textContent = '▶ Play';
+  requestAnimationFrame(() => auSpliceDraw(null));
+}
+
+function auSpliceClose() {
+  auSpliceStop();
+  if (auSplicePlayCtx) { auSplicePlayCtx.close().catch(() => {}); auSplicePlayCtx = null; }
+  auSpliceAudioBuffer = null;
+  const editorDiv = document.getElementById('au-splice-editor');
+  if (editorDiv) editorDiv.style.display = 'none';
+}
+
+function auSpliceDraw(playheadFrac) {
+  const canvas = document.getElementById('au-wave-canvas');
+  if (!canvas || !auSpliceAudioBuffer) return;
+
+  // Match canvas pixel size to its CSS size for crisp rendering
+  const rect = canvas.getBoundingClientRect();
+  if (canvas.width !== Math.round(rect.width) && rect.width > 0) canvas.width = Math.round(rect.width);
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const h1px = Math.round(auSpliceH1 * W);
+  const h2px = Math.round(auSpliceH2 * W);
+
+  // Colored region backgrounds
+  ctx.fillStyle = 'rgba(239,68,68,0.18)';  ctx.fillRect(0, 0, h1px, H);
+  ctx.fillStyle = 'rgba(74,222,128,0.18)'; ctx.fillRect(h1px, 0, h2px - h1px, H);
+  ctx.fillStyle = 'rgba(239,68,68,0.18)';  ctx.fillRect(h2px, 0, W - h2px, H);
+
+  // Waveform — min/max per pixel column
+  const data = auSpliceAudioBuffer.getChannelData(0);
+  const step = data.length / W;
+  const mid  = H / 2;
+  for (let x = 0; x < W; x++) {
+    const i0 = Math.floor(x * step), i1 = Math.ceil((x + 1) * step);
+    let mn = 0, mx = 0;
+    for (let i = i0; i < i1 && i < data.length; i++) { if (data[i] < mn) mn = data[i]; if (data[i] > mx) mx = data[i]; }
+    ctx.strokeStyle = x < h1px ? '#f87171' : x < h2px ? '#4ade80' : '#f87171';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 0.5, mid + mn * mid * 0.92); ctx.lineTo(x + 0.5, mid + mx * mid * 0.92); ctx.stroke();
+  }
+
+  // Region text labels (drawn inside bands)
+  ctx.font = 'bold 10px monospace';
+  ctx.textBaseline = 'top';
+  const drawLabel = (text, color, x, maxW) => {
+    if (maxW < 24) return;
+    ctx.fillStyle = color;
+    ctx.fillText(text, x + 4, 4);
+  };
+  drawLabel('NOT SHOT', 'rgba(248,113,113,0.85)', 0, h1px);
+  drawLabel('SHOT',    'rgba(74,222,128,0.90)', h1px, h2px - h1px);
+  drawLabel('NOT SHOT', 'rgba(248,113,113,0.85)', h2px, W - h2px);
+
+  // Handle lines and grip tabs
+  const drawHandle = px => {
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    const gW = 10, gH = 18;
+    ctx.beginPath();
+    ctx.roundRect(px - gW / 2, H / 2 - gH / 2, gW, gH, 3);
+    ctx.fill();
+    // Grip lines
+    ctx.strokeStyle = '#1a2e1a'; ctx.lineWidth = 1;
+    for (let dy = -4; dy <= 4; dy += 4) {
+      ctx.beginPath(); ctx.moveTo(px - 3, H / 2 + dy); ctx.lineTo(px + 3, H / 2 + dy); ctx.stroke();
+    }
+  };
+  drawHandle(h1px);
+  drawHandle(h2px);
+
+  // Playhead
+  if (playheadFrac !== null && playheadFrac >= 0 && playheadFrac <= 1) {
+    const px = Math.round(playheadFrac * W);
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function auSplicePointerFrac(e) {
+  const canvas = document.getElementById('au-wave-canvas');
+  if (!canvas) return 0;
+  const rect = canvas.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+}
+
+function auSplicePointerDown(e) {
+  if (!auSpliceAudioBuffer) return;
+  const frac = auSplicePointerFrac(e);
+  auSpliceDragging = Math.abs(frac - auSpliceH1) < Math.abs(frac - auSpliceH2) ? 'left' : 'right';
+  e.preventDefault();
+  const canvas = document.getElementById('au-wave-canvas');
+  if (canvas) canvas.setPointerCapture(e.pointerId);
+}
+
+function auSplicePointerMove(e) {
+  if (!auSpliceDragging) return;
+  const frac = auSplicePointerFrac(e);
+  if (auSpliceDragging === 'left')  auSpliceH1 = Math.max(0.01, Math.min(frac, auSpliceH2 - 0.05));
+  if (auSpliceDragging === 'right') auSpliceH2 = Math.min(0.99, Math.max(frac, auSpliceH1 + 0.05));
+  const ph = auSpliceSource && auSplicePlayCtx
+    ? Math.min(1, (auSplicePlayCtx.currentTime - auSpliceStartAt) / auSpliceAudioBuffer.duration)
+    : null;
+  auSpliceDraw(ph);
+  e.preventDefault();
+}
+
+function auSplicePointerUp(e) { auSpliceDragging = null; }
+
+async function auSpliceTogglePlay() {
+  if (auSpliceSource) { auSpliceStop(); return; }
+  if (!auSpliceAudioBuffer) return;
+
+  if (!auSplicePlayCtx || auSplicePlayCtx.state === 'closed') {
+    auSplicePlayCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (auSplicePlayCtx.state === 'suspended') await auSplicePlayCtx.resume();
+
+  auSpliceSource = auSplicePlayCtx.createBufferSource();
+  auSpliceSource.buffer = auSpliceAudioBuffer;
+  auSpliceSource.connect(auSplicePlayCtx.destination);
+  auSpliceStartAt = auSplicePlayCtx.currentTime;
+  auSpliceSource.start();
+
+  const btn = document.getElementById('au-splice-play-btn');
+  if (btn) btn.textContent = '⏹ Stop';
+
+  auSpliceSource.onended = () => { auSpliceSource = null; if (btn) btn.textContent = '▶ Play'; auSpliceDraw(null); };
+
+  const dur = auSpliceAudioBuffer.duration;
+  const animate = () => {
+    if (!auSpliceSource || !auSplicePlayCtx) return;
+    const frac = Math.min(1, (auSplicePlayCtx.currentTime - auSpliceStartAt) / dur);
+    auSpliceDraw(frac);
+    if (frac < 1) auSpliceAnimId = requestAnimationFrame(animate);
+  };
+  auSpliceAnimId = requestAnimationFrame(animate);
+}
+
+function auSpliceStop() {
+  if (auSpliceAnimId) { cancelAnimationFrame(auSpliceAnimId); auSpliceAnimId = null; }
+  if (auSpliceSource) { try { auSpliceSource.stop(); } catch(e) {} auSpliceSource = null; }
+  const btn = document.getElementById('au-splice-play-btn');
+  if (btn) btn.textContent = '▶ Play';
+}
+
+// SHOT button — saves 3 samples: left NOT_SHOT · middle SHOT · right NOT_SHOT
+function auSpliceLabelShot() {
+  if (!auSpliceAudioBuffer) { auTrainLabel(true); return; } // fallback
+  if (!auSelectedClub) { toast('Select a club first, then tap SHOT'); return; }
+  auSpliceStop();
+  const loc  = phoneLocation;
+  const face = auSelectedFace || '';
+  const saved = [];
+
+  const leftF  = auFeaturesFromSlice(auSpliceAudioBuffer, 0, auSpliceH1);
+  const shotF  = auFeaturesFromSlice(auSpliceAudioBuffer, auSpliceH1, auSpliceH2);
+  const rightF = auFeaturesFromSlice(auSpliceAudioBuffer, auSpliceH2, 1);
+
+  if (leftF)  { const s = { ...leftF,  club: 'NOT_SHOT', faceLocation: '', location: loc }; auLearnData.samples.push(s); fbAudioSample(s, 'NOT_SHOT'); auTrainSession.nonShots++; saved.push('pre'); }
+  if (shotF)  { const s = { ...shotF,  club: auSelectedClub, faceLocation: face, location: loc }; auLearnData.samples.push(s); fbAudioSample(s, 'SHOT'); auTrainSession.shots++; saved.push('shot'); }
+  if (rightF) { const s = { ...rightF, club: 'NOT_SHOT', faceLocation: '', location: loc }; auLearnData.samples.push(s); fbAudioSample(s, 'NOT_SHOT'); auTrainSession.nonShots++; saved.push('post'); }
+
+  auLearnData.poolCount = (auLearnData.poolCount || 0) + saved.length;
+  auPending = null;
+  auUpdateTrainCount();
+  auSaveLearnData();
+  auSpliceClose();
+
+  const faceLabel = face ? ` / ${face}` : '';
+  toast(`✓ ${saved.length} samples saved — ${auSelectedClub}${faceLabel} + ${saved.filter(x => x !== 'shot').length} non-shots`);
+  const flash = document.getElementById('au-train-flash');
+  if (flash) {
+    flash.textContent = `✓ ${auSelectedClub} labeled (${saved.length} regions)`;
+    flash.style.color = '#4ade80';
+    setTimeout(() => { flash.textContent = 'Listening…'; flash.style.color = 'var(--muted)'; }, 1600);
+  }
+}
+
+// NOT SHOT button — saves whole clip as one NOT_SHOT sample
+function auSpliceLabelNotShot() {
+  if (!auSpliceAudioBuffer) { auTrainLabel(false); return; } // fallback
+  auSpliceStop();
+  const f = auFeaturesFromSlice(auSpliceAudioBuffer, 0, 1);
+  if (f) {
+    const s = { ...f, club: 'NOT_SHOT', faceLocation: '', location: phoneLocation };
+    auLearnData.samples.push(s);
+    auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
+    auTrainSession.nonShots++;
+    fbAudioSample(s, 'NOT_SHOT');
+  }
+  auPending = null;
+  auUpdateTrainCount();
+  auSaveLearnData();
+  auSpliceClose();
+  toast('✗ Non-shot saved');
+  const flash = document.getElementById('au-train-flash');
+  if (flash) {
+    flash.textContent = '✗ Non-shot labeled';
+    flash.style.color = '#f87171';
+    setTimeout(() => { flash.textContent = 'Listening…'; flash.style.color = 'var(--muted)'; }, 1600);
+  }
+}
+
 function auSaveTrainingAndClose() {
   const total = auTrainSession.shots + auTrainSession.nonShots;
   if (total > 0) {
