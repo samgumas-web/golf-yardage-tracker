@@ -3583,6 +3583,17 @@ function auLoop() {
         flash.textContent = `⚡ Sound captured — label it now!${hint}`;
         flash.style.color = '#facc15';
       }
+      // Capture a playback clip so the user can verify what was actually caught
+      auCaptureClip().then(blob => {
+        if (auTrainClipUrl) { URL.revokeObjectURL(auTrainClipUrl); auTrainClipUrl = null; }
+        const playDiv = document.getElementById('au-train-play');
+        if (blob) {
+          auTrainClipUrl = URL.createObjectURL(blob);
+          if (playDiv) playDiv.style.display = 'block';
+        } else {
+          if (playDiv) playDiv.style.display = 'none';
+        }
+      });
     }
     // Bag mode: audio alone triggers (no placement gate needed)
     if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) {
