@@ -8062,8 +8062,13 @@ function startGPSTimeout() {
     </div>
 
     <!-- Transient flash -->
-    <div id="au-train-flash" style="text-align:center;font-size:13px;font-weight:500;color:var(--muted);min-height:30px;padding:6px;margin-bottom:12px;background:var(--card2);border-radius:8px;border:1px solid var(--border)">
+    <div id="au-train-flash" style="text-align:center;font-size:13px;font-weight:500;color:var(--muted);min-height:30px;padding:6px;margin-bottom:6px;background:var(--card2);border-radius:8px;border:1px solid var(--border)">
       Listening…
+    </div>
+
+    <!-- Playback verification — shown after a sound is captured -->
+    <div id="au-train-play" style="display:none;text-align:center;margin-bottom:12px">
+      <button onclick="auPlayTrainClip()" style="background:#1a2e1a;border:1px solid #2d4a2d;color:#86efac;font-size:12px;padding:5px 16px;border-radius:6px;cursor:pointer">▶ Play captured audio</button>
     </div>
 
     <!-- Training phone location -->
