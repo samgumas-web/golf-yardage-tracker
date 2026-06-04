@@ -7381,19 +7381,16 @@ function auSpliceLabelShot() {
   if (!auPending) { toast('No sound captured yet — wait for the flash'); return; }
   if (!auSelectedClub) { toast('Select a club first, then tap SHOT'); return; }
 
+  auSpliceEditorPending = true; // block all new triggers from this point on
   if (auSplicePendingBlob) {
-    // Async capture already finished — open immediately
     auSpliceOpen(auSplicePendingBlob);
   } else if (auCapturingPost) {
-    // 3s post-roll still capturing — register callback; editor will open automatically when done
     const flash = document.getElementById('au-train-flash');
-    if (flash) { flash.textContent = '⏳ Capturing post-shot audio (1s)…'; flash.style.color = '#93c5fd'; }
-    auSplicePendingResolve = blob => { if (blob) auSpliceOpen(blob); };
+    if (flash) { flash.textContent = '⏳ Capturing post-shot audio…'; flash.style.color = '#93c5fd'; }
+    auSplicePendingResolve = blob => { if (blob) auSpliceOpen(blob); else auSpliceOpenFallback(); };
   } else {
-    // Capture didn't start (recorder inactive) — use rolling buffer as a fallback
     const blob = auMakeRollingBlob();
-    if (blob) auSpliceOpen(blob);
-    else toast('No audio captured — check mic / system audio is active');
+    if (blob) auSpliceOpen(blob); else auSpliceOpenFallback();
   }
 }
 
