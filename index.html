@@ -3568,22 +3568,12 @@ function auLoop() {
     auLastEvent = now;
     const f     = auBuildFeatures(rms, peak);
 
-    // Physics gate: reject sounds that can't be a club impact (wind, traffic, voices).
-    // This runs before k-NN and requires no training data — it's purely signal-physics.
-    if (!auPassesPhysicsGate(f)) {
-      if (auTrainMode) {
-        const flash = document.getElementById('au-train-flash');
-        if (flash) {
-          flash.textContent = `Background noise filtered (too bass-heavy — not a club impact)`;
-          flash.style.color = '#4b5563';
-        }
-      }
-      return;
-    }
+    // In training mode the user is the filter — show every detected sound for labelling.
+    // The physics gate only runs in live mode to reduce false triggers on the course.
+    if (!auTrainMode && !auPassesPhysicsGate(f)) return;
 
     auLastScore = auScoreAudio(f);
     auPending   = f;
-    // Training modal: show every sound that passes the physics gate for user labelling.
     if (auTrainMode) {
       const flash = document.getElementById('au-train-flash');
       if (flash) {
