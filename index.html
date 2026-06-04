@@ -3574,8 +3574,7 @@ function auLoop() {
       if (auTrainMode) {
         const flash = document.getElementById('au-train-flash');
         if (flash) {
-          const why = f.kurtosis < 6 ? 'not impulsive' : f.attack > 0.25 ? 'onset too slow' : 'too bass-heavy';
-          flash.textContent = `Background noise filtered (${why})`;
+          flash.textContent = `Background noise filtered (too bass-heavy — not a club impact)`;
           flash.style.color = '#4b5563';
         }
       }
