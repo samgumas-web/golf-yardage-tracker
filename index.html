@@ -7192,19 +7192,26 @@ function auFeaturesFromSlice(audioBuffer, startFrac, endFrac) {
 
 async function auSpliceOpen(blob) {
   const editorDiv = document.getElementById('au-splice-editor');
-  if (!editorDiv) return;
-  auSpliceClose(); // stop any in-progress playback
+  if (!editorDiv) { auSpliceOpenFallback(); return; }
 
-  // Decode blob → AudioBuffer
+  // Decode blob → AudioBuffer using explicit callback form (more compatible than Promise form)
   let arrayBuf;
-  try { arrayBuf = await blob.arrayBuffer(); } catch(e) { return; }
-  const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
-  try {
-    auSpliceAudioBuffer = await tmpCtx.decodeAudioData(arrayBuf);
-  } catch(e) { tmpCtx.close().catch(() => {}); return; }
-  tmpCtx.close().catch(() => {});
+  try { arrayBuf = (await blob.arrayBuffer()).slice(0); } catch(e) { auSpliceOpenFallback(); return; }
 
-  // Auto-detect peak position and center a window around it
+  const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+  let decoded = null;
+  try {
+    decoded = await new Promise((res, rej) => tmpCtx.decodeAudioData(arrayBuf, res, rej));
+  } catch(e) {
+    console.warn('auSpliceOpen: decodeAudioData failed —', e && e.message);
+    tmpCtx.close().catch(() => {});
+    auSpliceOpenFallback(); // show editor without waveform so user can still confirm
+    return;
+  }
+  tmpCtx.close().catch(() => {});
+  auSpliceAudioBuffer = decoded;
+
+  // Auto-center handles around the loudest peak
   const data = auSpliceAudioBuffer.getChannelData(0);
   let peakIdx = 0, peakVal = 0;
   for (let i = 0; i < data.length; i++) { const a = Math.abs(data[i]); if (a > peakVal) { peakVal = a; peakIdx = i; } }
@@ -7214,10 +7221,39 @@ async function auSpliceOpen(blob) {
 
   editorDiv.style.display = 'block';
   const playBtn = document.getElementById('au-splice-play-btn');
-  if (playBtn) playBtn.textContent = '▶ Play';
+  if (playBtn) { playBtn.textContent = '▶ Play'; playBtn.disabled = false; }
   const cfmBtn = document.getElementById('au-splice-confirm-btn');
   if (cfmBtn) cfmBtn.textContent = `✓ Save as ${auSelectedClub || '(select club)'}`;
   requestAnimationFrame(() => auSpliceDraw(null));
+}
+
+// Show the editor without a waveform (decode failed or audio unavailable)
+function auSpliceOpenFallback() {
+  const editorDiv = document.getElementById('au-splice-editor');
+  if (!editorDiv) { auSpliceEditorPending = false; return; }
+  auSpliceAudioBuffer = null; // no waveform
+  editorDiv.style.display = 'block';
+  const playBtn = document.getElementById('au-splice-play-btn');
+  if (playBtn) { playBtn.textContent = '▶ Play'; playBtn.disabled = true; }
+  const cfmBtn = document.getElementById('au-splice-confirm-btn');
+  if (cfmBtn) cfmBtn.textContent = `✓ Save as ${auSelectedClub || '(select club)'}`;
+  // Draw a "no waveform" placeholder on canvas
+  const canvas = document.getElementById('au-wave-canvas');
+  if (canvas) {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width > 0) canvas.width = Math.round(rect.width);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0d1f0d';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#374151';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Waveform unavailable — confirm by ear', canvas.width / 2, canvas.height / 2);
+  }
+  const flash = document.getElementById('au-train-flash');
+  if (flash) { flash.textContent = '⚡ Label this sound'; flash.style.color = '#facc15'; }
 }
 
 function auSpliceClose() {
