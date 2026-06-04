@@ -7431,6 +7431,7 @@ function auSpliceConfirmShot() {
 
 // NOT SHOT button — saves immediately using already-computed features, no editor needed
 function auSpliceLabelNotShot() {
+  auSplicePendingResolve = null; // don't auto-open editor if capture finishes later
   auSpliceClose(); // dismiss editor if open
   auSplicePendingBlob = null;
   const f = auPending;
