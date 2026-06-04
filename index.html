@@ -7197,8 +7197,10 @@ async function auSpliceOpen(blob) {
   auSpliceH2 = Math.min(0.95, pf + 0.15);
 
   editorDiv.style.display = 'block';
-  const btn = document.getElementById('au-splice-play-btn');
-  if (btn) btn.textContent = '▶ Play';
+  const playBtn = document.getElementById('au-splice-play-btn');
+  if (playBtn) playBtn.textContent = '▶ Play';
+  const cfmBtn = document.getElementById('au-splice-confirm-btn');
+  if (cfmBtn) cfmBtn.textContent = `✓ Save as ${auSelectedClub || '(select club)'}`;
   requestAnimationFrame(() => auSpliceDraw(null));
 }
 
