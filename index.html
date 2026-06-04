@@ -3506,7 +3506,7 @@ function auStopListening() {
   auAnalyser = auTimeBuf = auFreqBuf = null;
 }
 
-// Returns a Promise<Blob|null> — grabs the rolling pre-roll buffer + 1s post-impact audio
+// Returns a Promise<Blob|null> — 1s pre-roll + 3s post-trigger splice clip
 function auCaptureClip() {
   return new Promise(resolve => {
     if (!auMediaRecorder || auMediaRecorder.state === 'inactive') { resolve(null); return; }
@@ -3517,17 +3517,18 @@ function auCaptureClip() {
       const mime = auMediaRecorder ? auMediaRecorder.mimeType : 'audio/webm';
       resolve(new Blob(chunks, { type: mime }));
     };
-    // Safety: resolve after 2s with whatever we have
+    // Safety timeout — resolve with whatever we have after the full post-roll window
     setTimeout(() => {
       if (auCapturingPost && auPostResolve) {
-        const res2  = auPostResolve;
+        const res2 = auPostResolve;
         auPostResolve   = null;
         auCapturingPost = false;
-        const chunks = [...auRollingChunks.slice(-AU_PRE_CHUNKS), ...auPostChunks];
+        const pre    = auRollingChunks.slice(-AU_SPLICE_PRE_CHUNKS);
+        const chunks = [auRecordingHeaderChunk, ...pre, ...auPostChunks].filter(Boolean);
         const mime   = auMediaRecorder ? auMediaRecorder.mimeType : 'audio/webm';
         res2(chunks.length ? new Blob(chunks, { type: mime }) : null);
       }
-    }, 2000);
+    }, AU_POST_CHUNKS * AU_CHUNK_MS + 500);
   });
 }
 
