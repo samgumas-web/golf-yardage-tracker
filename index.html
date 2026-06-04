@@ -3682,11 +3682,12 @@ function auBuildFeatures(rms, peak) {
 // Physics gate — runs before k-NN. Rejects sounds that cannot physically be a club impact
 // regardless of training data. Each condition targets a specific background noise type.
 function auPassesPhysicsGate(f) {
-  // Kurtosis: 3 = pure Gaussian noise; real impacts add heavy tails even against background audio.
-  // Threshold 3.5 rejects flat sustained noise while passing impacts over background (YouTube etc.)
-  if (f.kurtosis < 3.5)              return false; // not spiky enough — sustained background noise
-  if (f.attack > 0.25)               return false; // onset too slow — not an impact transient
-  if ((f.highFreqRatio || 0) < 0.08) return false; // too bass-heavy — wind rumble, car engine
+  // Only the spectral gate is reliable across both mic and system-audio capture.
+  // Kurtosis and attack-time depend on the buffer having silence before the impact,
+  // which is never true for system audio or noisy outdoor environments.
+  // highFreqRatio is reliable regardless: driver/iron impacts are rich in 2 kHz+ content;
+  // wind rumble and car engines are almost entirely below 500 Hz.
+  if ((f.highFreqRatio || 0) < 0.08) return false; // too bass-heavy — not a club impact
   return true;
 }
 
