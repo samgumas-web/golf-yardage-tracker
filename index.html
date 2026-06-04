@@ -8375,10 +8375,18 @@ function startGPSTimeout() {
         onpointerup="auSplicePointerUp(event)"
         onpointerleave="auSplicePointerUp(event)">
       </canvas>
-      <div style="display:flex;justify-content:center;margin-top:6px">
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
         <button id="au-splice-play-btn" onclick="auSpliceTogglePlay()"
-          style="background:#1a2e1a;border:1px solid #2d4a2d;color:#86efac;font-size:12px;padding:5px 20px;border-radius:6px;cursor:pointer">
+          style="background:#1a2e1a;border:1px solid #2d4a2d;color:#86efac;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;flex-shrink:0">
           ▶ Play
+        </button>
+        <button id="au-splice-confirm-btn" onclick="auSpliceConfirmShot()"
+          style="flex:1;background:#14532d;border:2px solid #16a34a;color:#4ade80;font-size:13px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer">
+          ✓ Save as SHOT
+        </button>
+        <button onclick="auSpliceClose()"
+          style="background:#1c1c1c;border:1px solid #374151;color:#6b7280;font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;flex-shrink:0">
+          ✕
         </button>
       </div>
     </div>
