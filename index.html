@@ -7223,8 +7223,9 @@ async function auSpliceOpen(blob) {
 function auSpliceClose() {
   auSpliceStop();
   if (auSplicePlayCtx) { auSplicePlayCtx.close().catch(() => {}); auSplicePlayCtx = null; }
-  auSpliceAudioBuffer = null;
-  auSplicePendingBlob = null;
+  auSpliceAudioBuffer  = null;
+  auSplicePendingBlob  = null;
+  auSpliceEditorPending = false;
   const editorDiv = document.getElementById('au-splice-editor');
   if (editorDiv) editorDiv.style.display = 'none';
 }
