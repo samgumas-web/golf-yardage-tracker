@@ -7263,11 +7263,6 @@ async function auTrainLabel(yes) {
   const faceLabel = yes && face ? ` / ${face}` : '';
   toast(yes ? `✓ Saved: ${club}${faceLabel}` : '✗ Non-shot saved');
 
-  // Clean up playback clip now that it's been labeled
-  if (auTrainClipUrl) { URL.revokeObjectURL(auTrainClipUrl); auTrainClipUrl = null; }
-  const playDiv = document.getElementById('au-train-play');
-  if (playDiv) playDiv.style.display = 'none';
-
   const flash = document.getElementById('au-train-flash');
   if (flash) {
     flash.textContent = yes ? `✓ ${auSelectedClub} shot labeled!` : '✗ Non-shot labeled';
