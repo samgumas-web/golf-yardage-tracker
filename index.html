@@ -3501,6 +3501,7 @@ function auStopListening() {
   auCapturingPost = false;
   auRecordingHeaderChunk = null;
   auSplicePendingResolve = null;
+  auSpliceEditorPending  = false;
   if (auPostResolve) { auPostResolve([]); auPostResolve = null; }
   if (auStream)  { auStream.getTracks().forEach(t => t.stop()); auStream = null; }
   if (auContext) { auContext.close().catch(() => {}); auContext = null; }
