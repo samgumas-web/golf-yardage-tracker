@@ -7433,7 +7433,24 @@ function auSpliceLabelShot() {
 
 // Called by the "✓ Confirm as SHOT" button inside the splice editor
 function auSpliceConfirmShot() {
-  if (!auSpliceAudioBuffer) return;
+  if (!auSpliceAudioBuffer) {
+    // Fallback: no decoded audio — save using the features computed at trigger time
+    if (!auPending) { toast('No sound features available'); return; }
+    if (!auSelectedClub) { toast('Select a club first'); return; }
+    const s = { ...auPending, club: auSelectedClub, faceLocation: auSelectedFace || '', location: phoneLocation };
+    auLearnData.samples.push(s);
+    auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
+    auTrainSession.shots++;
+    fbAudioSample(s, 'SHOT');
+    auPending = null;
+    auUpdateTrainCount();
+    auSaveLearnData();
+    auSpliceClose();
+    toast(`✓ Saved ${auSelectedClub} (no waveform — single sample)`);
+    const flash = document.getElementById('au-train-flash');
+    if (flash) { flash.textContent = `✓ ${auSelectedClub} saved`; flash.style.color = '#4ade80'; setTimeout(() => { flash.textContent = 'Listening…'; flash.style.color = 'var(--muted)'; }, 1600); }
+    return;
+  }
   if (!auSelectedClub) { toast('Select a club first'); return; }
   auSpliceStop();
   const loc  = phoneLocation;
