@@ -3682,8 +3682,10 @@ function auBuildFeatures(rms, peak) {
 // Physics gate — runs before k-NN. Rejects sounds that cannot physically be a club impact
 // regardless of training data. Each condition targets a specific background noise type.
 function auPassesPhysicsGate(f) {
-  if (f.kurtosis < 6)             return false; // not spiky enough — wind, traffic, sustained voice
-  if (f.attack > 0.25)            return false; // onset too slow — not an impact transient
+  // Kurtosis: 3 = pure Gaussian noise; real impacts add heavy tails even against background audio.
+  // Threshold 3.5 rejects flat sustained noise while passing impacts over background (YouTube etc.)
+  if (f.kurtosis < 3.5)              return false; // not spiky enough — sustained background noise
+  if (f.attack > 0.25)               return false; // onset too slow — not an impact transient
   if ((f.highFreqRatio || 0) < 0.08) return false; // too bass-heavy — wind rumble, car engine
   return true;
 }
