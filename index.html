@@ -1825,6 +1825,7 @@ let auSplicePlayCtx     = null;      // AudioContext used for splice playback
 let auSpliceSource      = null;      // current AudioBufferSourceNode
 let auSpliceStartAt     = 0;         // AudioContext time when playback started
 let auSpliceAnimId      = null;      // rAF handle for playhead animation
+let auSplicePendingBlob = null;      // blob captured at trigger time, decoded when SHOT is tapped
 let auFilteredCount  = 0;           // background sounds auto-filtered this session
 let auSelectedClub      = '';        // club chosen in training modal for next SHOT label
 let auSelectedFace      = '';        // face location chosen: Heel|Flush|Toe|Thin|Fat
