@@ -3596,8 +3596,8 @@ function auLoop() {
     auLastScore = auScoreAudio(f);
     auPending   = f;
     if (auTrainMode) {
-      // Suppress new triggers while the splice editor is open or while the user is annotating
-      if (auSpliceAudioBuffer || auSplicePendingResolve) return;
+      // Suppress all new triggers from SHOT-tap until editor is closed/confirmed
+      if (auSpliceEditorPending) return;
       const flash = document.getElementById('au-train-flash');
       if (flash) {
         const match = auIdentifyClub(f);
