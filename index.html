@@ -3788,7 +3788,9 @@ function buildClubProfiles() {
 
 // Returns the closest club/face profile to features f, or null if no profiles exist
 function auIdentifyClub(f) {
-  const KEYS = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack'];
+  const KEYS = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack', 'kurtosis', 'highFreqRatio',
+                'impactDuration', 'decayRate', 'band1', 'band2', 'band3', 'band4', 'band5',
+                'spectralFlatness', 'spectralBandwidth'];
   const w    = auFeatureWeights;
   const all  = [...(auLearnData.samples || []), ...(auPoolData.samples || [])];
   if (!all.length) return null;
