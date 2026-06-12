@@ -3853,7 +3853,9 @@ function auScoreAudio(f) {
 
 function computeAudioWeights(shots, nonShots) {
   if (shots.length < 5 || nonShots.length < 5) return;
-  const keys = ['snr','impulsiveness','zcr','centroid','attack'];
+  const keys = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack', 'kurtosis', 'highFreqRatio',
+                'impactDuration', 'decayRate', 'band1', 'band2', 'band3', 'band4', 'band5',
+                'spectralFlatness', 'spectralBandwidth'];
   const all  = [...shots, ...nonShots];
   function p95(arr) { const s=arr.slice().sort((a,b)=>a-b); return Math.max(s[Math.floor(s.length*0.95)]||1,1); }
   const caps = {}; keys.forEach(k => { caps[k] = p95(all.map(e=>e[k]||0)); });
