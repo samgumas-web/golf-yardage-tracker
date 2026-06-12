@@ -3661,9 +3661,7 @@ function auBuildFeatures(rms, peak) {
   for (let i = 1; i < n; i++) { if (auTimeBuf[i] * auTimeBuf[i-1] < 0) zcr++; }
   zcr /= n;
 
-  // Kurtosis — 4th standardised moment of the time-domain buffer.
-  // Golf impact in a 23ms window: most samples near-zero, brief spike → kurtosis >> 6.
-  // Sustained background noise fills the whole window uniformly → kurtosis ≈ 3.
+  // Kurtosis
   let tSum = 0;
   for (let i = 0; i < n; i++) tSum += auTimeBuf[i];
   const tMean = tSum / n;
@@ -3673,24 +3671,59 @@ function auBuildFeatures(rms, peak) {
     m2 += d * d;
     m4 += d * d * d * d;
   }
-  const variance  = m2 / n;
-  const kurtosis  = variance > 1e-12 ? (m4 / n) / (variance * variance) : 0;
+  const variance = m2 / n;
+  const kurtosis = variance > 1e-12 ? (m4 / n) / (variance * variance) : 0;
 
-  // Spectral centroid (normalised 0–1) + high-frequency energy ratio (energy above 2 kHz).
-  // Club-face impacts are rich in 2–8 kHz content; wind/cars are almost entirely below 500 Hz.
-  const fLen      = auFreqBuf.length;
-  const sRate     = auContext ? auContext.sampleRate : 44100;
-  const hfBin     = Math.round(2000 / (sRate / (fLen * 2)));
-  let wSum = 0, magSum = 0, totalEnergy = 0, hfEnergy = 0;
+  // Impact duration: fraction of samples above 10% of peak
+  let impDur = 0;
+  for (let i = 0; i < n; i++) { if (Math.abs(auTimeBuf[i]) >= peak * 0.1) impDur++; }
+  const impactDuration = impDur / n;
+
+  // Decay rate: energy in first half vs total (>0.5 = front-loaded = impulsive)
+  const half = Math.floor(n / 2);
+  let e1 = 0, e2 = 0;
+  for (let i = 0; i < half; i++) e1 += auTimeBuf[i] * auTimeBuf[i];
+  for (let i = half; i < n; i++) e2 += auTimeBuf[i] * auTimeBuf[i];
+  const eTot = e1 + e2;
+  const decayRate = eTot > 1e-12 ? e1 / eTot : 0.5;
+
+  // Spectral features from AnalyserNode dB → linear magnitudes
+  const fLen  = auFreqBuf.length;
+  const sRate = auContext ? auContext.sampleRate : 44100;
+  const binHz = sRate / (fLen * 2);
+  const hfBin = Math.round(2000 / binHz);
+  const b1    = Math.round(500  / binHz);
+  const b2    = Math.round(1000 / binHz);
+  const b3    = Math.round(2000 / binHz);
+  const b4    = Math.round(4000 / binHz);
+  let wSum = 0, wSum2 = 0, magSum = 0, totalEnergy = 0, hfEnergy = 0;
+  let eB1 = 0, eB2 = 0, eB3 = 0, eB4 = 0, eB5 = 0;
+  let logMagSum = 0, magCount = 0;
   for (let i = 0; i < fLen; i++) {
     const mag = Math.pow(10, (auFreqBuf[i] + 80) / 20);
     const e   = mag * mag;
-    wSum += i * mag; magSum += mag;
+    wSum += i * mag; wSum2 += i * i * mag; magSum += mag;
     totalEnergy += e;
     if (i >= hfBin) hfEnergy += e;
+    if (i < b1)      eB1 += e;
+    else if (i < b2) eB2 += e;
+    else if (i < b3) eB3 += e;
+    else if (i < b4) eB4 += e;
+    else             eB5 += e;
+    if (mag > 1e-10) { logMagSum += Math.log(mag); magCount++; }
   }
-  const centroid      = magSum > 0 ? wSum / magSum / fLen : 0;
-  const highFreqRatio = totalEnergy > 0 ? hfEnergy / totalEnergy : 0;
+  const centroidBin    = magSum > 0 ? wSum / magSum : 0;
+  const centroid       = centroidBin / fLen;
+  const highFreqRatio  = totalEnergy > 0 ? hfEnergy  / totalEnergy : 0;
+  const band1          = totalEnergy > 0 ? eB1 / totalEnergy : 0;
+  const band2          = totalEnergy > 0 ? eB2 / totalEnergy : 0;
+  const band3          = totalEnergy > 0 ? eB3 / totalEnergy : 0;
+  const band4          = totalEnergy > 0 ? eB4 / totalEnergy : 0;
+  const band5          = totalEnergy > 0 ? eB5 / totalEnergy : 0;
+  const geoMean        = magCount > 0 ? Math.exp(logMagSum / magCount) : 0;
+  const arithMean      = magCount > 0 ? magSum / magCount : 0;
+  const spectralFlatness   = arithMean > 1e-10 ? Math.min(1, geoMean / arithMean) : 0;
+  const spectralBandwidth  = magSum > 0 ? Math.sqrt(Math.max(0, wSum2 / magSum - centroidBin * centroidBin)) / fLen : 0;
 
   // Attack: index of first sample ≥90% of peak (0=instant, 1=slow)
   let attackIdx = 0;
@@ -3698,11 +3731,11 @@ function auBuildFeatures(rms, peak) {
   for (let i = 0; i < n; i++) { if (Math.abs(auTimeBuf[i]) >= thresh) { attackIdx = i; break; } }
   const attack = attackIdx / n;
 
-  // Volume-invariant shape features
   const snr           = peak / Math.max(auBaselineRms, 0.001);
-  const impulsiveness = peak > 0 ? rms / peak : 0; // 0 = pure spike, 1 = sustained burst
+  const impulsiveness = peak > 0 ? rms / peak : 0;
 
-  return { snr, impulsiveness, zcr, centroid, attack, kurtosis, highFreqRatio };
+  return { snr, impulsiveness, zcr, centroid, attack, kurtosis, highFreqRatio,
+           impactDuration, decayRate, band1, band2, band3, band4, band5, spectralFlatness, spectralBandwidth };
 }
 
 // Physics gate — runs before k-NN. Rejects sounds that cannot physically be a club impact
