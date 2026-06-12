@@ -7190,24 +7190,47 @@ function auCloseTraining() {
 
 // ── Splice Waveform Editor ────────────────────────────────────────────────
 
-// Simple DFT-based spectral analysis on a PCM slice (N=256 window)
+// DFT-based spectral analysis on a PCM slice (N=256 window) — returns all spectral features
 function auComputeSpectralFromSamples(samples, sampleRate) {
-  const N = 256;
-  const n = Math.min(N, samples.length);
-  const hfBin = Math.round(2000 / (sampleRate / (N * 2)));
-  let wSum = 0, magSum = 0, totalE = 0, hfE = 0;
+  const N     = 256;
+  const n     = Math.min(N, samples.length);
+  const binHz = sampleRate / N;
+  const hfBin = Math.round(2000 / binHz);
+  const b1    = Math.round(500  / binHz);
+  const b2    = Math.round(1000 / binHz);
+  const b3    = Math.round(2000 / binHz);
+  const b4    = Math.round(4000 / binHz);
+  let wSum = 0, wSum2 = 0, magSum = 0, totalE = 0, hfE = 0;
+  let eB1 = 0, eB2 = 0, eB3 = 0, eB4 = 0, eB5 = 0;
+  let logMagSum = 0, magCount = 0;
   for (let k = 1; k < N / 2; k++) {
     let re = 0, im = 0;
     const coeff = 2 * Math.PI * k / N;
     for (let t = 0; t < n; t++) { re += samples[t] * Math.cos(coeff * t); im -= samples[t] * Math.sin(coeff * t); }
     const mag = Math.sqrt(re * re + im * im);
-    const e = mag * mag;
-    wSum += k * mag; magSum += mag; totalE += e;
+    const e   = mag * mag;
+    wSum += k * mag; wSum2 += k * k * mag; magSum += mag; totalE += e;
     if (k >= hfBin) hfE += e;
+    if (k < b1)      eB1 += e;
+    else if (k < b2) eB2 += e;
+    else if (k < b3) eB3 += e;
+    else if (k < b4) eB4 += e;
+    else             eB5 += e;
+    if (mag > 1e-10) { logMagSum += Math.log(mag); magCount++; }
   }
+  const centroidBin    = magSum > 0 ? wSum / magSum : 0;
+  const geoMean        = magCount > 0 ? Math.exp(logMagSum / magCount) : 0;
+  const arithMean      = magCount > 0 ? magSum / magCount : 0;
   return {
-    centroid:      magSum > 0 ? wSum / magSum / (N / 2) : 0,
-    highFreqRatio: totalE > 0 ? hfE / totalE : 0
+    centroid:          centroidBin / (N / 2),
+    highFreqRatio:     totalE > 0 ? hfE  / totalE : 0,
+    band1:             totalE > 0 ? eB1  / totalE : 0,
+    band2:             totalE > 0 ? eB2  / totalE : 0,
+    band3:             totalE > 0 ? eB3  / totalE : 0,
+    band4:             totalE > 0 ? eB4  / totalE : 0,
+    band5:             totalE > 0 ? eB5  / totalE : 0,
+    spectralFlatness:  arithMean > 1e-10 ? Math.min(1, geoMean / arithMean) : 0,
+    spectralBandwidth: magSum > 0 ? Math.sqrt(Math.max(0, wSum2 / magSum - centroidBin * centroidBin)) / (N / 2) : 0
   };
 }
 
