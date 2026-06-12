@@ -3763,7 +3763,9 @@ function auMergedData() {
 
 // Builds per-club/face mean feature vectors from all available training data
 function buildClubProfiles() {
-  const KEYS = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack'];
+  const KEYS = ['snr', 'impulsiveness', 'zcr', 'centroid', 'attack', 'kurtosis', 'highFreqRatio',
+                'impactDuration', 'decayRate', 'band1', 'band2', 'band3', 'band4', 'band5',
+                'spectralFlatness', 'spectralBandwidth'];
   const samples = [...(auLearnData.samples || []), ...(auPoolData.samples || [])];
   const raw = {};
   samples.forEach(s => {
