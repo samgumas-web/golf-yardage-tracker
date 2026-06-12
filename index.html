@@ -7264,10 +7264,25 @@ function auFeaturesFromSlice(audioBuffer, startFrac, endFrac) {
   for (let i = 0; i < len; i++) { if (Math.abs(slice[i]) >= peak * 0.9) { attackIdx = i; break; } }
   const attack = attackIdx / len;
 
-  const { centroid, highFreqRatio } = auComputeSpectralFromSamples(slice, sr);
+  // Impact duration: fraction of samples above 10% of peak
+  let impDur = 0;
+  for (let i = 0; i < len; i++) { if (Math.abs(slice[i]) >= peak * 0.1) impDur++; }
+  const impactDuration = impDur / len;
+
+  // Decay rate: energy in first half vs total
+  const half = Math.floor(len / 2);
+  let e1 = 0, e2 = 0;
+  for (let i = 0; i < half; i++) e1 += slice[i] * slice[i];
+  for (let i = half; i < len; i++) e2 += slice[i] * slice[i];
+  const eTot = e1 + e2;
+  const decayRate = eTot > 1e-12 ? e1 / eTot : 0.5;
+
+  const { centroid, highFreqRatio, band1, band2, band3, band4, band5, spectralFlatness, spectralBandwidth }
+    = auComputeSpectralFromSamples(slice, sr);
   const snr = peak / Math.max(auBaselineRms, 0.001);
   const impulsiveness = peak > 0 ? rms / peak : 0;
-  return { snr, impulsiveness, zcr, centroid, attack, kurtosis, highFreqRatio };
+  return { snr, impulsiveness, zcr, centroid, attack, kurtosis, highFreqRatio,
+           impactDuration, decayRate, band1, band2, band3, band4, band5, spectralFlatness, spectralBandwidth };
 }
 
 async function auSpliceOpen(blob) {
