@@ -1774,7 +1774,12 @@ let auLearnData    = { samples: [], poolCount: 0 };
 let auPoolData       = { samples: [] };
 let auClubProfiles   = {};   // { club: { face: { mean:{...}, count:N } } }
 let auLastClub       = '';   // club the most recent transient most resembled
-let auFeatureWeights = { snr: 0.15, impulsiveness: 0.20, zcr: 0.15, centroid: 0.30, attack: 0.20 };
+let auFeatureWeights = {
+  snr: 0.0625, impulsiveness: 0.0625, zcr: 0.0625, centroid: 0.0625, attack: 0.0625,
+  kurtosis: 0.0625, highFreqRatio: 0.0625, impactDuration: 0.0625, decayRate: 0.0625,
+  band1: 0.0625, band2: 0.0625, band3: 0.0625, band4: 0.0625, band5: 0.0625,
+  spectralFlatness: 0.0625, spectralBandwidth: 0.0625
+};
 let phoneLocation    = localStorage.getItem('gy_phone_loc') || 'pocket'; // 'ground' | 'pocket' | 'bag'
 let lastGroundPlacement = 0;       // timestamp of last confirmed phone-on-ground placement
 const GROUND_GATE_MS    = 180000;  // 3-minute window: must place phone within this before shot counts
