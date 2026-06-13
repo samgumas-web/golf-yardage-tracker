@@ -3929,12 +3929,27 @@ async function fbLoadAudioPool() {
     if (cached && (Date.now()-cached.ts) < AU_POOL_CACHE_TTL) {
       // Migrate cached data if it uses old peak/rms format
       const samples = (cached.samples || []).map(d => {
-        if (d.snr !== undefined) return d;
+        if (d.snr !== undefined) return d; // already in current format
         return {
-          snr:           (d.peak || 0) / 0.01,
-          impulsiveness: d.peak > 0 ? (d.rms||0)/d.peak : 0.5,
-          zcr:d.zcr||0, centroid:d.centroid||0, attack:d.attack||0,
-          club:d.club||'SHOT_UNKNOWN', location:d.location||'ground'
+          snr:              (d.peak || 0) / 0.01,
+          impulsiveness:    d.peak > 0 ? (d.rms||0)/d.peak : 0.5,
+          zcr:              d.zcr              || 0,
+          centroid:         d.centroid         || 0,
+          attack:           d.attack           || 0,
+          kurtosis:         d.kurtosis         || 0,
+          highFreqRatio:    d.highFreqRatio    || 0,
+          impactDuration:   d.impactDuration   || 0,
+          decayRate:        d.decayRate        || 0,
+          band1:            d.band1            || 0,
+          band2:            d.band2            || 0,
+          band3:            d.band3            || 0,
+          band4:            d.band4            || 0,
+          band5:            d.band5            || 0,
+          spectralFlatness: d.spectralFlatness || 0,
+          spectralBandwidth:d.spectralBandwidth|| 0,
+          club:             d.club             || 'SHOT_UNKNOWN',
+          faceLocation:     d.faceLocation     || '',
+          location:         d.location         || 'ground'
         };
       });
       auPoolData = { samples };
