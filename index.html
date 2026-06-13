@@ -1801,7 +1801,7 @@ let pogSettleFlatness  = 0;    // |ai.z|/acc at settle time — ~1.0 = flat on g
 let pogSettleSamples   = [];   // {accDev, rot} readings collected during the 3s settle window for tremor detection
 let _pendingCourse   = null; // held while phone-location picker is shown
 const AU_LEARN_KEY       = 'gy_audio_learn';
-const AU_POOL_CACHE_KEY  = 'gy_audio_pool_v4'; // v4: nested golfClubAudio/faceLocation/audioClips path
+const AU_POOL_CACHE_KEY  = 'gy_audio_pool_v5'; // v5: reads all 16 features from audioClips
 const AU_POOL_VERSION    = 'trainingPool_golfClubAudio_v1'; // bump when upload path changes to force re-upload
 const AU_POOL_CACHE_TTL  = 24 * 60 * 60 * 1000;
 const AU_DEBOUNCE_MS     = 2000;    // min ms between audio triggers
