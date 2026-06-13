@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GolfYards — Bulk Audio Import</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0a1a0a; color: #ccc; font-family: monospace; font-size: 13px; padding: 20px; max-width: 860px; }
+h1 { color: #4ade80; margin-bottom: 6px; font-size: 18px; }
+h2 { color: #86efac; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+#subtitle { color: #4b5563; font-size: 12px; margin-bottom: 20px; }
+#status { color: #facc15; min-height: 20px; margin-bottom: 14px; }
+button { background: #1a472a; border: 1px solid #166534; color: #4ade80; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 6px; }
+button:hover { background: #14532d; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+input[type=email], input[type=password], textarea, select {
+  background: #111; border: 1px solid #1e3a1e; border-radius: 6px; color: #ccc;
+  font-size: 13px; padding: 7px 10px; font-family: monospace;
+}
+input[type=email], input[type=password] { width: 280px; display: block; margin-bottom: 8px; }
+select { padding: 7px 10px; background: #111; border: 1px solid #1e3a1e; color: #ccc; border-radius: 6px; cursor: pointer; }
+textarea { width: 100%; resize: vertical; }
+label { color: #9ca3af; font-size: 12px; display: block; margin-bottom: 4px; }
+
+.section { background: #0d1f0d; border: 1px solid #1e3a1e; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+.row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 4px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+
+/* tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+.tab { background: #111; border: 1px solid #1e3a1e; color: #4b5563; padding: 6px 14px; border-radius: 6px; }
+.tab.active { background: #1a472a; color: #4ade80; border-color: #166534; }
+
+/* drop zone */
+#drop-zone {
+  border: 2px dashed #1e3a1e; border-radius: 8px; padding: 28px 20px; text-align: center;
+  color: #4b5563; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  margin-bottom: 10px;
+}
+#drop-zone.over { border-color: #4ade80; color: #4ade80; }
+#drop-zone span { color: #4ade80; text-decoration: underline; cursor: pointer; }
+
+/* file list */
+#file-list { max-height: 160px; overflow-y: auto; }
+.file-item { display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 8px; border-bottom: 1px solid #0f1f0f; font-size: 12px; }
+.file-item .fname { color: #9ca3af; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item .fsize { color: #4b5563; margin-left: 8px; white-space: nowrap; }
+.file-item .fremove { color: #f87171; cursor: pointer; margin-left: 8px; padding: 0 4px; }
+
+/* stats bar */
+#stats-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat-card { background: #111; border: 1px solid #1e3a1e; border-radius: 8px; padding: 8px 14px; min-width: 130px; }
+.stat-card .lbl { font-size: 11px; color: #6b7280; }
+.stat-card .val { font-size: 18px; font-weight: bold; color: #4ade80; }
+.stat-card .val.warn { color: #facc15; }
+.stat-card .val.bad  { color: #f87171; }
+
+/* progress */
+#progress-area { margin-top: 16px; }
+#progress-bar-wrap { background: #111; border-radius: 6px; height: 10px; margin-bottom: 8px; overflow: hidden; }
+#progress-bar { background: #16a34a; height: 100%; width: 0; transition: width 0.2s; border-radius: 6px; }
+#progress-text { color: #9ca3af; font-size: 12px; margin-bottom: 8px; }
+#progress-log { max-height: 200px; overflow-y: auto; font-size: 11px; background: #050e05; border: 1px solid #1e3a1e; border-radius: 6px; padding: 8px 10px; }
+.log-ok   { color: #4ade80; }
+.log-warn { color: #facc15; }
+.log-err  { color: #f87171; }
+.log-info { color: #60a5fa; }
+
+/* warn box */
+.warn-box { background: #1a1500; border: 1px solid #713f12; border-radius: 8px; padding: 12px 16px; color: #fbbf24; font-size: 12px; margin-top: 16px; line-height: 1.6; }
+.warn-box strong { color: #fcd34d; }
+
+/* import btn */
+#import-btn { font-size: 14px; padding: 11px 28px; }
+
+#auth-area input { width: 260px; }
+#account-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+#account-email { color: #4ade80; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>GolfYards — Bulk Audio Import</h1>
+<div id="subtitle">Imports labeled audio files into your training model. Features are extracted with the same algorithm as the app.</div>
+<div id="status">Loading Firebase…</div>
+
+<div id="auth-area" style="display:none">
+  <input id="email-inp" type="email" placeholder="GolfYards account email">
+  <input id="pw-inp" type="password" placeholder="Password">
+  <button onclick="doSignIn()">Sign In</button>
+</div>
+
+<div id="main" style="display:none">
+  <div id="account-bar">
+    <span id="account-email"></span>
+    <button onclick="doSignOut()" style="background:#1a1a2e;border-color:#374151;color:#9ca3af">Sign out</button>
+    <button onclick="loadStats()">↻ Refresh stats</button>
+  </div>
+
+  <!-- Current model stats -->
+  <div id="stats-bar"><div style="color:#4b5563;font-size:12px">Loading stats…</div></div>
+
+  <!-- Step 1: Label -->
+  <div class="section">
+    <h2>1 — Set batch label</h2>
+    <div class="row">
+      <div class="field">
+        <label>Club</label>
+        <select id="club-sel" onchange="updateFaceVis()">
+          <option>Driver</option>
+          <option>3 Wood</option>
+          <option>5 Wood</option>
+          <option>2 Iron</option>
+          <option>3 Iron</option>
+          <option>4 Iron</option>
+          <option>5 Iron</option>
+          <option>6 Iron</option>
+          <option>7 Iron</option>
+          <option>8 Iron</option>
+          <option>9 Iron</option>
+          <option>Pitching Wedge</option>
+          <option>Gap Wedge</option>
+          <option>Sand Wedge</option>
+          <option>Lob Wedge</option>
+          <option>Putter</option>
+          <option value="NOT_SHOT">NOT_SHOT — background / non-shot noise</option>
+        </select>
+      </div>
+      <div class="field" id="face-field">
+        <label>Face contact</label>
+        <select id="face-sel">
+          <option>Flush</option>
+          <option>Thin</option>
+          <option>Fat</option>
+          <option>Toe</option>
+          <option>Heel</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Files -->
+  <div class="section">
+    <h2>2 — Choose audio files</h2>
+    <div class="tabs">
+      <button id="tab-local" class="tab active" onclick="setTab('local')">Local files</button>
+      <button id="tab-urls"  class="tab"        onclick="setTab('urls')">URLs</button>
+    </div>
+
+    <!-- Local files panel -->
+    <div id="panel-local">
+      <div id="drop-zone"
+        ondrop="handleDrop(event)" ondragover="event.preventDefault(); this.classList.add('over')"
+        ondragleave="this.classList.remove('over')" onclick="document.getElementById('file-inp').click()">
+        Drag &amp; drop audio files here, or <span>click to browse</span>
+        <br><span style="font-size:11px;color:#374151">WAV · MP3 · OGG · AAC · FLAC · WebM — all formats supported</span>
+        <input id="file-inp" type="file" multiple accept="audio/*" style="display:none" onchange="handleFileInput(event)">
+      </div>
+      <div id="file-list"></div>
+    </div>
+
+    <!-- URL panel -->
+    <div id="panel-urls" style="display:none">
+      <p style="color:#6b7280;font-size:12px;margin-bottom:8px">
+        One URL per line. The server must allow cross-origin requests (CORS). If a URL fails, download the file and use the Local tab instead.
+      </p>
+      <textarea id="url-inp" rows="7" placeholder="https://example.com/driver_flush_01.wav&#10;https://example.com/driver_flush_02.wav"></textarea>
+    </div>
+  </div>
+
+  <!-- Step 3: Import -->
+  <div class="section">
+    <h2>3 — Import batch</h2>
+    <button id="import-btn" onclick="runImport()">▶ Import Batch</button>
+    <span id="batch-count" style="color:#4b5563;font-size:12px;margin-left:10px"></span>
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-area" style="display:none">
+    <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+    <div id="progress-text">Processing…</div>
+    <div id="progress-log"></div>
+  </div>
+
+  <!-- NOT_SHOT warning (shown when 0 non-shots) -->
+  <div class="warn-box" id="notshot-warn" style="display:none">
+    ⚠ <strong>No NOT_SHOT samples yet.</strong>
+    The k-NN classifier needs negative examples (background noise, wind, footsteps, cart sounds) to distinguish shots from ambient sound.
+    Import background recordings here with label "NOT_SHOT", or collect them in-app via Settings → Audio Training.
+    Aim for at least <strong>10 NOT_SHOT samples</strong> to activate weight calibration.
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            'AIzaSyCrOToPLYqbDnknhcWcVlQrOchs8YGTB9g',
+  authDomain:        'golfyards-16f37.firebaseapp.com',
+  projectId:         'golfyards-16f37',
+  storageBucket:     'golfyards-16f37.firebasestorage.app',
+  messagingSenderId: '172351445870',
+  appId:             '1:172351445870:web:11772be91aeb54d1dfbf7f'
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let pendingFiles = []; // { name, size, source: 'local'|'url', data: File|string }
+let currentTab   = 'local';
+let audioCtx     = null;
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+auth.onAuthStateChanged(user => {
+  const STATUS = document.getElementById('status');
+  const AUTH   = document.getElementById('auth-area');
+  const MAIN   = document.getElementById('main');
+  if (user) {
+    STATUS.textContent = `Signed in as ${user.email}`;
+    document.getElementById('account-email').textContent = user.email;
+    AUTH.style.display = 'none';
+    MAIN.style.display = 'block';
+    loadStats();
+  } else {
+    STATUS.textContent = 'Not signed in.';
+    AUTH.style.display = 'block';
+    MAIN.style.display = 'none';
+  }
+});
+
+function doSignIn() {
+  const e = document.getElementById('email-inp').value.trim();
+  const p = document.getElementById('pw-inp').value;
+  if (!e || !p) { setStatus('Enter email and password.'); return; }
+  setStatus('Signing in…');
+  auth.signInWithEmailAndPassword(e, p).catch(err => setStatus('Sign-in failed: ' + err.message));
+}
+function doSignOut() { auth.signOut(); }
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const statsEl = document.getElementById('stats-bar');
+  statsEl.innerHTML = '<div style="color:#4b5563;font-size:12px">Loading…</div>';
+  try {
+    const doc = await db.collection('users').doc(uid).collection('data').doc('audioModel').get();
+    const samples = (doc.exists && Array.isArray(doc.data().samples)) ? doc.data().samples : [];
+    const shots    = samples.filter(s => s.club !== 'NOT_SHOT').length;
+    const nonShots = samples.filter(s => s.club === 'NOT_SHOT').length;
+    const clubs    = new Set(samples.filter(s => s.club !== 'NOT_SHOT').map(s => s.club)).size;
+
+    const shotClass  = shots    >= 20 ? '' : shots    >= 5 ? 'warn' : 'bad';
+    const nsClass    = nonShots >= 10 ? '' : nonShots >= 5 ? 'warn' : 'bad';
+    const totalClass = (shots + nonShots) >= 30 ? '' : 'warn';
+
+    statsEl.innerHTML = `
+      <div class="stat-card"><div class="lbl">Total samples</div><div class="val ${totalClass}">${shots + nonShots}</div></div>
+      <div class="stat-card"><div class="lbl">Shot samples</div><div class="val ${shotClass}">${shots}</div></div>
+      <div class="stat-card"><div class="lbl">NOT_SHOT samples</div><div class="val ${nsClass}">${nonShots}</div></div>
+      <div class="stat-card"><div class="lbl">Club types</div><div class="val">${clubs}</div></div>
+      <div class="stat-card"><div class="lbl">Status</div><div class="val ${totalClass}" style="font-size:12px;padding-top:2px">
+        ${shots < 3 ? 'Cold start' : shots < 20 || nonShots < 5 ? 'Building…' : 'Active'}
+      </div></div>`;
+
+    document.getElementById('notshot-warn').style.display = nonShots === 0 ? 'block' : 'none';
+  } catch (e) {
+    statsEl.innerHTML = `<div style="color:#f87171">Failed to load stats: ${e.message}</div>`;
+  }
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function updateFaceVis() {
+  const isNotShot = document.getElementById('club-sel').value === 'NOT_SHOT';
+  document.getElementById('face-field').style.display = isNotShot ? 'none' : '';
+}
+
+function setTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-local').classList.toggle('active', tab === 'local');
+  document.getElementById('tab-urls').classList.toggle('active',  tab === 'urls');
+  document.getElementById('panel-local').style.display = tab === 'local' ? '' : 'none';
+  document.getElementById('panel-urls').style.display  = tab === 'urls'  ? '' : 'none';
+}
+
+// ── File management ───────────────────────────────────────────────────────────
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+function renderFileList() {
+  const el = document.getElementById('file-list');
+  if (!pendingFiles.length) { el.innerHTML = ''; updateBatchCount(); return; }
+  el.innerHTML = pendingFiles.map((f, i) => `
+    <div class="file-item">
+      <span class="fname">${f.name}</span>
+      <span class="fsize">${f.size ? fmtSize(f.size) : 'URL'}</span>
+      <span class="fremove" onclick="removeFile(${i})">✕</span>
+    </div>`).join('');
+  updateBatchCount();
+}
+
+function removeFile(idx) {
+  pendingFiles.splice(idx, 1);
+  renderFileList();
+}
+
+function updateBatchCount() {
+  const total = getFileCount();
+  document.getElementById('batch-count').textContent = total ? `${total} file${total !== 1 ? 's' : ''} queued` : '';
+}
+
+function getFileCount() {
+  if (currentTab === 'local') return pendingFiles.length;
+  return document.getElementById('url-inp').value.trim().split('\n').filter(l => l.trim().startsWith('http')).length;
+}
+
+function handleFileInput(evt) {
+  addFiles([...evt.target.files]);
+  evt.target.value = '';
+}
+
+function handleDrop(evt) {
+  evt.preventDefault();
+  document.getElementById('drop-zone').classList.remove('over');
+  addFiles([...evt.dataTransfer.files].filter(f => f.type.startsWith('audio/') || /\.(wav|mp3|ogg|aac|flac|webm|m4a)$/i.test(f.name)));
+}
+
+function addFiles(files) {
+  files.forEach(f => pendingFiles.push({ name: f.name, size: f.size, source: 'local', data: f }));
+  renderFileList();
+}
+
+// ── Feature extraction ────────────────────────────────────────────────────────
+function computeSpectral(samples, sampleRate) {
+  const N     = 256;
+  const n     = Math.min(N, samples.length);
+  const binHz = sampleRate / N;
+  const hfBin = Math.round(2000 / binHz);
+  const b1    = Math.round(500  / binHz);
+  const b2    = Math.round(1000 / binHz);
+  const b3    = Math.round(2000 / binHz);
+  const b4    = Math.round(4000 / binHz);
+  let wSum = 0, wSum2 = 0, magSum = 0, totalE = 0, hfE = 0;
+  let eB1 = 0, eB2 = 0, eB3 = 0, eB4 = 0, eB5 = 0;
+  let logMagSum = 0, magCount = 0;
+  for (let k = 1; k < N / 2; k++) {
+    let re = 0, im = 0;
+    const coeff = 2 * Math.PI * k / N;
+    for (let t = 0; t < n; t++) { re += samples[t] * Math.cos(coeff * t); im -= samples[t] * Math.sin(coeff * t); }
+    const mag = Math.sqrt(re * re + im * im);
+    const e   = mag * mag;
+    wSum += k * mag; wSum2 += k * k * mag; magSum += mag; totalE += e;
+    if (k >= hfBin) hfE += e;
+    if (k < b1)      eB1 += e;
+    else if (k < b2) eB2 += e;
+    else if (k < b3) eB3 += e;
+    else if (k < b4) eB4 += e;
+    else             eB5 += e;
+    if (mag > 1e-10) { logMagSum += Math.log(mag); magCount++; }
+  }
+  const centroidBin = magSum > 0 ? wSum / magSum : 0;
+  const geoMean     = magCount > 0 ? Math.exp(logMagSum / magCount) : 0;
+  const arithMean   = magCount > 0 ? magSum / magCount : 0;
+  return {
+    centroid:          centroidBin / (N / 2),
+    highFreqRatio:     totalE > 0 ? hfE  / totalE : 0,
+    band1:             totalE > 0 ? eB1  / totalE : 0,
+    band2:             totalE > 0 ? eB2  / totalE : 0,
+    band3:             totalE > 0 ? eB3  / totalE : 0,
+    band4:             totalE > 0 ? eB4  / totalE : 0,
+    band5:             totalE > 0 ? eB5  / totalE : 0,
+    spectralFlatness:  arithMean > 1e-10 ? Math.min(1, geoMean / arithMean) : 0,
+    spectralBandwidth: magSum > 0 ? Math.sqrt(Math.max(0, wSum2 / magSum - centroidBin * centroidBin)) / (N / 2) : 0
+  };
+}
+
+function extractFeatures(audioBuffer) {
+  const sr   = audioBuffer.sampleRate;
+  const data = audioBuffer.getChannelData(0);
+  const len  = data.length;
+  if (len < 256) return null;
+
+  // Find loudest peak
+  let peakIdx = 0, peakVal = 0;
+  for (let i = 0; i < len; i++) {
+    const a = Math.abs(data[i]);
+    if (a > peakVal) { peakVal = a; peakIdx = i; }
+  }
+  if (peakVal < 1e-5) return null; // silence / empty
+
+  // 50ms analysis window centered on peak (matches live AnalyserNode ~46ms buffer)
+  const halfWin = Math.round(sr * 0.025);
+  const s0      = Math.max(0, peakIdx - halfWin);
+  const s1      = Math.min(len, peakIdx + halfWin);
+  const raw     = data.slice(s0, s1);
+  const slice   = Array.from(raw); // plain array for spectral loop
+  const wLen    = slice.length;
+  if (wLen < 32) return null;
+
+  // Baseline RMS: RMS of first 10% of the file (pre-shot silence).
+  // Falls back to 0.005 for clean recordings that start with the shot.
+  const preEnd = Math.min(Math.floor(len * 0.1), Math.max(0, s0 - 1));
+  let baselineRms = 0.005;
+  if (preEnd > 100) {
+    let preSum = 0;
+    for (let i = 0; i < preEnd; i++) preSum += data[i] * data[i];
+    const est = Math.sqrt(preSum / preEnd);
+    if (est > 0.0001) baselineRms = est;
+  }
+
+  // Temporal features
+  let peak = 0, rmsSum = 0;
+  for (let i = 0; i < wLen; i++) {
+    const a = Math.abs(raw[i]);
+    if (a > peak) peak = a;
+    rmsSum += raw[i] * raw[i];
+  }
+  const rms = Math.sqrt(rmsSum / wLen);
+
+  let zcr = 0;
+  for (let i = 1; i < wLen; i++) if (raw[i] * raw[i-1] < 0) zcr++;
+  zcr /= wLen;
+
+  let mean = 0;
+  for (let i = 0; i < wLen; i++) mean += raw[i];
+  mean /= wLen;
+  let m2 = 0, m4 = 0;
+  for (let i = 0; i < wLen; i++) { const d = raw[i]-mean; m2 += d*d; m4 += d*d*d*d; }
+  const variance = m2 / wLen;
+  const kurtosis = variance > 1e-12 ? (m4/wLen)/(variance*variance) : 0;
+
+  let attackIdx = 0;
+  for (let i = 0; i < wLen; i++) { if (Math.abs(raw[i]) >= peak*0.9) { attackIdx = i; break; } }
+  const attack = attackIdx / wLen;
+
+  let impDur = 0;
+  for (let i = 0; i < wLen; i++) if (Math.abs(raw[i]) >= peak*0.1) impDur++;
+  const impactDuration = impDur / wLen;
+
+  const half = Math.floor(wLen / 2);
+  let e1 = 0, e2 = 0;
+  for (let i = 0; i < half; i++) e1 += raw[i]*raw[i];
+  for (let i = half; i < wLen; i++) e2 += raw[i]*raw[i];
+  const eTot = e1+e2;
+  const decayRate = eTot > 1e-12 ? e1/eTot : 0.5;
+
+  const sp = computeSpectral(slice, sr);
+
+  return {
+    snr:              peak / Math.max(baselineRms, 0.001),
+    impulsiveness:    peak > 0 ? rms/peak : 0,
+    zcr,
+    centroid:         sp.centroid,
+    attack,
+    kurtosis,
+    highFreqRatio:    sp.highFreqRatio,
+    impactDuration,
+    decayRate,
+    band1:            sp.band1,
+    band2:            sp.band2,
+    band3:            sp.band3,
+    band4:            sp.band4,
+    band5:            sp.band5,
+    spectralFlatness: sp.spectralFlatness,
+    spectralBandwidth:sp.spectralBandwidth
+  };
+}
+
+// ── Decode helpers ────────────────────────────────────────────────────────────
+function getAudioCtx() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+async function decodeArrayBuffer(buf) {
+  const ctx = getAudioCtx();
+  return new Promise((res, rej) => ctx.decodeAudioData(buf.slice(0), res, rej));
+}
+
+async function fetchUrl(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.arrayBuffer();
+}
+
+// ── Save to Firestore ─────────────────────────────────────────────────────────
+async function appendSamples(newSamples) {
+  const uid = auth.currentUser.uid;
+  const ref = db.collection('users').doc(uid).collection('data').doc('audioModel');
+  const doc = await ref.get();
+  const existing = (doc.exists && Array.isArray(doc.data().samples)) ? doc.data().samples : [];
+  await ref.set({ samples: [...existing, ...newSamples] });
+}
+
+// ── Main import ───────────────────────────────────────────────────────────────
+async function runImport() {
+  if (!auth.currentUser) { setStatus('Not signed in.'); return; }
+
+  const club    = document.getElementById('club-sel').value;
+  const face    = document.getElementById('face-sel').value;
+  const isShot  = club !== 'NOT_SHOT';
+  const label   = isShot ? `${club} / ${face}` : 'NOT_SHOT';
+
+  // Collect items to process
+  let items = []; // { name, getBuffer: async () => ArrayBuffer }
+  if (currentTab === 'local') {
+    if (!pendingFiles.length) { setStatus('No files selected.'); return; }
+    items = pendingFiles.map(f => ({
+      name: f.name,
+      getBuffer: () => f.data.arrayBuffer()
+    }));
+  } else {
+    const lines = document.getElementById('url-inp').value.trim().split('\n')
+      .map(l => l.trim()).filter(l => l.startsWith('http'));
+    if (!lines.length) { setStatus('No URLs entered.'); return; }
+    items = lines.map(url => ({
+      name: url.split('/').pop() || url,
+      getBuffer: () => fetchUrl(url)
+    }));
+  }
+
+  // UI
+  const btn     = document.getElementById('import-btn');
+  const progArea= document.getElementById('progress-area');
+  const progBar = document.getElementById('progress-bar');
+  const progTxt = document.getElementById('progress-text');
+  const logEl   = document.getElementById('progress-log');
+  btn.disabled  = true;
+  progArea.style.display = 'block';
+  logEl.innerHTML = '';
+  const logLine = (cls, msg) => {
+    logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  logLine('log-info', `Starting import: ${items.length} file(s) → ${label}`);
+
+  const collected = [];
+  let ok = 0, fail = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    progBar.style.width = `${Math.round((i / items.length) * 100)}%`;
+    progTxt.textContent  = `Processing ${i+1} / ${items.length}: ${item.name}`;
+
+    try {
+      const buf     = await item.getBuffer();
+      const decoded = await decodeArrayBuffer(buf);
+      const feats   = extractFeatures(decoded);
+
+      if (!feats) {
+        logLine('log-warn', `⚠ ${item.name} — could not extract features (silent or too short?)`);
+        fail++;
+        continue;
+      }
+
+      const sample = {
+        ...feats,
+        club:          isShot ? club : 'NOT_SHOT',
+        faceLocation:  isShot ? face : '',
+        source:        'import',
+        ts:            Date.now()
+      };
+      collected.push(sample);
+      const snrStr = feats.snr.toFixed(1);
+      const centStr = feats.centroid.toFixed(3);
+      logLine('log-ok', `✓ ${item.name} — snr=${snrStr}  centroid=${centStr}  kurtosis=${feats.kurtosis.toFixed(1)}`);
+      ok++;
+    } catch (e) {
+      logLine('log-err', `✗ ${item.name} — ${e.message}`);
+      fail++;
+    }
+
+    // Yield to browser every 5 files so UI stays responsive
+    if (i % 5 === 4) await new Promise(r => setTimeout(r, 10));
+  }
+
+  progBar.style.width  = '100%';
+  progTxt.textContent  = `Done. ${ok} imported, ${fail} failed.`;
+
+  if (collected.length) {
+    logLine('log-info', `Saving ${collected.length} sample(s) to Firestore…`);
+    try {
+      await appendSamples(collected);
+      logLine('log-ok', `✔ Saved. Refreshing stats…`);
+      setStatus(`Imported ${collected.length} sample(s) as ${label}.`);
+    } catch (e) {
+      logLine('log-err', `✗ Firestore write failed: ${e.message}`);
+    }
+    // Clear local files queue after successful import
+    if (currentTab === 'local') { pendingFiles = []; renderFileList(); }
+    await loadStats();
+  } else {
+    logLine('log-warn', 'No samples collected — nothing saved.');
+  }
+
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
