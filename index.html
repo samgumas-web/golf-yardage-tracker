@@ -3949,16 +3949,26 @@ async function fbLoadAudioPool() {
     const samples = [];
     snap.forEach(doc => {
       const d = doc.data();
-      const snr           = d.snr           !== undefined ? d.snr           : (d.peak || 0) / 0.01;
-      const impulsiveness = d.impulsiveness !== undefined ? d.impulsiveness : (d.peak > 0 ? (d.rms||0)/d.peak : 0.5);
       samples.push({
-        snr, impulsiveness,
-        zcr:         d.zcr         || 0,
-        centroid:    d.centroid    || 0,
-        attack:      d.attack      || 0,
-        club:        d.club        || (d.type==='SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
-        faceLocation:d.faceLocation|| '',
-        location:    d.location    || 'ground'
+        snr:              d.snr           !== undefined ? d.snr           : (d.peak || 0) / 0.01,
+        impulsiveness:    d.impulsiveness !== undefined ? d.impulsiveness : (d.peak > 0 ? (d.rms||0)/d.peak : 0.5),
+        zcr:              d.zcr              || 0,
+        centroid:         d.centroid         || 0,
+        attack:           d.attack           || 0,
+        kurtosis:         d.kurtosis         || 0,
+        highFreqRatio:    d.highFreqRatio    || 0,
+        impactDuration:   d.impactDuration   || 0,
+        decayRate:        d.decayRate        || 0,
+        band1:            d.band1            || 0,
+        band2:            d.band2            || 0,
+        band3:            d.band3            || 0,
+        band4:            d.band4            || 0,
+        band5:            d.band5            || 0,
+        spectralFlatness: d.spectralFlatness || 0,
+        spectralBandwidth:d.spectralBandwidth|| 0,
+        club:             d.club        || (d.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+        faceLocation:     d.faceLocation || '',
+        location:         d.location     || 'ground'
       });
     });
     auPoolData = { samples };
