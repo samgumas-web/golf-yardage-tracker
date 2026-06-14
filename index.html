@@ -3948,8 +3948,10 @@ function auDrawEkg() {
   ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke();
 
-  // Trigger threshold line — bright amber (matches AU_TRIGGER_RATIO used in detection)
-  const trigY = toY(auBaselineRms * AU_TRIGGER_RATIO);
+  // Trigger threshold line — shows the actual dynamic threshold used for detection
+  const ekgThresh = (auRmsTotalCount >= 200 && auPercentile90 > 0)
+    ? Math.max(auPercentile90, 0.008) : auBaselineRms * AU_TRIGGER_RATIO;
+  const trigY = toY(ekgThresh);
   ctx.strokeStyle = '#d97706';
   ctx.setLineDash([3, 5]);
   ctx.beginPath(); ctx.moveTo(0, trigY); ctx.lineTo(W, trigY); ctx.stroke();
