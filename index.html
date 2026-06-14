@@ -3635,6 +3635,9 @@ function auLoop() {
   const rms = Math.sqrt(sumSq / n);
   auEnvRms[auEnvIdx % AU_ENV_N] = rms;
   auEnvIdx++;
+  // Feed session histogram for percentile-based thresholding
+  auRmsHistogram[Math.min(AU_HIST_BUCKETS - 1, Math.floor(rms * AU_HIST_BUCKETS))]++;
+  auRmsTotalCount++;
   // Update baseline only during quiet periods and only outside training mode.
   // In training mode the baseline must stay fixed — continuous video audio would otherwise
   // raise it until nothing ever exceeds the threshold again.
