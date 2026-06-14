@@ -7037,7 +7037,15 @@ function rRefreshDist() {
 }
 
 function rManualLog() {
-  if (!rMode) return;
+  if (!rMode) {
+    // Auto-start a lightweight session for manual logging (no motion listener needed)
+    rMode = true;
+    rPhase = 'armed';
+    rSessionShots = [];
+    renderRangeTab();
+    document.getElementById('range-inactive-ui').style.display = 'none';
+    document.getElementById('range-active-ui').style.display = '';
+  }
   rIsManual = true;
   rPendingFeatures = null;
   rSwingConfirmed = true;
