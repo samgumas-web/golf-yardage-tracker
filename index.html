@@ -4170,12 +4170,14 @@ async function fbLoadAudioPool() {
         spectralBandwidth:d.spectralBandwidth|| 0,
         club:             d.club        || (d.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
         faceLocation:     d.faceLocation || '',
-        location:         d.location     || 'ground'
+        location:         d.location     || 'ground',
+        env:              Array.isArray(d.env) ? d.env : null
       });
     });
     auPoolData = { samples };
     computeAudioWeights(samples.filter(s=>s.club!=='NOT_SHOT'), samples.filter(s=>s.club==='NOT_SHOT'));
     buildClubProfiles();
+    auMeanEnvDirty = true; // pool reloaded — rebuild mean envelope from fresh data
     localStorage.setItem(AU_POOL_CACHE_KEY, JSON.stringify({ samples, ts: Date.now() }));
   } catch (e) { console.warn('fbLoadAudioPool:', e); }
 }
