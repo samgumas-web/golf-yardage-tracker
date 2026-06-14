@@ -4102,6 +4102,7 @@ function fbAudioSample(features, type) {
     spectralBandwidth:parseFloat((features.spectralBandwidth||0).toFixed(4)),
     ts: Date.now()
   };
+  if (Array.isArray(features.env)) doc.env = features.env.map(v => parseFloat(v.toFixed(4)));
   if (features.audioData) { doc.audioData = features.audioData; doc.audioMime = features.audioMime || 'audio/webm'; }
   fbDb.collection('trainingPool').doc('audioTraining')
     .collection('golfClubAudio').doc(clubId)
