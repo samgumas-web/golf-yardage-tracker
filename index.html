@@ -7451,13 +7451,17 @@ function auOpenTraining() {
     auStartListening().catch(() => {});
     if (!wasEnabled) auEnabled = false; // restore; mic stays active until modal closes
   }
-  // Start EKG canvas animation
-  const ekgEl = document.getElementById('au-ekg');
-  if (ekgEl) {
-    ekgEl.width = ekgEl.offsetWidth || 400;
-    if (auEkgAnimId) cancelAnimationFrame(auEkgAnimId);
+  // Start EKG canvas animation — defer one rAF so layout/CSS has settled and offsetWidth is valid
+  if (auEkgAnimId) cancelAnimationFrame(auEkgAnimId);
+  requestAnimationFrame(() => {
+    const ekgEl = document.getElementById('au-ekg');
+    if (ekgEl) {
+      const dw = ekgEl.offsetWidth;
+      if (dw > 0) ekgEl.width = dw;
+      else ekgEl.width = 400;
+    }
     auEkgFrame();
-  }
+  });
 }
 
 function auCloseTraining() {
