@@ -7894,7 +7894,7 @@ function auSpliceConfirmShot() {
     // Fallback: no decoded audio — save using the features computed at trigger time
     if (!auPending) { toast('No sound features available'); return; }
     if (!auSelectedClub) { toast('Select a club first'); return; }
-    const s = { ...auPending, club: auSelectedClub, faceLocation: auSelectedFace || '', location: phoneLocation };
+    const s = { ...auPending, club: auSelectedClub, faceLocation: auSelectedFace || '', location: phoneLocation, ts: Date.now() };
     auLearnData.samples.push(s);
     auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
     auTrainSession.shots++;
