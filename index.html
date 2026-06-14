@@ -3496,6 +3496,7 @@ async function auStartListening() {
     auFreqBuf     = new Float32Array(auAnalyser.frequencyBinCount);
     auActive      = true;
     auBaselineRms = 0.01;
+    auRmsHistogram.fill(0); auRmsTotalCount = 0; auPercentile90 = 0; auPercentileLastTs = 0;
     // Start rolling MediaRecorder buffer for pre-roll audio capture
     try {
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
