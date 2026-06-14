@@ -4169,7 +4169,7 @@ function fbAudioSample(features, type) {
     band5:            parseFloat((features.band5           ||0).toFixed(4)),
     spectralFlatness: parseFloat((features.spectralFlatness||0).toFixed(4)),
     spectralBandwidth:parseFloat((features.spectralBandwidth||0).toFixed(4)),
-    ts: Date.now()
+    ts: features.ts || Date.now()
   };
   if (Array.isArray(features.env)) doc.env = features.env.map(v => parseFloat(v.toFixed(4)));
   if (features.audioData) { doc.audioData = features.audioData; doc.audioMime = features.audioMime || 'audio/webm'; }
