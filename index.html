@@ -3612,8 +3612,19 @@ function auLoop() {
     if (meter) meter.style.width = Math.min(100, rms * 500) + '%';
   }
   const now = Date.now();
-  const trigRatio = auTrainMode ? 3.0 : AU_TRIGGER_RATIO;
-  const trigPeak  = auTrainMode ? 0.04 : AU_MIN_PEAK;
+  // In training mode, use a profile-aware trigger ratio:
+  // • Default: 2.2× (conservative — filters obvious ambient)
+  // • Drops to 1.8× when the current audio frame's high-freq content resembles
+  //   the mean of known shots — so sounds like those shots are more easily caught.
+  let trigRatio = auTrainMode ? 2.2 : AU_TRIGGER_RATIO;
+  if (auTrainMode) {
+    const localShots = auLearnData.samples.filter(s => s.club !== 'NOT_SHOT');
+    if (localShots.length >= 3) {
+      const meanHfr = localShots.reduce((s, e) => s + (e.highFreqRatio || 0), 0) / localShots.length;
+      if (auQuickHfRatio() >= meanHfr * 0.45) trigRatio = 1.8;
+    }
+  }
+  const trigPeak  = auTrainMode ? 0.03 : AU_MIN_PEAK;
   if (rms > auBaselineRms * trigRatio && peak > trigPeak && now - auLastEvent > AU_DEBOUNCE_MS) {
     auLastEvent = now;
     const f     = auBuildFeatures(rms, peak);
