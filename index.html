@@ -3648,6 +3648,17 @@ function auLoop() {
     // Cap at 0.015 so threshold never exceeds ~0.033 RMS even on a loud range.
     auBaselineRms = Math.min(auBaselineRms * 0.999 + rms * 0.001, 0.015);
   }
+  // Recompute 90th-percentile threshold every 2 s once we have ≥5 s of data
+  const now = Date.now();
+  if (auRmsTotalCount >= 200 && now - auPercentileLastTs >= 2000) {
+    auPercentileLastTs = now;
+    const target = Math.floor(0.90 * auRmsTotalCount);
+    let cnt = 0;
+    for (let i = 0; i < AU_HIST_BUCKETS; i++) {
+      cnt += auRmsHistogram[i];
+      if (cnt >= target) { auPercentile90 = (i + 1) / AU_HIST_BUCKETS; break; }
+    }
+  }
   // Drive training modal level meter
   if (auTrainMode) {
     const meter = document.getElementById('au-train-meter');
