@@ -3819,6 +3819,52 @@ function auOnsetSuddenness() {
   return count;
 }
 
+// Extracts a normalized AU_ENV_W-point envelope from the rolling buffer,
+// centered on the given logical index (auEnvIdx-1 at spike onset).
+// Returns a plain Array so it JSON-serialises correctly for local/Firebase storage.
+function auExtractEnvelope(centerIdx) {
+  const W = AU_ENV_W, half = W >> 1;
+  const env = new Array(W);
+  let maxV = 1e-9;
+  for (let i = 0; i < W; i++) {
+    const slot = ((centerIdx - half + i) % AU_ENV_N + AU_ENV_N) % AU_ENV_N;
+    const v = Math.max(0, auEnvRms[slot]);
+    env[i] = v;
+    if (v > maxV) maxV = v;
+  }
+  return env.map(v => v / maxV);
+}
+
+// Cosine similarity between two envelope arrays (1.0 = identical shape, 0 = orthogonal).
+function auEnvSimilarity(a, b) {
+  const W = Math.min(a.length, b.length);
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < W; i++) { dot += a[i]*b[i]; na += a[i]*a[i]; nb += b[i]*b[i]; }
+  return (na > 0 && nb > 0) ? dot / Math.sqrt(na * nb) : 0;
+}
+
+// Recomputes auMeanShotEnv from all SHOT samples in auLearnData that carry an envelope.
+// Called lazily when auMeanEnvDirty is set (after any new label is saved).
+function auRecomputeMeanEnvelope() {
+  const shots = (auLearnData.samples || []).filter(
+    s => s.club !== 'NOT_SHOT' && Array.isArray(s.env) && s.env.length === AU_ENV_W
+  );
+  if (shots.length < 3) { auMeanShotEnv = null; return; }
+  const mean = new Array(AU_ENV_W).fill(0);
+  shots.forEach(s => { for (let i = 0; i < AU_ENV_W; i++) mean[i] += s.env[i]; });
+  for (let i = 0; i < AU_ENV_W; i++) mean[i] /= shots.length;
+  auMeanShotEnv = mean;
+}
+
+// Returns true if the given envelope matches the learned SHOT profile well enough.
+// Inactive (returns true) when fewer than 3 labeled shot envelopes exist.
+// Only applied in live mode — training mode always passes to collect data.
+function auEnvGatePasses(env) {
+  if (auMeanEnvDirty) { auRecomputeMeanEnvelope(); auMeanEnvDirty = false; }
+  if (!auMeanShotEnv) return true;
+  return auEnvSimilarity(env, auMeanShotEnv) >= 0.50;
+}
+
 // Draws a scrolling EKG-style amplitude trace on the #au-ekg canvas.
 function auDrawEkg() {
   const canvas = document.getElementById('au-ekg');
