@@ -3630,10 +3630,17 @@ function auLoop() {
     const elapsed = auEnvIdx - auSpikePending.tick;
     const curRms  = auEnvRms[(auEnvIdx - 1 + AU_ENV_N * 64) % AU_ENV_N];
     if (elapsed >= 4 && curRms < auSpikePending.rms * 0.52) {
-      // Shape confirmed: sharp spike with fast decay = golf shot
-      const f = auSpikePending.f;
+      // Extract envelope now that post-spike ticks are in the buffer, then attach to features
+      // so the shape is stored alongside spectral features when the user labels the sample.
+      const env = auExtractEnvelope(auSpikePending.tick - 1);
+      const f   = auSpikePending.f;
+      f.env     = env;
       auSpikePending = null;
-      if (!auTrainMode || !auSpliceEditorPending) {
+
+      // EKG gate: live mode checks envelope similarity against the learned SHOT profile.
+      // Training mode always passes — it is collecting the data that builds the profile.
+      const ekgOk = auTrainMode || auEnvGatePasses(env);
+      if (ekgOk && (!auTrainMode || !auSpliceEditorPending)) {
         auLastScore = auScoreAudio(f);
         auPending   = f;
         if (auTrainMode) {
