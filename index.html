@@ -3664,7 +3664,6 @@ function auLoop() {
     const meter = document.getElementById('au-train-meter');
     if (meter) meter.style.width = Math.min(100, rms * 500) + '%';
   }
-  const now = Date.now();
 
   // ── Phase 1: Confirm decay of a previously captured spike ───────────────
   // Golf shots decay to <52% of their peak RMS within ~100–200 ms.
