@@ -8719,6 +8719,14 @@ function startGPSTimeout() {
       </div>
     </div>
 
+    <!-- EKG amplitude history -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">
+        Shot Signature <span style="color:#4b5563;font-size:10px">— green line · amber = trigger threshold · dark green = baseline</span>
+      </div>
+      <canvas id="au-ekg" height="60" style="width:100%;height:60px;border-radius:6px;display:block;border:1px solid var(--border)"></canvas>
+    </div>
+
     <!-- Transient flash -->
     <div id="au-train-flash" style="text-align:center;font-size:13px;font-weight:500;color:var(--muted);min-height:30px;padding:6px;margin-bottom:6px;background:var(--card2);border-radius:8px;border:1px solid var(--border)">
       Listening…
