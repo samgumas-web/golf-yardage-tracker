@@ -3602,9 +3602,9 @@ function auLoop() {
   if (!auTrainMode && rms < auBaselineRms * 2) {
     auBaselineRms = auBaselineRms * 0.995 + rms * 0.005;
   } else if (auTrainMode && rms < auBaselineRms * 2) {
-    // Allow baseline to slowly drift up to actual ambient (never down, capped so shots still trigger).
-    // ~25 seconds to adapt at 40 ticks/sec. Cap at 0.03 so threshold never exceeds ~0.09 RMS.
-    auBaselineRms = Math.min(auBaselineRms * 0.999 + rms * 0.001, 0.03);
+    // Allow baseline to slowly drift up to actual ambient (never down).
+    // Cap at 0.015 so threshold never exceeds ~0.033 RMS even on a loud range.
+    auBaselineRms = Math.min(auBaselineRms * 0.999 + rms * 0.001, 0.015);
   }
   // Drive training modal level meter
   if (auTrainMode) {
