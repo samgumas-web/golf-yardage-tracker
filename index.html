@@ -7351,6 +7351,13 @@ function auOpenTraining() {
     auStartListening().catch(() => {});
     if (!wasEnabled) auEnabled = false; // restore; mic stays active until modal closes
   }
+  // Start EKG canvas animation
+  const ekgEl = document.getElementById('au-ekg');
+  if (ekgEl) {
+    ekgEl.width = ekgEl.offsetWidth || 400;
+    if (auEkgAnimId) cancelAnimationFrame(auEkgAnimId);
+    auEkgFrame();
+  }
 }
 
 function auCloseTraining() {
