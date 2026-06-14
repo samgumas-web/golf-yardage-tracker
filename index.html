@@ -3796,7 +3796,70 @@ function auPassesPhysicsGate(f) {
 function auPassesTrainingGate(f) {
   if ((f.highFreqRatio || 0) < 0.05) return false; // bass-heavy: wind, traffic, cart engines
   if ((f.kurtosis      || 0) < 3.5)  return false; // smooth sustained: conversation, rain, HVAC
+  if (auOnsetSuddenness() >= 5)       return false; // sound was already loud before trigger — sustained noise
   return true;
+}
+
+// Returns how many consecutive ticks immediately before the current one were already above
+// baseline * 1.8 (i.e. already loud). Golf shots are instantaneous — they should have 0–2
+// elevated ticks before the trigger fires. Sustained noise stays elevated for many ticks.
+function auOnsetSuddenness() {
+  const thresh = auBaselineRms * 1.8;
+  let count = 0;
+  for (let i = 1; i <= AU_ENV_N; i++) {
+    const idx = (auEnvIdx - i + AU_ENV_N * 256) % AU_ENV_N;
+    if (auEnvRms[idx] >= thresh) count++;
+    else break;
+  }
+  return count;
+}
+
+// Draws a scrolling EKG-style amplitude trace on the #au-ekg canvas.
+function auDrawEkg() {
+  const canvas = document.getElementById('au-ekg');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // dynamic scale: at least 0.06, or 20% headroom above the max recent sample
+  let maxVal = 0.06;
+  for (let i = 0; i < AU_ENV_N; i++) if (auEnvRms[i] > maxVal) maxVal = auEnvRms[i] * 1.2;
+
+  ctx.fillStyle = '#0a1a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  // dashed baseline line
+  const baseY = H - Math.round((auBaselineRms / maxVal) * H) - 1;
+  ctx.strokeStyle = '#1e3a1e';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke();
+
+  // trigger threshold line (amber)
+  const trigRms = auBaselineRms * 2.0;
+  const trigY   = H - Math.round((trigRms / maxVal) * H) - 1;
+  ctx.strokeStyle = '#78350f';
+  ctx.setLineDash([2, 5]);
+  ctx.beginPath(); ctx.moveTo(0, trigY); ctx.lineTo(W, trigY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // EKG trace — oldest sample on the left, newest on the right
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < AU_ENV_N; i++) {
+    const bufIdx = (auEnvIdx - AU_ENV_N + i + AU_ENV_N * 256) % AU_ENV_N;
+    const val    = auEnvRms[bufIdx];
+    const x      = (i / (AU_ENV_N - 1)) * W;
+    const y      = H - (val / maxVal) * H;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function auEkgFrame() {
+  auDrawEkg();
+  auEkgAnimId = requestAnimationFrame(auEkgFrame);
 }
 
 // Fast high-frequency energy ratio from the live AnalyserNode frequency buffer.
