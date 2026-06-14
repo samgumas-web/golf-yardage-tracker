@@ -3695,8 +3695,8 @@ function auLoop() {
   // Requires: sudden amplitude jump (>3× quiet baseline) that was NOT pre-elevated
   // (i.e. the sound appeared instantaneously, not built up gradually).
   // Features are captured at the peak moment so spectral data is at its richest.
-  const trigPeak = auTrainMode ? 0.02 : AU_MIN_PEAK;
-  if (!auSpikePending && peak > trigPeak && rms > auBaselineRms * 3.0
+  const trigPeak = auTrainMode ? 0.05 : AU_MIN_PEAK;
+  if (!auSpikePending && peak > trigPeak && rms > auBaselineRms * AU_TRIGGER_RATIO
       && now - auLastEvent > AU_DEBOUNCE_MS && auOnsetSuddenness() < 4) {
     auLastEvent = now; // claim debounce slot so a second onset doesn't race
     const f      = auBuildFeatures(rms, peak);
