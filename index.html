@@ -3924,8 +3924,8 @@ function auDrawEkg() {
   ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke();
 
-  // Trigger threshold line — bright amber
-  const trigY = toY(auBaselineRms * 3.0);
+  // Trigger threshold line — bright amber (matches AU_TRIGGER_RATIO used in detection)
+  const trigY = toY(auBaselineRms * AU_TRIGGER_RATIO);
   ctx.strokeStyle = '#d97706';
   ctx.setLineDash([3, 5]);
   ctx.beginPath(); ctx.moveTo(0, trigY); ctx.lineTo(W, trigY); ctx.stroke();
