@@ -8103,7 +8103,7 @@ async function auTrainLabel(yes) {
   const face = yes ? (auSelectedFace || '') : '';
 
   // Save features immediately — no audio blob locally, keeps storage small and fast
-  const sample = { ...f, club, faceLocation: face, location: phoneLocation };
+  const sample = { ...f, club, faceLocation: face, location: phoneLocation, ts: Date.now() };
   auLearnData.samples.push(sample);
   auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
   if (yes) auTrainSession.shots++;
