@@ -1787,6 +1787,12 @@ let auLastEvent    = 0;             // timestamp of last detected audio transien
 let auLastScore    = 0;             // k-NN score of that transient
 let auPending      = null;          // features of last transient (awaiting confirm)
 let auBaselineRms  = 0.01;          // rolling quiet-period RMS floor
+// Percentile-based threshold — adapts to the actual noise floor of your range session
+const AU_HIST_BUCKETS  = 256;
+const auRmsHistogram   = new Uint32Array(AU_HIST_BUCKETS);
+let auRmsTotalCount    = 0;
+let auPercentile90     = 0;
+let auPercentileLastTs = 0;
 let auTimeBuf      = null;          // Float32Array reused each analysis tick
 let auFreqBuf      = null;          // Float32Array for frequency data
 let auLearnData    = { samples: [], poolCount: 0 };
