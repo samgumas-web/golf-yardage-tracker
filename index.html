@@ -4240,7 +4240,8 @@ async function fbLoadAudioPool() {
         club:             d.club        || (d.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
         faceLocation:     d.faceLocation || '',
         location:         d.location     || 'ground',
-        env:              Array.isArray(d.env) ? d.env : null
+        env:              Array.isArray(d.env) ? d.env : null,
+        ts:               d.ts           || 0
       });
     });
     auPoolData = { samples };
