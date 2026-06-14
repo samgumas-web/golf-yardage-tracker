@@ -3788,9 +3788,24 @@ function auPassesPhysicsGate(f) {
 // Lighter gate for training mode — reduces false-positive prompts without risking missed shots.
 // Drops obvious non-shots (wind, engines, sustained speech) but lets edge cases through for labelling.
 function auPassesTrainingGate(f) {
-  if ((f.highFreqRatio || 0) < 0.06) return false; // bass-heavy: wind, traffic, cart engines
-  if ((f.kurtosis      || 0) < 4.0)  return false; // smooth sustained: conversation, rain, HVAC
+  if ((f.highFreqRatio || 0) < 0.05) return false; // bass-heavy: wind, traffic, cart engines
+  if ((f.kurtosis      || 0) < 3.5)  return false; // smooth sustained: conversation, rain, HVAC
   return true;
+}
+
+// Fast high-frequency energy ratio from the live AnalyserNode frequency buffer.
+// Used every tick (40 Hz) in auLoop so must be cheap — reads auFreqBuf directly, no DFT needed.
+function auQuickHfRatio() {
+  if (!auFreqBuf || !auContext) return 0;
+  const fLen  = auFreqBuf.length;
+  const hfBin = Math.round(2000 * fLen * 2 / auContext.sampleRate);
+  let totalE  = 0, hfE = 0;
+  for (let i = 1; i < fLen; i++) {
+    const e = Math.pow(10, auFreqBuf[i] / 10); // dB → linear power
+    totalE += e;
+    if (i >= hfBin) hfE += e;
+  }
+  return totalE > 0 ? hfE / totalE : 0;
 }
 
 function auMergedData() {
