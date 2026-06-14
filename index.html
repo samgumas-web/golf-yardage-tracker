@@ -3774,6 +3774,14 @@ function auPassesPhysicsGate(f) {
   return true;
 }
 
+// Lighter gate for training mode — reduces false-positive prompts without risking missed shots.
+// Drops obvious non-shots (wind, engines, sustained speech) but lets edge cases through for labelling.
+function auPassesTrainingGate(f) {
+  if ((f.highFreqRatio || 0) < 0.06) return false; // bass-heavy: wind, traffic, cart engines
+  if ((f.kurtosis      || 0) < 4.0)  return false; // smooth sustained: conversation, rain, HVAC
+  return true;
+}
+
 function auMergedData() {
   const lShots    = auLearnData.samples.filter(s => s.club !== 'NOT_SHOT');
   const lNonShots = auLearnData.samples.filter(s => s.club === 'NOT_SHOT');
