@@ -4052,6 +4052,7 @@ function computeAudioWeights(shots, nonShots) {
 }
 
 function auSaveLearnData() {
+  auMeanEnvDirty = true; // new sample added — recompute mean envelope on next gate check
   try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
   if (activeProfile && fbDb) {
     fbDb.collection('users').doc(activeProfile.id).collection('data')
