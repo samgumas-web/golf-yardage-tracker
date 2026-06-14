@@ -5443,7 +5443,7 @@ function atLearnSwing(yes) {
     fbPoolTrainingSample(atPendingFeatures, sampleType);
     // Co-train audio: if a transient was captured alongside this motion event, label it too
     if (auEnabled && auPending && Date.now() - auLastEvent < AU_SWING_WINDOW_MS * 2) {
-      const auSample = { ...auPending, club: yes ? 'SHOT_UNKNOWN' : 'NOT_SHOT' };
+      const auSample = { ...auPending, club: yes ? 'SHOT_UNKNOWN' : 'NOT_SHOT', ts: Date.now() };
       auLearnData.samples.push(auSample);
       auLearnData.poolCount = (auLearnData.poolCount || 0) + 1; // individual write below counts as uploaded
       auSaveLearnData();
