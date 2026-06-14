@@ -6578,6 +6578,28 @@ function getClubExpectedDist(name) {
   return 150;
 }
 
+function setRangeTrainMode(mode) {
+  rangeTrainMode = mode;
+  ['swing', 'audio', 'both'].forEach(m => {
+    const btn = document.getElementById('rmode-btn-' + m);
+    if (!btn) return;
+    const selected = m === mode;
+    btn.style.background   = selected ? 'rgba(74,222,128,0.10)' : 'var(--card2)';
+    btn.style.borderColor  = selected ? 'var(--green)'          : 'var(--border)';
+  });
+}
+
+function startRangeTrainSession() {
+  if (rangeTrainMode === 'swing') {
+    if (!autoTrack) toggleAutoTrack();
+  } else if (rangeTrainMode === 'audio') {
+    auOpenTraining();
+  } else if (rangeTrainMode === 'both') {
+    if (!autoTrack) toggleAutoTrack();
+    auOpenTraining();
+  }
+}
+
 function toggleRangeMode() {
   if (rMode) {
     rMode = false;
