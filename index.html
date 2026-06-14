@@ -3566,6 +3566,23 @@ function auCaptureClip() {
   });
 }
 
+// Strips the first audio Cluster from a WebM chunk so the result contains only
+// codec-init data (EBML header + Tracks) with no audio samples.
+// Prepending this header-only blob to any set of later Clusters makes a decodable
+// clip that starts at the pre-roll — not at the very beginning of the session.
+async function auExtractWebmHeader(chunk) {
+  try {
+    const bytes = new Uint8Array(await chunk.arrayBuffer());
+    // WebM Cluster element ID: 1F 43 B6 75
+    for (let i = 4; i < bytes.length - 4; i++) {
+      if (bytes[i]===0x1F && bytes[i+1]===0x43 && bytes[i+2]===0xB6 && bytes[i+3]===0x75) {
+        return new Blob([bytes.subarray(0, i)], { type: chunk.type });
+      }
+    }
+  } catch {}
+  return chunk; // parsing failed — return original (clip may play with brief session-start audio)
+}
+
 // Converts a Blob to a base64 string (without the data: URI prefix)
 function auBlobToBase64(blob) {
   return new Promise((resolve, reject) => {
