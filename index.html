@@ -7828,6 +7828,21 @@ function auMakeRollingBlob() {
   return chunks.length ? new Blob(chunks, { type: auMediaRecorder.mimeType || 'audio/webm' }) : null;
 }
 
+// Manual replay — opens the splice editor on the full rolling buffer when algorithm missed a shot
+function auManualShotReplay() {
+  if (auSpliceEditorPending) return;
+  if (!auSelectedClub) { toast('Select a club first'); return; }
+  if (!auMediaRecorder || !auRollingChunks || !auRollingChunks.length) { toast('No audio captured yet — start listening first'); return; }
+  auSpliceEditorPending = true;
+  const allChunks = [auRecordingHeaderChunk, ...auRollingChunks].filter(Boolean);
+  const blob = new Blob(allChunks, { type: auMediaRecorder.mimeType || 'audio/webm' });
+  auPending = auPending || {};
+  auSplicePendingBlob = blob;
+  auSpliceOpen(blob);
+  const flash = document.getElementById('au-train-flash');
+  if (flash) { flash.textContent = '⚡ Label this sound'; flash.style.color = '#facc15'; }
+}
+
 // SHOT button — opens the splice editor so the user can define regions before confirming
 function auSpliceLabelShot() {
   if (!auPending) { toast('No sound captured yet — wait for the flash'); return; }
