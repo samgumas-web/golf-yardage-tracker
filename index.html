@@ -3671,7 +3671,7 @@ function auLoop() {
   if (auSpikePending) {
     const elapsed = auEnvIdx - auSpikePending.tick;
     const curRms  = auEnvRms[(auEnvIdx - 1 + AU_ENV_N * 64) % AU_ENV_N];
-    if (elapsed >= 4 && curRms < auSpikePending.rms * 0.52) {
+    if (elapsed >= 4 && curRms < auSpikePending.rms * 0.65) {
       // Extract envelope now that post-spike ticks are in the buffer, then attach to features
       // so the shape is stored alongside spectral features when the user labels the sample.
       const env = auExtractEnvelope(auSpikePending.tick - 1);
