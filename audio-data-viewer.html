@@ -165,17 +165,19 @@ async function loadData() {
       </div>`;
       html += `<table>
         <tr>
-          <th>#</th><th>peak</th><th>rms</th><th>zcr</th><th>centroid</th><th>attack</th><th>Timestamp</th>
+          <th>#</th><th>snr</th><th>impulsiveness</th><th>zcr</th><th>centroid</th><th>attack</th><th>kurtosis</th><th>highFreqRatio</th><th>Timestamp</th>
         </tr>`;
       rows.forEach((r, i) => {
         const ts = r.ts ? new Date(r.ts).toLocaleString() : '—';
         html += `<tr>
           <td>${i+1}</td>
-          <td class="num">${fmt(r.peak)}</td>
-          <td class="num">${fmt(r.rms)}</td>
+          <td class="num">${fmt(r.snr)}</td>
+          <td class="num">${fmt(r.impulsiveness)}</td>
           <td class="num">${fmt(r.zcr)}</td>
           <td class="num">${fmt(r.centroid)}</td>
           <td class="num">${fmt(r.attack)}</td>
+          <td class="num">${fmt(r.kurtosis)}</td>
+          <td class="num">${fmt(r.highFreqRatio)}</td>
           <td style="font-size:11px;color:#4b5563">${ts}</td>
         </tr>`;
       });
