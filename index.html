@@ -3600,6 +3600,8 @@ function auLoop() {
     if (av > peak) peak = av;
   }
   const rms = Math.sqrt(sumSq / n);
+  auEnvRms[auEnvIdx % AU_ENV_N] = rms;
+  auEnvIdx++;
   // Update baseline only during quiet periods and only outside training mode.
   // In training mode the baseline must stay fixed — continuous video audio would otherwise
   // raise it until nothing ever exceeds the threshold again.
