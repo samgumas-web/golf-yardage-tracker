@@ -7948,7 +7948,7 @@ function auSpliceLabelNotShot() {
   auSplicePendingBlob = null;
   const f = auPending;
   if (!f) { toast('No sound captured yet'); return; }
-  const s = { ...f, club: 'NOT_SHOT', faceLocation: '', location: phoneLocation };
+  const s = { ...f, club: 'NOT_SHOT', faceLocation: '', location: phoneLocation, ts: Date.now() };
   auLearnData.samples.push(s);
   auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
   auTrainSession.nonShots++;
