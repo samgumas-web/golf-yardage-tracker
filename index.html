@@ -1164,23 +1164,14 @@
         </div>
 
         <button class="btn btn-p" onclick="startRangeTrainSession()" style="font-size:15px;padding:15px">Start Session</button>
-
-        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-          <button onclick="rManualLog()" style="width:100%;padding:13px;font-size:15px;font-weight:800;background:#14532d;border:2px solid #16a34a;color:#4ade80;border-radius:10px;cursor:pointer;font-family:inherit">
-            ⛳ I Hit a Shot
-          </button>
-          <div style="font-size:11px;color:var(--muted);margin-top:6px">Log a shot without starting a training session</div>
-        </div>
       </div>
       <div id="range-active-ui" style="display:none">
-        <button onclick="rManualLog()" style="width:100%;padding:16px;font-size:17px;font-weight:800;background:#14532d;border:2px solid #16a34a;color:#4ade80;border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:12px">
-          ⛳ I Hit a Shot
-        </button>
-        <div class="range-armed-bar" style="margin-bottom:12px;justify-content:center">
+        <div class="range-armed-bar" style="margin-bottom:14px;justify-content:center">
           <div class="dot active"></div>
-          <span style="font-size:13px;font-weight:700;color:var(--text)" id="range-status-lbl">Armed — waiting for swing...</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text)" id="range-status-lbl">Armed — waiting for swing...</span>
         </div>
-        <div style="display:flex;justify-content:center">
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button onclick="rManualLog()" style="background:var(--card2);border:1.5px solid var(--border);color:var(--text);border-radius:20px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log Shot Manually</button>
           <button onclick="toggleRangeMode()" style="background:none;border:1.5px solid var(--red);color:var(--red);border-radius:20px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">End Session</button>
         </div>
       </div>
