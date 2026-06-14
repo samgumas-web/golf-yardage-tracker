@@ -3501,7 +3501,12 @@ async function auStartListening() {
       auRecordingHeaderChunk = null;
       auMediaRecorder.ondataavailable = e => {
         if (!e.data || e.data.size === 0) return;
-        if (!auRecordingHeaderChunk) auRecordingHeaderChunk = e.data; // preserve codec init chunk
+        if (!auRecordingHeaderChunk) {
+          // Store header immediately so clip assembly never blocks, then replace
+          // async with a header-only version (no audio from session start).
+          auRecordingHeaderChunk = e.data;
+          auExtractWebmHeader(e.data).then(h => { auRecordingHeaderChunk = h; });
+        }
         if (auCapturingPost) {
           auPostChunks.push(e.data);
           if (auPostChunks.length >= AU_POST_CHUNKS && auPostResolve) {
