@@ -7476,6 +7476,33 @@ function auComputeSpectralFromSamples(samples, sampleRate) {
   };
 }
 
+// Computes a normalized AU_ENV_W-point amplitude envelope from PCM samples,
+// using the same 25 ms tick resolution as the rolling buffer, peak-centred.
+// Makes imported/splice samples directly comparable to live-capture envelopes.
+function auEnvelopeFromSlice(samples, sampleRate) {
+  const tickN = Math.max(1, Math.round(0.025 * sampleRate));
+  const ticks = Math.ceil(samples.length / tickN);
+  const rmsT  = new Array(ticks);
+  let peakRms = 0, peakTick = 0;
+  for (let t = 0; t < ticks; t++) {
+    const s0 = t * tickN, s1 = Math.min(s0 + tickN, samples.length);
+    let sq = 0;
+    for (let j = s0; j < s1; j++) sq += samples[j] * samples[j];
+    rmsT[t] = Math.sqrt(sq / Math.max(1, s1 - s0));
+    if (rmsT[t] > peakRms) { peakRms = rmsT[t]; peakTick = t; }
+  }
+  const W = AU_ENV_W, half = W >> 1;
+  const env = new Array(W);
+  let maxV = 1e-9;
+  for (let i = 0; i < W; i++) {
+    const t = peakTick - half + i;
+    const v = (t >= 0 && t < ticks) ? rmsT[t] : 0;
+    env[i] = v;
+    if (v > maxV) maxV = v;
+  }
+  return env.map(v => v / maxV);
+}
+
 // Extract the same feature set as auBuildFeatures() but from a decoded AudioBuffer slice
 function auFeaturesFromSlice(audioBuffer, startFrac, endFrac) {
   const sr     = audioBuffer.sampleRate;
