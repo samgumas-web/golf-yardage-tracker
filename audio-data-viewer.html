@@ -122,6 +122,9 @@ async function loadData() {
       return;
     }
 
+    // Sort newest-first so the most recent training data appears at the top of each club group
+    samples.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
     // Group by club
     const byClub = {};
     const totals = { total: 0, shots: 0, notShot: 0, clubs: new Set() };
