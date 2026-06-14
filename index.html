@@ -7918,9 +7918,10 @@ function auSpliceConfirmShot() {
   const shotF  = auFeaturesFromSlice(auSpliceAudioBuffer, auSpliceH1, auSpliceH2);
   const rightF = auFeaturesFromSlice(auSpliceAudioBuffer, auSpliceH2, 1);
 
-  if (leftF)  { const s = { ...leftF,  club: 'NOT_SHOT', faceLocation: '', location: loc }; auLearnData.samples.push(s); fbAudioSample(s, 'NOT_SHOT'); auTrainSession.nonShots++; saved.push('pre'); }
-  if (shotF)  { const s = { ...shotF,  club: auSelectedClub, faceLocation: face, location: loc }; auLearnData.samples.push(s); fbAudioSample(s, 'SHOT'); auTrainSession.shots++; saved.push('shot'); }
-  if (rightF) { const s = { ...rightF, club: 'NOT_SHOT', faceLocation: '', location: loc }; auLearnData.samples.push(s); fbAudioSample(s, 'NOT_SHOT'); auTrainSession.nonShots++; saved.push('post'); }
+  const spliceTs = Date.now();
+  if (leftF)  { const s = { ...leftF,  club: 'NOT_SHOT', faceLocation: '', location: loc, ts: spliceTs }; auLearnData.samples.push(s); fbAudioSample(s, 'NOT_SHOT'); auTrainSession.nonShots++; saved.push('pre'); }
+  if (shotF)  { const s = { ...shotF,  club: auSelectedClub, faceLocation: face, location: loc, ts: spliceTs }; auLearnData.samples.push(s); fbAudioSample(s, 'SHOT'); auTrainSession.shots++; saved.push('shot'); }
+  if (rightF) { const s = { ...rightF, club: 'NOT_SHOT', faceLocation: '', location: loc, ts: spliceTs }; auLearnData.samples.push(s); fbAudioSample(s, 'NOT_SHOT'); auTrainSession.nonShots++; saved.push('post'); }
 
   auLearnData.poolCount = (auLearnData.poolCount || 0) + saved.length;
   auPending = null;
