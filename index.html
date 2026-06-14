@@ -7364,6 +7364,7 @@ function auCloseTraining() {
   const modal = document.getElementById('au-train-modal');
   if (modal) modal.style.display = 'none';
   auTrainMode = false;
+  if (auEkgAnimId) { cancelAnimationFrame(auEkgAnimId); auEkgAnimId = null; }
   auSpliceClose();
   // Stop listening if we started only for training (audio toggle is off)
   if (!auEnabled) auStopListening();
