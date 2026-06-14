@@ -7235,7 +7235,7 @@ function auOpenTraining() {
   if (!modal) return;
   auTrainSession  = { shots: 0, nonShots: 0 };
   auFilteredCount = 0;
-  auBaselineRms   = 0.01; // reset so stale high baseline doesn't suppress triggers
+  if (auBaselineRms > 0.05) auBaselineRms = 0.01; // only reset if stale-high from a previous session
   auTrainMode     = true;
   auSelectedClub  = '';
   modal.style.display = 'block';
