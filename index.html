@@ -3619,58 +3619,60 @@ function auLoop() {
     if (meter) meter.style.width = Math.min(100, rms * 500) + '%';
   }
   const now = Date.now();
-  // In training mode, use a profile-aware trigger ratio:
-  // • Default: 2.2× (conservative — filters obvious ambient)
-  // • Drops to 1.8× when the current audio frame's high-freq content resembles
-  //   the mean of known shots — so sounds like those shots are more easily caught.
-  let trigRatio = auTrainMode ? 2.2 : AU_TRIGGER_RATIO;
-  if (auTrainMode) {
-    const localShots = auLearnData.samples.filter(s => s.club !== 'NOT_SHOT');
-    if (localShots.length >= 3) {
-      const meanHfr = localShots.reduce((s, e) => s + (e.highFreqRatio || 0), 0) / localShots.length;
-      if (auQuickHfRatio() >= meanHfr * 0.45) trigRatio = 1.8;
+
+  // ── Phase 1: Confirm decay of a previously captured spike ───────────────
+  // Golf shots decay to <52% of their peak RMS within ~100–200 ms.
+  // Sustained sounds (wind, applause, HVAC) stay elevated for many ticks.
+  if (auSpikePending) {
+    const elapsed = auEnvIdx - auSpikePending.tick;
+    const curRms  = auEnvRms[(auEnvIdx - 1 + AU_ENV_N * 64) % AU_ENV_N];
+    if (elapsed >= 4 && curRms < auSpikePending.rms * 0.52) {
+      // Shape confirmed: sharp spike with fast decay = golf shot
+      const f = auSpikePending.f;
+      auSpikePending = null;
+      if (!auTrainMode || !auSpliceEditorPending) {
+        auLastScore = auScoreAudio(f);
+        auPending   = f;
+        if (auTrainMode) {
+          const flash = document.getElementById('au-train-flash');
+          if (flash) {
+            const match = auIdentifyClub(f);
+            const hint  = (match && match.count >= 3) ? ` — looks like ${match.club}` : '';
+            flash.textContent = `⚡ Sound captured — label it now!${hint}`;
+            flash.style.color = '#facc15';
+          }
+          auSplicePendingBlob    = null;
+          auSplicePendingResolve = null;
+          auCaptureClip().then(blob => {
+            auSplicePendingBlob = blob;
+            if (auSplicePendingResolve) { const r = auSplicePendingResolve; auSplicePendingResolve = null; r(blob); }
+          });
+        }
+        if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) onAudioShot();
+        if (phoneLocation === 'ground' && auEnabled && autoTrack && auLastScore >= 0.55) {
+          if (Date.now() - lastGroundPlacement < GROUND_GATE_MS) onAudioShot();
+        }
+      }
+    } else if (elapsed >= 24) {
+      auSpikePending = null; // no decay in 600 ms — sustained noise, discard
     }
   }
-  const trigPeak  = auTrainMode ? 0.03 : AU_MIN_PEAK;
-  if (rms > auBaselineRms * trigRatio && peak > trigPeak && now - auLastEvent > AU_DEBOUNCE_MS) {
-    auLastEvent = now;
-    const f     = auBuildFeatures(rms, peak);
 
-    if (!auTrainMode && !auPassesPhysicsGate(f)) return;
-    // Training gate: tighter than live but lets user still label edge cases.
-    // Silently drops obvious non-shots (wind, engines, sustained noise) and increments filtered counter.
-    if (auTrainMode && !auPassesTrainingGate(f)) { auFilteredCount++; return; }
-
-    auLastScore = auScoreAudio(f);
-    auPending   = f;
-    if (auTrainMode) {
-      // Suppress all new triggers from SHOT-tap until editor is closed/confirmed
-      if (auSpliceEditorPending) return;
-      const flash = document.getElementById('au-train-flash');
-      if (flash) {
-        const match = auIdentifyClub(f);
-        const hint  = (match && match.count >= 3) ? ` — looks like ${match.club}` : '';
-        flash.textContent = `⚡ Sound captured — label it now!${hint}`;
-        flash.style.color = '#facc15';
-      }
-      // Capture 1s-before + 3s-after clip silently; editor opens when SHOT is tapped
-      auSplicePendingBlob    = null;
-      auSplicePendingResolve = null;
-      auCaptureClip().then(blob => {
-        auSplicePendingBlob = blob;
-        // If user already tapped SHOT while capture was in progress, open editor now
-        if (auSplicePendingResolve) { const r = auSplicePendingResolve; auSplicePendingResolve = null; r(blob); }
-      });
-    }
-    // Bag mode: audio alone triggers (no placement gate needed)
-    if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) {
-      onAudioShot();
-    }
-    // Ground mode: audio triggers only if phone was recently placed on ground (hard gate)
-    if (phoneLocation === 'ground' && auEnabled && autoTrack && auLastScore >= 0.55) {
-      if (Date.now() - lastGroundPlacement < GROUND_GATE_MS) {
-        onAudioShot();
-      }
+  // ── Phase 2: Detect a new spike onset ───────────────────────────────────
+  // Replaces the old "rms > baseline × fixed ratio" threshold.
+  // Requires: sudden amplitude jump (>3× quiet baseline) that was NOT pre-elevated
+  // (i.e. the sound appeared instantaneously, not built up gradually).
+  // Features are captured at the peak moment so spectral data is at its richest.
+  const trigPeak = auTrainMode ? 0.02 : AU_MIN_PEAK;
+  if (!auSpikePending && peak > trigPeak && rms > auBaselineRms * 3.0
+      && now - auLastEvent > AU_DEBOUNCE_MS && auOnsetSuddenness() < 4) {
+    auLastEvent = now; // claim debounce slot so a second onset doesn't race
+    const f      = auBuildFeatures(rms, peak);
+    const passes = auTrainMode ? auPassesTrainingGate(f) : auPassesPhysicsGate(f);
+    if (passes) {
+      auSpikePending = { f, rms, tick: auEnvIdx };
+    } else if (auTrainMode) {
+      auFilteredCount++;
     }
   }
 }
