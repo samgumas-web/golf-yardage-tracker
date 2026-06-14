@@ -3901,6 +3901,22 @@ function auDrawEkg() {
   ctx.beginPath(); ctx.moveTo(0, trigY); ctx.lineTo(W, trigY); ctx.stroke();
   ctx.setLineDash([]);
 
+  // Learned SHOT envelope reference — faint amber ghost in the right portion of the canvas.
+  // Shows what the algorithm expects a golf shot to look like based on training data.
+  if (auMeanShotEnv && auMeanShotEnv.length === AU_ENV_W) {
+    ctx.strokeStyle = 'rgba(251,191,36,0.35)';
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    const EW = AU_ENV_W;
+    for (let i = 0; i < EW; i++) {
+      const x = ((AU_ENV_N - EW + i) / (AU_ENV_N - 1)) * W;
+      const y = H - auMeanShotEnv[i] * H * 0.85; // normalized 0–1, scale to 85 % height
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
   // EKG trace — oldest sample on the left, newest on the right
   ctx.strokeStyle = '#4ade80';
   ctx.lineWidth   = 1.5;
