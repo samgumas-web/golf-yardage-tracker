@@ -1854,6 +1854,7 @@ let auSplicePendingResolve = null;   // callback set when user taps SHOT before 
 let auSpliceEditorPending  = false;  // true from SHOT-tap until editor closes — blocks all new triggers
 let auRecordingHeaderChunk = null;   // first MediaRecorder chunk — contains WebM codec init, must prepend every blob
 let auFilteredCount  = 0;           // background sounds auto-filtered this session
+let auSpikePending   = null;        // {f, rms, tick} captured at spike onset — confirmed when decay seen
 const AU_ENV_N  = 64;              // ~1.6 s of amplitude history at 40 Hz
 let auEnvRms    = new Float32Array(AU_ENV_N);
 let auEnvIdx    = 0;
