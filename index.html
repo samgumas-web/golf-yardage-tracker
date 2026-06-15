@@ -7996,21 +7996,35 @@ function auSaveTrainingAndClose() {
 
 async function auForceSyncToFirebase() {
   if (!fbDb || !activeProfile) { toast('Sign in first'); return; }
-  const total = (auLearnData.samples || []).length;
+  const samples = auLearnData.samples || [];
+  const total = samples.length;
   if (!total) { toast('No local samples found'); return; }
+
+  // poolCount = how many samples were already sent to the shared pool collection.
+  // We trust this as the boundary: samples before it are already in the pool,
+  // samples after it are new and safe to upload without duplicating.
+  const alreadyInPool = auLearnData.poolCount || 0;
+  const newForPool    = Math.max(0, total - alreadyInPool);
+
   toast(`Syncing ${total} samples to Firebase…`);
   try {
-    // Write the full model document — this is what the data viewer reads
+    // audioModel uses .set() — full document replace, never duplicates.
+    // The viewer reads this document, so fixing it is the most important step.
     await fbDb.collection('users').doc(activeProfile.id).collection('data')
       .doc('audioModel').set(auLearnData);
-    // Re-upload any samples that never made it to the shared pool
-    const unuploaded = auLearnData.samples.slice(auLearnData.poolCount || 0);
-    for (const s of unuploaded) {
-      fbAudioSample(s, s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT');
+
+    // Only send to the shared pool the samples that weren't counted as uploaded yet.
+    // Samples before alreadyInPool are already in the pool — skip them entirely.
+    if (newForPool > 0) {
+      const toUpload = samples.slice(alreadyInPool);
+      for (const s of toUpload) {
+        fbAudioSample(s, s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT');
+      }
+      auLearnData.poolCount = total;
+      try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
     }
-    auLearnData.poolCount = total;
-    try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
-    toast(`✓ ${total} samples synced to Firebase`);
+
+    toast(`✓ ${total} samples in Firebase${newForPool ? ` (${newForPool} new added to pool)` : ''}`);
   } catch (e) {
     toast('Sync failed: ' + e.message);
     console.error('auForceSyncToFirebase:', e);
