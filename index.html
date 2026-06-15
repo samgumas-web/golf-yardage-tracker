@@ -3672,6 +3672,16 @@ function auLoop() {
     const elapsed = auEnvIdx - auSpikePending.tick;
     const curRms  = auEnvRms[(auEnvIdx - 1 + AU_ENV_N * 64) % AU_ENV_N];
     if (elapsed >= 4 && curRms < auSpikePending.rms * 0.65) {
+      // Dominance check: the spike must be the peak event in the rolling amplitude buffer.
+      // In ground mode the phone is centimetres from impact — the club strike is almost always
+      // the single loudest sound in the window, so we enforce a strict 85% dominance ratio.
+      // Bag/pocket modes are looser (65%) since the phone is farther from impact.
+      let bufMax = 0;
+      for (let i = 0; i < AU_ENV_N; i++) bufMax = Math.max(bufMax, auEnvRms[i]);
+      const domRatio = phoneLocation === 'ground' ? 0.85 : 0.65;
+      if (auSpikePending.rms < bufMax * domRatio) {
+        auSpikePending = null; // a louder event exists in the window — not the dominant peak
+      } else {
       // Extract envelope now that post-spike ticks are in the buffer, then attach to features
       // so the shape is stored alongside spectral features when the user labels the sample.
       const env = auExtractEnvelope(auSpikePending.tick - 1);
