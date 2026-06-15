@@ -3715,6 +3715,7 @@ function auLoop() {
           if (Date.now() - lastGroundPlacement < GROUND_GATE_MS) onAudioShot();
         }
       }
+      } // end dominance-check else
     } else if (elapsed >= 32) {
       auSpikePending = null; // no decay in 800 ms — sustained noise, discard
     }
