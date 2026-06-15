@@ -101,7 +101,7 @@ async function loadData() {
   const uid = auth.currentUser.uid;
   try {
     // Read user's own saved audio model (always readable, same path as the app)
-    const doc = await db.collection('users').doc(uid).collection('data').doc('audioModel').get();
+    const doc = await db.collection('users').doc(uid).collection('data').doc('audioModel').get({ source: 'server' });
     const raw = doc.exists ? doc.data() : null;
 
     // Normalise to new samples[] format (migrate legacy shots/nonShots if needed)
