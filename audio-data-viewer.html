@@ -218,7 +218,9 @@ async function loadData() {
       html += `</table>`;
     }
     outputEl.innerHTML = html;
-    STATUS.textContent = `Loaded ${totals.total} samples — ${clubCount} club categories`;
+    const poolOnly = samples.filter(s => s._src === 'pool').length;
+    STATUS.textContent = `Loaded ${totals.total} samples — ${clubCount} club categories` +
+      (poolOnly ? ` (${poolOnly} from pool only — not in audioModel)` : '');
   } catch (e) {
     STATUS.textContent = 'Error: ' + e.message;
     console.error(e);
