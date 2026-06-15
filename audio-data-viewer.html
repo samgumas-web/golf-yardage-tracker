@@ -100,11 +100,11 @@ async function loadData() {
 
   const uid = auth.currentUser.uid;
   try {
-    // Read user's own saved audio model (always readable, same path as the app)
+    // Source 1: user's personal audioModel document
+    STATUS.textContent = 'Reading audioModel…';
     const doc = await db.collection('users').doc(uid).collection('data').doc('audioModel').get({ source: 'server' });
     const raw = doc.exists ? doc.data() : null;
 
-    // Normalise to new samples[] format (migrate legacy shots/nonShots if needed)
     let samples = [];
     if (raw && Array.isArray(raw.samples)) {
       samples = raw.samples;
@@ -113,6 +113,39 @@ async function loadData() {
         ...(raw.shots    || []).map(s => ({ ...s, club: 'SHOT_UNKNOWN' })),
         ...(raw.nonShots || []).map(s => ({ ...s, club: 'NOT_SHOT' }))
       ];
+    }
+
+    // Source 2: shared training pool filtered to this user's uid.
+    // Catches samples that were uploaded to the pool but not saved to audioModel
+    // (e.g. if auSaveLearnData() failed silently on the device).
+    STATUS.textContent = 'Reading training pool…';
+    try {
+      const poolSnap = await db.collectionGroup('audioClips')
+        .where('uid', '==', uid)
+        .limit(500)
+        .get({ source: 'server' });
+      const modelTsSet = new Set(samples.map(s => s.ts).filter(Boolean));
+      poolSnap.forEach(d => {
+        const p = d.data();
+        // Skip if already represented in audioModel (dedup by timestamp)
+        if (p.ts && modelTsSet.has(p.ts)) return;
+        samples.push({
+          snr:              p.snr              || 0,
+          impulsiveness:    p.impulsiveness    || 0,
+          zcr:              p.zcr              || 0,
+          centroid:         p.centroid         || 0,
+          attack:           p.attack           || 0,
+          kurtosis:         p.kurtosis         || 0,
+          highFreqRatio:    p.highFreqRatio    || 0,
+          club:             p.club || (p.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+          faceLocation:     p.faceLocation     || '',
+          location:         p.location         || 'ground',
+          ts:               p.ts               || 0,
+          _src: 'pool'
+        });
+      });
+    } catch (poolErr) {
+      console.warn('Pool query failed (index may be missing):', poolErr);
     }
 
     if (!samples.length) {
