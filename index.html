@@ -7994,6 +7994,29 @@ function auSaveTrainingAndClose() {
   auCloseTraining();
 }
 
+async function auForceSyncToFirebase() {
+  if (!fbDb || !activeProfile) { toast('Sign in first'); return; }
+  const total = (auLearnData.samples || []).length;
+  if (!total) { toast('No local samples found'); return; }
+  toast(`Syncing ${total} samples to Firebase…`);
+  try {
+    // Write the full model document — this is what the data viewer reads
+    await fbDb.collection('users').doc(activeProfile.id).collection('data')
+      .doc('audioModel').set(auLearnData);
+    // Re-upload any samples that never made it to the shared pool
+    const unuploaded = auLearnData.samples.slice(auLearnData.poolCount || 0);
+    for (const s of unuploaded) {
+      fbAudioSample(s, s.club === 'NOT_SHOT' ? 'NOT_SHOT' : 'SHOT');
+    }
+    auLearnData.poolCount = total;
+    try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
+    toast(`✓ ${total} samples synced to Firebase`);
+  } catch (e) {
+    toast('Sync failed: ' + e.message);
+    console.error('auForceSyncToFirebase:', e);
+  }
+}
+
 function auOpenDataViewer() {
   const modal = document.getElementById('au-data-modal');
   if (!modal) return;
