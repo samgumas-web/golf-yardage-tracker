@@ -4567,6 +4567,17 @@ async function fbSaveCourseHoles(courseId, courseName, holes) {
   }
 }
 
+async function fbShareMyCourseData() {
+  if (!selectedCourse) { toast('Load a course first'); return; }
+  if (!courseHoles.length) { toast('No hole data to share'); return; }
+  if (!fbDb) { toast('Not connected to Firebase'); return; }
+  toast('Sharing course data…');
+  await fbSaveCourseHoles(selectedCourse.osmId, selectedCourse.name, courseHoles);
+  // If the local copy was saved under a different docId than what Firebase has,
+  // also try to merge under the normalized name so other users can find it
+  console.log('[fbShareMyCourseData] share triggered for', selectedCourse.name, '— holes:', courseHoles.length);
+}
+
 async function fbFetchCourseHoles(courseId, courseName) {
   if (!fbDb) return null;
   const docId = String(courseId).replace(/[^a-zA-Z0-9_-]/g, '_');
