@@ -4818,8 +4818,11 @@ async function fbSaveCourseHoles(courseId, courseName, holes) {
       .set(payload).catch(e => console.warn('fbSaveCourseHoles (user):', e));
   }
 
-  // Save to shared community pool with hole-level merge so no contributor's data is ever overwritten.
-  // Rule: a hole with tee+green beats tee-only; otherwise the incoming data wins.
+  // Save to shared community pool. Merge rule (revised): the SUBMITTER WINS for
+  // any hole they have data for. Existing community data is only preserved for
+  // holes the submitter has no data for. This stops stale/wrong data from a
+  // previous contributor sticking around forever — the most recent person to
+  // actively share is treated as the authority for what they share.
   try {
     const ref  = fbDb.collection('courses').doc(docId);
     const snap = await ref.get();
@@ -4833,14 +4836,13 @@ async function fbSaveCourseHoles(courseId, courseName, holes) {
       const holeMap = {};
       (prev.holes || []).forEach(h => { holeMap[h.number] = h; });
       holes.forEach(h => {
-        const existing = holeMap[h.number];
-        const newHasGreen  = h.green        && h.green.lat;
-        const prevHasGreen = existing && existing.green && existing.green.lat;
-        // Only overwrite if new data is richer OR hole didn't exist before
-        if (!existing || (newHasGreen && !prevHasGreen) || (!prevHasGreen && !newHasGreen)) {
+        const newHasTee   = h.lat   && h.lng;
+        const newHasGreen = h.green && h.green.lat;
+        if (newHasTee || newHasGreen) {
+          // Submitter has data — they win
           holeMap[h.number] = h;
         }
-        // If existing already has green and new doesn't, keep existing
+        // If new submission is empty for this hole, keep whatever existed before
       });
       finalHoles = Object.values(holeMap).sort((a, b) => a.number - b.number);
     }
