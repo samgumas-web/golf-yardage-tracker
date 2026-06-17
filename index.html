@@ -3763,7 +3763,10 @@ function auLoop() {
         }
         if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) onAudioShot();
         if (phoneLocation === 'ground' && auEnabled && autoTrack && auLastScore >= 0.55) {
-          if (Date.now() - lastGroundPlacement < GROUND_GATE_MS) onAudioShot();
+          if (Date.now() - lastGroundPlacement < GROUND_GATE_MS) {
+            if (selectedCourse && gpsPos && !auTrainMode) _captureOnCourseAudio();
+            onAudioShot();
+          }
         }
       }
       } // end dominance-check else
