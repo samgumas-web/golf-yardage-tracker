@@ -9506,6 +9506,17 @@ function startGPSTimeout() {
       3. Tap <b style="color:#4ade80">SHOT</b> for ball strikes, <b style="color:#f87171">NOT SHOT</b> for everything else.
     </div>
 
+    <!-- On-course missed-shot review queue -->
+    <div id="au-review-wrap" style="display:none;margin-bottom:14px;background:#0a1a0a;border:1.5px solid #d97706;border-radius:10px;padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:14px;font-weight:700;color:#fbbf24">🎯 Pending On-Course Reviews</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:10px">
+        These are loudest sounds captured when you tapped "I just shot" on the course but the algorithm hadn't detected a shot. Play each clip and confirm whether it was actually a shot.
+      </div>
+      <div id="au-review-list"></div>
+    </div>
+
     <!-- Level meter -->
     <div style="margin-bottom:10px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Audio Level</div>
