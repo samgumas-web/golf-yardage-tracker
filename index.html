@@ -4561,7 +4561,8 @@ async function fbSaveCourseHoles(courseId, courseName, holes) {
       updatedAt:        new Date().toISOString()
     });
   } catch (e) {
-    console.warn('fbSaveCourseHoles (shared pool):', e);
+    console.error('fbSaveCourseHoles (shared pool):', e.code, e.message);
+    toast('Community course save failed: ' + (e.code || e.message));
   }
 }
 
