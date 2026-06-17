@@ -4586,14 +4586,13 @@ async function fbFetchCourseHoles(courseId, courseName) {
   // 1. Exact docId match against the community pool
   try {
     const doc = await fbDb.collection('courses').doc(docId).get({ source: 'server' });
-    console.log('[fbFetchCourseHoles] exact match — exists:', doc.exists, 'holes:', doc.exists ? (doc.data().holes||[]).length : 0);
-    if (doc.exists && doc.data().holes && doc.data().holes.length) return doc.data();
+    console.log('[fbFetchCourseHoles] community exact — exists:', doc.exists, 'holes:', doc.exists ? (doc.data().holes||[]).length : 0);
+    if (doc.exists && doc.data().holes && doc.data().holes.length) return { ...doc.data(), _src: 'community' };
   } catch(e) {
-    console.error('[fbFetchCourseHoles] exact read FAILED:', e.code, e.message);
+    console.error('[fbFetchCourseHoles] community exact FAILED:', e.code, e.message);
   }
 
   // 2. Name-based fallback — handles preset_ vs numeric OSM ID mismatch
-  //    (one account loaded the course via preset list, another via OSM search)
   if (courseName) {
     try {
       const snap = await fbDb.collection('courses')
@@ -4602,22 +4601,22 @@ async function fbFetchCourseHoles(courseId, courseName) {
         .get({ source: 'server' });
       if (!snap.empty) {
         const d = snap.docs[0].data();
-        console.log('[fbFetchCourseHoles] name fallback hit — docId in FB:', snap.docs[0].id, 'holes:', (d.holes||[]).length);
-        if (d.holes && d.holes.length) return d;
+        console.log('[fbFetchCourseHoles] community name fallback — docId:', snap.docs[0].id, 'holes:', (d.holes||[]).length);
+        if (d.holes && d.holes.length) return { ...d, _src: 'community' };
       } else {
-        console.log('[fbFetchCourseHoles] name fallback — no match for:', courseName);
+        console.log('[fbFetchCourseHoles] community name fallback — no match for:', courseName);
       }
     } catch(e) {
-      console.warn('[fbFetchCourseHoles] name fallback FAILED:', e.code, e.message);
+      console.warn('[fbFetchCourseHoles] community name fallback FAILED:', e.code, e.message);
     }
   }
 
-  // 3. User's own personal subcollection (works even if community pool is empty)
+  // 3. User's own personal subcollection
   if (activeProfile) {
     try {
       const doc = await fbDb.collection('users').doc(activeProfile.id).collection('courseHoles').doc(docId).get({ source: 'server' });
       console.log('[fbFetchCourseHoles] personal sub — exists:', doc.exists, 'holes:', doc.exists ? (doc.data().holes||[]).length : 0);
-      if (doc.exists && doc.data().holes && doc.data().holes.length) return doc.data();
+      if (doc.exists && doc.data().holes && doc.data().holes.length) return { ...doc.data(), _src: 'personal' };
     } catch(e) {
       console.error('[fbFetchCourseHoles] personal sub FAILED:', e.code, e.message);
     }
