@@ -3753,6 +3753,14 @@ function auLoop() {
   // Feed session histogram for percentile-based thresholding
   auRmsHistogram[Math.min(AU_HIST_BUCKETS - 1, Math.floor(rms * AU_HIST_BUCKETS))]++;
   auRmsTotalCount++;
+  // Track recent dominance for on-course manual shot capture (ground mode only)
+  if (phoneLocation === 'ground' && selectedCourse && !auTrainMode) {
+    const nowMs = Date.now();
+    auCourseRmsHistory.push({ rms, peak, ts: nowMs });
+    while (auCourseRmsHistory.length && nowMs - auCourseRmsHistory[0].ts > AU_DOMINANT_WIN_MS) {
+      auCourseRmsHistory.shift();
+    }
+  }
   // Update baseline only during quiet periods and only outside training mode.
   // In training mode the baseline must stay fixed — continuous video audio would otherwise
   // raise it until nothing ever exceeds the threshold again.
