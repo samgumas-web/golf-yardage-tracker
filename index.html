@@ -4656,6 +4656,8 @@ async function fetchCourseTees(course) {
     courseHoleCount = fbData.holeCount || inferHoleCount(fbData.holes);
     updateHoleCountUI();
     _cacheTees(course.osmId, fbData.holes);
+    const cc = fbData.contributorCount || (fbData.contributors && fbData.contributors.length) || 0;
+    if (cc > 1) toast(`📍 Course data loaded from ${cc} contributors`);
     return fbData.holes;
   }
 
