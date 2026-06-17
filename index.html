@@ -4583,6 +4583,16 @@ function onGPSPos(pos) {
 
   // Auto shot detection
   if (autoTrack) atGPSTick(gpsPos);
+
+  // On-course ground mode: near the green triggers label modal for any pending audio shot
+  if (onCoursePendingAudio && selectedCourse && phoneLocation === 'ground' && !auTrainMode) {
+    const hole = courseHoles.find(h => h.number === currentHole);
+    if (hole && hole.green && hole.green.lat) {
+      const distM = haversineM(gpsPos.lat, gpsPos.lng, hole.green.lat, hole.green.lng);
+      const modal = document.getElementById('course-shot-modal');
+      if (distM < 18 && modal && modal.style.display !== 'flex') _triggerCourseShotModal();
+    }
+  }
 }
 
 function onGPSErr(err) {
