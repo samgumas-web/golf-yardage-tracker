@@ -4568,17 +4568,24 @@ async function fbSaveCourseHoles(courseId, courseName, holes) {
 async function fbFetchCourseHoles(courseId) {
   if (!fbDb) return null;
   const docId = String(courseId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  console.log('[fbFetchCourseHoles] courseId:', courseId, '→ docId:', docId);
   // Try global collection first (has data from all users)
   try {
-    const doc = await fbDb.collection('courses').doc(docId).get();
+    const doc = await fbDb.collection('courses').doc(docId).get({ source: 'server' });
+    console.log('[fbFetchCourseHoles] courses/ exists:', doc.exists, 'holes:', doc.exists ? (doc.data().holes || []).length : 0);
     if (doc.exists && doc.data().holes && doc.data().holes.length) return doc.data();
-  } catch {}
-  // Fall back to user's own subcollection (always readable, guaranteed writable)
+  } catch(e) {
+    console.error('[fbFetchCourseHoles] courses/ read FAILED:', e.code, e.message);
+  }
+  // Fall back to user's own subcollection
   if (activeProfile) {
     try {
-      const doc = await fbDb.collection('users').doc(activeProfile.id).collection('courseHoles').doc(docId).get();
+      const doc = await fbDb.collection('users').doc(activeProfile.id).collection('courseHoles').doc(docId).get({ source: 'server' });
+      console.log('[fbFetchCourseHoles] user sub exists:', doc.exists, 'holes:', doc.exists ? (doc.data().holes || []).length : 0);
       if (doc.exists && doc.data().holes && doc.data().holes.length) return doc.data();
-    } catch {}
+    } catch(e) {
+      console.error('[fbFetchCourseHoles] user sub read FAILED:', e.code, e.message);
+    }
   }
   return null;
 }
