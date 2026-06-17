@@ -4858,13 +4858,13 @@ async function fetchCourseTees(course) {
   // Firestore is always checked first — it's the global source of truth.
   // localStorage is only used as an offline fallback so stale local caches
   // never hide fresher data that another user submitted.
-  const fbData = await fbFetchCourseHoles(course.osmId);
+  const fbData = await fbFetchCourseHoles(course.osmId, course.name);
   if (fbData && fbData.holes && fbData.holes.length) {
     courseHoleCount = fbData.holeCount || inferHoleCount(fbData.holes);
     updateHoleCountUI();
     _cacheTees(course.osmId, fbData.holes);
     const cc = fbData.contributorCount || (fbData.contributors && fbData.contributors.length) || 0;
-    if (cc > 1) toast(`📍 Course data loaded from ${cc} contributors`);
+    if (cc > 1) toast(`Course data loaded from ${cc} contributors`);
     return fbData.holes;
   }
 
