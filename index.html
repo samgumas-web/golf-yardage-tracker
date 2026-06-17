@@ -3818,6 +3818,115 @@ function onAudioShot() {
   }, 10000);
 }
 
+// ── On-course shot audio capture (ground mode, not training) ──────────────
+function _captureOnCourseAudio() {
+  if (!auPending || !gpsPos) return;
+  const modal = document.getElementById('course-shot-modal');
+  if (modal && modal.style.display === 'flex') return; // currently labeling — don't overwrite
+  if (onCoursePendingAudio) {
+    // New shot fired before previous was labeled → show modal for previous shot now
+    _triggerCourseShotModal();
+    return; // new shot is not captured; player must label previous first
+  }
+  onCoursePendingAudio = { features: { ...auPending }, startLat: gpsPos.lat, startLng: gpsPos.lng, ts: Date.now() };
+  _updatePendingShotBadge();
+}
+
+function _triggerCourseShotModal() {
+  if (!onCoursePendingAudio) return;
+  const modal = document.getElementById('course-shot-modal');
+  if (!modal || modal.style.display === 'flex') return;
+
+  // Estimated shot distance: from where phone was placed to current GPS
+  let estimatedYards = 0;
+  if (gpsPos) {
+    estimatedYards = Math.round(haversine(
+      { lat: onCoursePendingAudio.startLat, lng: onCoursePendingAudio.startLng }, gpsPos
+    ));
+  }
+
+  // Distance remaining to pin
+  let distToPin = null;
+  const hole = courseHoles.find(h => h.number === currentHole);
+  if (hole && hole.green && hole.green.lat && gpsPos) {
+    distToPin = Math.round(haversine(gpsPos, { lat: hole.green.lat, lng: hole.green.lng }));
+  }
+
+  document.getElementById('csm-yards').textContent = estimatedYards > 5 ? estimatedYards : '—';
+  document.getElementById('csm-to-pin').textContent = distToPin !== null ? `${distToPin} yds to pin` : '';
+
+  _csmSelectedClub = null;
+  _csmSelectedFace = null;
+
+  // Build club chips
+  const clubList = document.getElementById('csm-club-list');
+  clubList.innerHTML = '';
+  const sugg = estimatedYards > 5 ? findBestClubForDistance(estimatedYards) : null;
+  const suggestedName = sugg ? sugg.club.name : null;
+  clubs.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'csm-club-btn' + (c.name === suggestedName ? ' selected' : '');
+    btn.textContent = c.name;
+    if (c.name === suggestedName) _csmSelectedClub = c.name;
+    btn.onclick = () => {
+      document.querySelectorAll('.csm-club-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      _csmSelectedClub = c.name;
+    };
+    clubList.appendChild(btn);
+  });
+
+  // Clear any prior face selection
+  document.querySelectorAll('.csm-face-btn').forEach(b => b.classList.remove('selected'));
+
+  modal.style.display = 'flex';
+  vibrate([20, 60, 20]);
+}
+
+function _csmSelectFace(btn, face) {
+  document.querySelectorAll('.csm-face-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  _csmSelectedFace = face;
+}
+
+function _confirmCourseShot() {
+  if (!onCoursePendingAudio) return;
+  if (!_csmSelectedClub) { toast('Select a club'); return; }
+  if (!_csmSelectedFace) { toast('Select face contact'); return; }
+  const sample = {
+    ...onCoursePendingAudio.features,
+    club:         _csmSelectedClub,
+    faceLocation: _csmSelectedFace,
+    location:     'ground',
+    ts:           onCoursePendingAudio.ts
+  };
+  auLearnData.samples.push(sample);
+  auSaveLearnData();
+  fbAudioSample(sample, 'SHOT');
+  auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
+  try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
+  toast(`Logged: ${_csmSelectedClub} — ${_csmSelectedFace}`);
+  onCoursePendingAudio = null;
+  _csmSelectedClub = null;
+  _csmSelectedFace = null;
+  _updatePendingShotBadge();
+  document.getElementById('course-shot-modal').style.display = 'none';
+}
+
+function _dismissCourseShot() {
+  onCoursePendingAudio = null;
+  _csmSelectedClub = null;
+  _csmSelectedFace = null;
+  _updatePendingShotBadge();
+  const modal = document.getElementById('course-shot-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function _updatePendingShotBadge() {
+  const badge = document.getElementById('pending-shot-badge');
+  if (badge) badge.style.display = onCoursePendingAudio ? 'flex' : 'none';
+}
+
 function auBuildFeatures(rms, peak) {
   const n = auTimeBuf.length;
 
