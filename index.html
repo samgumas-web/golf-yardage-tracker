@@ -3997,6 +3997,215 @@ function _dismissCourseShot() {
 function _updatePendingShotBadge() {
   const badge = document.getElementById('pending-shot-badge');
   if (badge) badge.style.display = onCoursePendingAudio ? 'flex' : 'none';
+  const manualBtn = document.getElementById('manual-shot-btn');
+  if (manualBtn) {
+    const show = phoneLocation === 'ground' && selectedCourse && autoTrack && auEnabled
+                 && Date.now() - lastGroundPlacement < GROUND_GATE_MS;
+    manualBtn.style.display = show ? 'inline-block' : 'none';
+    const cnt = document.getElementById('manual-shot-count');
+    if (cnt) {
+      cnt.textContent = auReviewQueue.length > 0 ? ` (${auReviewQueue.length} pending)` : '';
+    }
+  }
+}
+
+// ── Manual missed-shot capture (ground mode, on course) ───────────
+// User taps when the algorithm missed a shot. We grab the loudest
+// moment from the last ~10s, capture an audio clip, and queue it for
+// later human labelling (SHOT vs NOT) in the training modal.
+async function auManualCourseShot() {
+  if (!auActive)             { toast('Audio not active'); return; }
+  if (!auCourseRmsHistory.length) { toast('No audio history yet — wait a moment'); return; }
+
+  // Find the loudest moment in the recent window
+  let best = auCourseRmsHistory[0];
+  for (const e of auCourseRmsHistory) if (e.rms > best.rms) best = e;
+
+  toast('Capturing missed shot…');
+  const blob = await auCaptureClip();
+  if (!blob) { toast('Audio capture failed'); return; }
+
+  // Build features from current state. The dominant moment may have been a
+  // few seconds ago, so these aren't perfect — the human reviewer is the
+  // ground truth. We tag it with the dominant timestamp for context.
+  const features = auBuildFeatures(best.rms, best.peak);
+  features.snr = best.rms / Math.max(auBaselineRms, 0.001);
+
+  const base64 = await auBlobToBase64(blob);
+  const item = {
+    id:         'rv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    features,
+    audioData:  base64,
+    audioMime:  blob.type,
+    dominantTs: best.ts,
+    dominantRms:best.rms,
+    courseId:   selectedCourse ? selectedCourse.osmId : null,
+    courseName: selectedCourse ? selectedCourse.name : null,
+    hole:       currentHole,
+    captured:   Date.now()
+  };
+  auReviewQueue.push(item);
+  auSaveReviewQueue();
+  fbSaveReviewItem(item);
+
+  // Reset history so the next manual tap doesn't re-pick the same peak
+  auCourseRmsHistory = [];
+
+  vibrate([20, 60, 20]);
+  toast(`Missed shot queued — review later (${auReviewQueue.length} pending)`);
+  _updatePendingShotBadge();
+}
+
+function auSaveReviewQueue() {
+  // Strip audio data for localStorage (too large) — keep only metadata.
+  // Audio blob lives in Firestore via fbSaveReviewItem.
+  try {
+    const lite = auReviewQueue.map(({ audioData, ...rest }) => rest);
+    localStorage.setItem(AU_REVIEW_KEY, JSON.stringify(lite));
+  } catch(e) { console.warn('auSaveReviewQueue:', e); }
+}
+
+function auLoadReviewQueue() {
+  try {
+    const s = localStorage.getItem(AU_REVIEW_KEY);
+    if (s) auReviewQueue = JSON.parse(s) || [];
+  } catch { auReviewQueue = []; }
+}
+
+function fbSaveReviewItem(item) {
+  if (!fbDb || !activeProfile) return;
+  fbDb.collection('users').doc(activeProfile.id)
+    .collection('audioReviewQueue').doc(item.id)
+    .set(item).catch(e => console.warn('fbSaveReviewItem:', e));
+}
+
+async function fbLoadReviewQueue() {
+  if (!fbDb || !activeProfile) return;
+  try {
+    const snap = await fbDb.collection('users').doc(activeProfile.id)
+      .collection('audioReviewQueue').get({ source: 'server' });
+    const fbItems = [];
+    snap.forEach(d => fbItems.push(d.data()));
+    // Merge Firebase items into local queue (Firebase is source of truth)
+    const localIds = new Set(auReviewQueue.map(i => i.id));
+    fbItems.forEach(i => { if (!localIds.has(i.id)) auReviewQueue.push(i); });
+    auSaveReviewQueue();
+    _updatePendingShotBadge();
+    auRenderReviewQueue();
+  } catch(e) { console.warn('fbLoadReviewQueue:', e); }
+}
+
+// ── Review queue UI (in training modal) ───────────────────────────
+function auRenderReviewQueue() {
+  const wrap = document.getElementById('au-review-wrap');
+  if (!wrap) return;
+  if (!auReviewQueue.length) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = 'block';
+  const list = document.getElementById('au-review-list');
+  list.innerHTML = '';
+  // Newest first
+  const items = [...auReviewQueue].sort((a, b) => (b.captured || 0) - (a.captured || 0));
+
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.style.cssText = 'background:#0d1f0d;border:1px solid #1e3a1e;border-radius:8px;padding:10px;margin-bottom:8px';
+    const when = new Date(item.captured || item.dominantTs || Date.now()).toLocaleString();
+    const loc  = item.courseName ? `${item.courseName} · Hole ${item.hole || '?'}` : 'Unknown course';
+    row.innerHTML = `
+      <div style="font-size:12px;color:#4ade80;margin-bottom:4px">${loc}</div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:8px">${when}</div>
+      <audio controls preload="none" style="width:100%;margin-bottom:8px;height:32px"></audio>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="rv-shot-btn" style="background:#1a472a;border:1px solid #166534;color:#4ade80;padding:8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">&#10003; This was a shot</button>
+        <div class="rv-club-picker" style="display:none;padding:6px;background:#0a1a0a;border-radius:6px;border:1px solid #1e3a1e">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:4px">Club</div>
+          <div class="rv-club-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
+          <div style="font-size:10px;color:#6b7280;margin-bottom:4px">Face</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:8px">
+            <button class="rv-face" data-face="center">Center</button>
+            <button class="rv-face" data-face="toe">Toe</button>
+            <button class="rv-face" data-face="heel">Heel</button>
+            <button class="rv-face" data-face="thin">Thin</button>
+            <button class="rv-face" data-face="fat">Fat</button>
+          </div>
+          <button class="rv-save" style="width:100%;background:#16a34a;border:none;color:#fff;padding:8px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700">Save Label</button>
+        </div>
+        <button class="rv-not-btn" style="background:#7f1d1d;border:1px solid #991b1b;color:#fca5a5;padding:8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">&#10007; Not a shot</button>
+        <button class="rv-discard" style="background:none;border:1px solid #374151;color:#6b7280;padding:6px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">Discard (don't train on this)</button>
+      </div>
+    `;
+    list.appendChild(row);
+
+    // Wire up audio playback (lazy — only set src when user expands)
+    const audio = row.querySelector('audio');
+    if (item.audioData) audio.src = `data:${item.audioMime || 'audio/webm'};base64,${item.audioData}`;
+
+    // "This was a shot" expands club/face picker
+    const clubPicker = row.querySelector('.rv-club-picker');
+    const clubList   = row.querySelector('.rv-club-list');
+    let selClub = null, selFace = null;
+    clubs.forEach(c => {
+      const b = document.createElement('button');
+      b.textContent = c.name;
+      b.style.cssText = 'padding:5px 9px;border-radius:14px;border:1px solid #1e3a1e;background:#111;color:#e5e7eb;font-size:11px;cursor:pointer;font-family:inherit';
+      b.onclick = () => {
+        clubList.querySelectorAll('button').forEach(x => { x.style.borderColor = '#1e3a1e'; x.style.background = '#111'; x.style.color = '#e5e7eb'; });
+        b.style.borderColor = '#4ade80'; b.style.background = '#1a472a'; b.style.color = '#4ade80';
+        selClub = c.name;
+      };
+      clubList.appendChild(b);
+    });
+    row.querySelectorAll('.rv-face').forEach(fb => {
+      fb.style.cssText = 'padding:8px 4px;border-radius:6px;border:1px solid #1e3a1e;background:#111;color:#e5e7eb;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600';
+      fb.onclick = () => {
+        row.querySelectorAll('.rv-face').forEach(x => { x.style.borderColor = '#1e3a1e'; x.style.background = '#111'; x.style.color = '#e5e7eb'; });
+        fb.style.borderColor = '#4ade80'; fb.style.background = '#1a472a'; fb.style.color = '#4ade80';
+        selFace = fb.dataset.face;
+      };
+    });
+
+    row.querySelector('.rv-shot-btn').onclick = () => {
+      clubPicker.style.display = 'block';
+    };
+    row.querySelector('.rv-save').onclick = () => {
+      if (!selClub) { toast('Pick a club'); return; }
+      if (!selFace) { toast('Pick face contact'); return; }
+      auLabelReviewItem(item.id, 'SHOT', selClub, selFace);
+    };
+    row.querySelector('.rv-not-btn').onclick = () => auLabelReviewItem(item.id, 'NOT_SHOT');
+    row.querySelector('.rv-discard').onclick = () => auLabelReviewItem(item.id, 'DISCARD');
+  });
+}
+
+function auLabelReviewItem(itemId, verdict, club, face) {
+  const idx = auReviewQueue.findIndex(i => i.id === itemId);
+  if (idx < 0) return;
+  const item = auReviewQueue[idx];
+
+  if (verdict === 'SHOT' || verdict === 'NOT_SHOT') {
+    const sample = {
+      ...item.features,
+      club:         verdict === 'SHOT' ? club : 'NOT_SHOT',
+      faceLocation: verdict === 'SHOT' ? face : '',
+      location:     'ground',
+      ts:           item.dominantTs || item.captured || Date.now()
+    };
+    auLearnData.samples.push(sample);
+    auSaveLearnData();
+    fbAudioSample(sample, verdict);
+  }
+  // Remove from queue (locally + firebase) regardless of verdict
+  auReviewQueue.splice(idx, 1);
+  auSaveReviewQueue();
+  if (fbDb && activeProfile) {
+    fbDb.collection('users').doc(activeProfile.id)
+      .collection('audioReviewQueue').doc(itemId)
+      .delete().catch(e => console.warn('delete review:', e));
+  }
+  toast(verdict === 'SHOT' ? `Labelled as shot (${club})` : verdict === 'NOT_SHOT' ? 'Labelled as not-shot' : 'Discarded');
+  _updatePendingShotBadge();
+  auRenderReviewQueue();
 }
 
 function auBuildFeatures(rms, peak) {
