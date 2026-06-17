@@ -770,6 +770,53 @@
     animation: slideUp .2s ease;
     display: none;
   }
+  /* ── On-course shot label (ground mode) ───────────────── */
+  #pending-shot-badge {
+    position: absolute;
+    top: 52px; right: 10px;
+    z-index: 491;
+    background: rgba(16,50,16,.92);
+    border: 1.5px solid #16a34a;
+    border-radius: 12px;
+    padding: 6px 13px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4ade80;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    animation: slideUp .2s ease;
+  }
+  .csm-club-btn {
+    padding: 7px 13px;
+    border-radius: 20px;
+    border: 1.5px solid #1e3a1e;
+    background: #111;
+    color: #e5e7eb;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .csm-club-btn.selected { border-color: #4ade80; background: #1a472a; color: #4ade80; }
+  .csm-face-btn {
+    padding: 14px 4px;
+    border-radius: 10px;
+    border: 1.5px solid #1e3a1e;
+    background: #111;
+    color: #e5e7eb;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 52px;
+  }
+  .csm-face-btn.selected { border-color: #4ade80; background: #1a472a; color: #4ade80; }
+
   .club-chip {
     padding: 8px 14px;
     border-radius: 20px;
