@@ -1949,8 +1949,14 @@ let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~
 // When the algorithm misses a shot, the user can tap "I shot manually" —
 // we then grab the loudest moment from the last 10s of audio + a clip
 // of it, then queue it for later human labelling in the training modal.
-let auCourseRmsHistory  = [];        // [{rms, peak, ts}] last ~10s for finding dominant moment
-const AU_DOMINANT_WIN_MS = 10000;    // how far back to search for the missed shot
+let auCourseRmsHistory  = [];        // [{rms, peak, ts}] last ~16s for finding dominant moment
+const AU_DOMINANT_WIN_MS = 16000;    // how far back to search for the missed shot
+// ── Phone-pickup detection (arms while phone is confirmed on ground) ──
+let auGroundPickupArmed = false;     // true between confirmed placement and pickup detection
+let auPickupMotionStart = 0;         // ts when sustained motion began (debouncing)
+const AU_PICKUP_ROT_THRESH = 30;     // deg/s rotation rate that indicates a real pickup
+const AU_PICKUP_ACCY_THRESH = 4;     // m/s² vertical acceleration that indicates a real pickup
+const AU_PICKUP_MOTION_MS = 300;     // sustained-motion duration required before declaring a pickup
 let auReviewQueue       = [];        // pending shots awaiting human label
 const AU_REVIEW_KEY     = 'gy_au_review_v1';
 let auPostChunks        = [];        // chunks captured after the transient
