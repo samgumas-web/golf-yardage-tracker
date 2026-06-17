@@ -4561,9 +4561,14 @@ async function fbSaveCourseHoles(courseId, courseName, holes) {
       contributorCount: contributors.length,
       updatedAt:        new Date().toISOString()
     });
+    console.log('[fbSaveCourseHoles] community write OK — docId:', docId, 'holes:', finalHoles.length);
   } catch (e) {
     console.error('fbSaveCourseHoles (shared pool):', e.code, e.message);
-    toast('Community course save failed: ' + (e.code || e.message));
+    if (e.code === 'permission-denied') {
+      toast('Course share blocked — update Firestore rules then try again');
+    } else {
+      toast('Course sync failed: ' + (e.code || e.message));
+    }
   }
 }
 
