@@ -4346,18 +4346,56 @@ function updateAudioUI() {
   if (up) up.style.display = (auShots + auNonShots) > 0 ? 'block' : 'none';
 }
 
-function fbSaveCourseHoles(courseId, courseName, holes) {
+async function fbSaveCourseHoles(courseId, courseName, holes) {
   if (!fbDb) return;
   const docId = String(courseId).replace(/[^a-zA-Z0-9_-]/g, '_');
   const payload = { courseId: String(courseId), courseName, updatedAt: new Date().toISOString(), holeCount: courseHoleCount, holes };
-  // Primary: user's own subcollection — always writable for authenticated users
+
+  // Always save to user's personal subcollection
   if (activeProfile) {
     fbDb.collection('users').doc(activeProfile.id).collection('courseHoles').doc(docId)
       .set(payload).catch(e => console.warn('fbSaveCourseHoles (user):', e));
   }
-  // Best-effort: global courses collection for cross-user sharing
-  fbDb.collection('courses').doc(docId)
-    .set(payload).catch(() => {});
+
+  // Save to shared community pool with hole-level merge so no contributor's data is ever overwritten.
+  // Rule: a hole with tee+green beats tee-only; otherwise the incoming data wins.
+  try {
+    const ref  = fbDb.collection('courses').doc(docId);
+    const snap = await ref.get();
+    let finalHoles   = [...holes];
+    let contributors = activeProfile ? [activeProfile.id] : [];
+
+    if (snap.exists) {
+      const prev = snap.data();
+      contributors = [...new Set([...(prev.contributors || []), ...(activeProfile ? [activeProfile.id] : [])])];
+
+      const holeMap = {};
+      (prev.holes || []).forEach(h => { holeMap[h.number] = h; });
+      holes.forEach(h => {
+        const existing = holeMap[h.number];
+        const newHasGreen  = h.green        && h.green.lat;
+        const prevHasGreen = existing && existing.green && existing.green.lat;
+        // Only overwrite if new data is richer OR hole didn't exist before
+        if (!existing || (newHasGreen && !prevHasGreen) || (!prevHasGreen && !newHasGreen)) {
+          holeMap[h.number] = h;
+        }
+        // If existing already has green and new doesn't, keep existing
+      });
+      finalHoles = Object.values(holeMap).sort((a, b) => a.number - b.number);
+    }
+
+    await ref.set({
+      courseId:         String(courseId),
+      courseName,
+      holes:            finalHoles,
+      holeCount:        courseHoleCount,
+      contributors,
+      contributorCount: contributors.length,
+      updatedAt:        new Date().toISOString()
+    });
+  } catch (e) {
+    console.warn('fbSaveCourseHoles (shared pool):', e);
+  }
 }
 
 async function fbFetchCourseHoles(courseId) {
