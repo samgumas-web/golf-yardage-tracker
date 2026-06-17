@@ -4876,6 +4876,12 @@ async function fetchCourseTees(course) {
     _cacheTees(course.osmId, fbData.holes);
     const cc = fbData.contributorCount || (fbData.contributors && fbData.contributors.length) || 0;
     if (cc > 1) toast(`Course data loaded from ${cc} contributors`);
+    // If data came from this user's personal sub (not yet in community pool),
+    // automatically push it to the pool so other users can see it immediately.
+    if (fbData._src === 'personal') {
+      console.log('[fetchCourseTees] auto-sharing personal data to community pool');
+      fbSaveCourseHoles(course.osmId, course.name, fbData.holes);
+    }
     return fbData.holes;
   }
 
