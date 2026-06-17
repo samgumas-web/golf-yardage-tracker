@@ -1929,7 +1929,15 @@ let auSelectedClub      = '';        // club chosen in training modal for next S
 let auSelectedFace      = '';        // face location chosen: Heel|Flush|Toe|Thin|Fat
 // Rolling audio recorder — keeps a pre-roll buffer so we can save audio before the label tap
 let auMediaRecorder     = null;
-let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~5s pre-roll)
+let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~10s pre-roll)
+// ── On-course manual shot review queue ────────────────────────────
+// When the algorithm misses a shot, the user can tap "I shot manually" —
+// we then grab the loudest moment from the last 10s of audio + a clip
+// of it, then queue it for later human labelling in the training modal.
+let auCourseRmsHistory  = [];        // [{rms, peak, ts}] last ~10s for finding dominant moment
+const AU_DOMINANT_WIN_MS = 10000;    // how far back to search for the missed shot
+let auReviewQueue       = [];        // pending shots awaiting human label
+const AU_REVIEW_KEY     = 'gy_au_review_v1';
 let auPostChunks        = [];        // chunks captured after the transient
 let auCapturingPost     = false;
 let auPostResolve       = null;
