@@ -2040,6 +2040,7 @@ fbAuth.onAuthStateChanged(async user => {
   } else {
     activeProfile = null;
     clubs = []; shots = []; roundScore = {}; atLearnData = { shots: [], nonShots: [] };
+    auReviewQueue = [];
     const s = document.getElementById('auth-screen');
     if (s) { s.style.display = 'flex'; s.dataset.mode = 'signin'; }
     const pi = document.getElementById('profile-pill');
