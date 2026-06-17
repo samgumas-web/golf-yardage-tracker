@@ -9145,6 +9145,7 @@ function updateGroundGateUI() {
     // Gate expired — suspend mic until next placement (not during training, which manages its own context)
     if (!auTrainMode && auContext && auContext.state === 'running') auContext.suspend().catch(() => {});
   }
+  _updatePendingShotBadge();
 }
 
 // ── Migration: move trainingPool/motionTraining/samples → swingMotion ──
