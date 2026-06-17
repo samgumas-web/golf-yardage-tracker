@@ -1942,7 +1942,7 @@ let auPostChunks        = [];        // chunks captured after the transient
 let auCapturingPost     = false;
 let auPostResolve       = null;
 const AU_CHUNK_MS          = 250;
-const AU_PRE_CHUNKS        = 20;   // 5 seconds of rolling pre-roll buffer
+const AU_PRE_CHUNKS        = 40;   // 10 seconds of rolling pre-roll buffer (gives time for manual-shot tap after a missed detection)
 const AU_SPLICE_PRE_CHUNKS = 20;   // full 5-second pre-roll included in each splice clip
 const AU_POST_CHUNKS       = 4;    // 1 second post-trigger included in each splice clip
 
