@@ -8035,6 +8035,7 @@ function auOpenTraining() {
   auSelectedClub  = '';
   modal.style.display = 'block';
   auUpdateTrainCount();
+  auRenderReviewQueue();
   auSetTrainLoc(phoneLocation); // sync location buttons to current setting
   // Reset club button highlights
   document.querySelectorAll('.au-club-btn').forEach(b => {
