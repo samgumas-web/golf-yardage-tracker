@@ -4068,19 +4068,24 @@ async function auManualCourseShot() {
   _updatePendingShotBadge();
 }
 
+function _reviewKey() {
+  // Namespace by user so multiple accounts on one device don't see each other's queue
+  return AU_REVIEW_KEY + (activeProfile ? '_' + activeProfile.id : '');
+}
+
 function auSaveReviewQueue() {
   // Strip audio data for localStorage (too large) — keep only metadata.
   // Audio blob lives in Firestore via fbSaveReviewItem.
   try {
     const lite = auReviewQueue.map(({ audioData, ...rest }) => rest);
-    localStorage.setItem(AU_REVIEW_KEY, JSON.stringify(lite));
+    localStorage.setItem(_reviewKey(), JSON.stringify(lite));
   } catch(e) { console.warn('auSaveReviewQueue:', e); }
 }
 
 function auLoadReviewQueue() {
   try {
-    const s = localStorage.getItem(AU_REVIEW_KEY);
-    if (s) auReviewQueue = JSON.parse(s) || [];
+    const s = localStorage.getItem(_reviewKey());
+    auReviewQueue = s ? (JSON.parse(s) || []) : [];
   } catch { auReviewQueue = []; }
 }
 
