@@ -4033,50 +4033,54 @@ function _updatePendingShotBadge() {
   }
 }
 
-// ── Manual missed-shot capture (ground mode, on course) ───────────
-// User taps when the algorithm missed a shot. We grab the loudest
-// moment from the last ~10s, capture an audio clip, and queue it for
-// later human labelling (SHOT vs NOT) in the training modal.
-async function auManualCourseShot() {
-  if (!auActive)             { toast('Audio not active'); return; }
-  if (!auCourseRmsHistory.length) { toast('No audio history yet — wait a moment'); return; }
+// ── Automatic missed-shot capture on phone pickup ─────────────────
+// Fires when the user picks up the phone after a confirmed placement.
+// We assume any shot they took during the on-ground window is the
+// loudest sound in the last 16s. The course-shot-modal then asks for
+// club + face at the next placement or near the green.
+async function auOnPhonePickedUp() {
+  if (!auActive) return;
+  if (!auCourseRmsHistory.length) { console.log('[pickup] no audio history'); return; }
+  // If we already have a pending shot (real-time detection caught it), skip
+  if (onCoursePendingAudio) { console.log('[pickup] already pending — skipping auto-capture'); return; }
+  await _captureDominantAndQueue('Shot captured — label at green');
+}
 
-  // Find the loudest moment in the recent window
+// Manual fallback button — same flow, just user-triggered
+async function auManualCourseShot() {
+  if (!auActive)                  { toast('Audio not active'); return; }
+  if (!auCourseRmsHistory.length) { toast('No audio history yet — wait a moment'); return; }
+  if (onCoursePendingAudio)       { _triggerCourseShotModal(); return; }
+  await _captureDominantAndQueue('Missed shot captured — label at green');
+}
+
+async function _captureDominantAndQueue(toastMsg) {
+  // Find loudest moment in the recent 16s window
   let best = auCourseRmsHistory[0];
   for (const e of auCourseRmsHistory) if (e.rms > best.rms) best = e;
 
-  toast('Capturing missed shot…');
   const blob = await auCaptureClip();
   if (!blob) { toast('Audio capture failed'); return; }
-
-  // Build features from current state. The dominant moment may have been a
-  // few seconds ago, so these aren't perfect — the human reviewer is the
-  // ground truth. We tag it with the dominant timestamp for context.
-  const features = auBuildFeatures(best.rms, best.peak);
-  features.snr = best.rms / Math.max(auBaselineRms, 0.001);
-
   const base64 = await auBlobToBase64(blob);
-  const item = {
-    id:         'rv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+
+  // Build features at current state — dominant moment may be a few seconds
+  // back, so spectral features are approximate. The reviewer can verify by
+  // playing back the captured clip.
+  const features = auBuildFeatures(best.rms, best.peak);
+  features.snr       = best.rms / Math.max(auBaselineRms, 0.001);
+  features.audioData = base64;
+  features.audioMime = blob.type;
+
+  onCoursePendingAudio = {
     features,
-    audioData:  base64,
-    audioMime:  blob.type,
-    dominantTs: best.ts,
-    dominantRms:best.rms,
-    courseId:   selectedCourse ? selectedCourse.osmId : null,
-    courseName: selectedCourse ? selectedCourse.name : null,
-    hole:       currentHole,
-    captured:   Date.now()
+    startLat: gpsPos ? gpsPos.lat : 0,
+    startLng: gpsPos ? gpsPos.lng : 0,
+    ts:       best.ts
   };
-  auReviewQueue.push(item);
-  auSaveReviewQueue();
-  fbSaveReviewItem(item);
 
-  // Reset history so the next manual tap doesn't re-pick the same peak
-  auCourseRmsHistory = [];
-
+  auCourseRmsHistory = []; // reset so next pickup doesn't re-pick same peak
   vibrate([20, 60, 20]);
-  toast(`Missed shot queued — review later (${auReviewQueue.length} pending)`);
+  toast(toastMsg);
   _updatePendingShotBadge();
 }
 
