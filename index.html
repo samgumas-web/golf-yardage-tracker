@@ -4059,6 +4059,7 @@ function _resetShotSequence() {
   if (map) shotSequenceMarkers.forEach(m => { try { map.removeLayer(m); } catch {} });
   shotSequenceMarkers = [];
   shotSequenceCount = 0;
+  _showNextShotStatus(false);
 }
 
 function _markShotSequencePoint(lat, lng) {
