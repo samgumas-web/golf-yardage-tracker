@@ -1893,6 +1893,10 @@ let phoneLocation    = localStorage.getItem('gy_phone_loc') || 'pocket'; // 'gro
 let onCoursePendingAudio = null;  // { features, startLat, startLng, ts } — audio captured on course, awaiting label
 let _csmSelectedClub = null;     // club selection state for course-shot modal
 let _csmSelectedFace = null;     // face selection state for course-shot modal
+// ── Per-shot sequence markers (cleared on hole change) ─────────────
+let shotSequenceMarkers = [];    // Leaflet markers for current hole's placements
+let shotSequenceCount   = 0;     // how many placements have happened on this hole
+let shotSequenceHole    = 0;     // hole the count is associated with
 let lastGroundPlacement = 0;       // timestamp of last confirmed phone-on-ground placement
 const GROUND_GATE_MS    = 180000;  // 3-minute window: must place phone within this before shot counts
 let pogState        = 'idle';      // placement detector: 'idle' | 'moving' | 'settling'
