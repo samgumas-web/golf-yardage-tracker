@@ -9215,13 +9215,19 @@ function pogDetect(rot, acc, accY, flatness, now) {
 function onPhoneGroundPlacement(features) {
   lastGroundPlacement = Date.now();
   pogLastFeatures = features;
-  pogConfirmed    = false;
+  // Auto-confirmed: detection accuracy is high enough that we skip the
+  // "Are you placing for a shot?" question and just arm pickup capture.
+  pogConfirmed        = true;
+  auGroundPickupArmed = true;
+  auPickupMotionStart = 0;
   // Phone is on the ground — start listening for the shot sound now
   if (auContext && auContext.state === 'suspended') {
     auContext.resume().catch(() => {});
   } else if (!auActive) {
     auStartListening(); // fallback if mic wasn't pre-warmed (e.g. manual ground button)
   }
+  bigToast('📍 Your phone is on the ground — take your shot in the next 3 minutes', 2600);
+  vibrate([20, 40, 20]);
   updateGroundGateUI();
   // Always upload to Firebase — every detection is a training sample
   if (fbDb && activeProfile) {
