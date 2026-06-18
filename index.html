@@ -9304,6 +9304,7 @@ function onPhoneGroundPlacement(features) {
     vibrate([60, 80, 60, 80, 60]);
   }
   if (gpsPos && selectedCourse) _markShotSequencePoint(gpsPos.lat, gpsPos.lng);
+  _showNextShotStatus(false);
   updateGroundGateUI();
   // Always upload to Firebase — every detection is a training sample
   if (fbDb && activeProfile) {
