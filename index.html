@@ -4061,6 +4061,39 @@ function _resetShotSequence() {
   shotSequenceMarkers = [];
   shotSequenceCount = 0;
   _showNextShotStatus(false);
+  _updateDeleteLastShotBtn();
+}
+
+// Roll back the most recent shot point — used when the placement detector or
+// pickup detector fired on something that wasn't actually a real shot.
+function _deleteLastShotPoint() {
+  const hadMarker  = shotSequenceMarkers.length > 0;
+  const hadPending = !!onCoursePendingAudio;
+  if (!hadMarker && !hadPending) { toast('Nothing to delete'); return; }
+  if (hadMarker) {
+    const last = shotSequenceMarkers.pop();
+    if (map && last) { try { map.removeLayer(last); } catch {} }
+    shotSequenceCount = Math.max(0, shotSequenceCount - 1);
+  }
+  // Cancel any current placement so the gate banner clears
+  lastGroundPlacement = 0;
+  pogConfirmed = false;
+  auGroundPickupArmed = false;
+  auPickupMotionStart = 0;
+  // Drop any pending audio waiting to be labelled
+  onCoursePendingAudio = null;
+  _showNextShotStatus(false);
+  _updatePendingShotBadge();
+  updateGroundGateUI();
+  _updateDeleteLastShotBtn();
+  vibrate([30]);
+  toast(hadPending ? 'Shot cleared' : 'Last shot point deleted');
+}
+
+function _updateDeleteLastShotBtn() {
+  const btn = document.getElementById('delete-last-shot-btn');
+  if (!btn) return;
+  btn.style.display = (shotSequenceCount > 0 || onCoursePendingAudio) ? 'inline-block' : 'none';
 }
 
 function _markShotSequencePoint(lat, lng) {
