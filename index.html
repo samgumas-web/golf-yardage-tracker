@@ -9115,11 +9115,13 @@ function manualGroundPlacement() {
   lastGroundPlacement = Date.now();
   pogLastFeatures  = null;  // no sensor data for manual trigger — skip Firebase upload
   pogConfirmed     = true;  // user explicitly triggered it
+  auGroundPickupArmed = true; auPickupMotionStart = 0;
   updateGroundGateUI();
 }
 
 function confirmGroundPlacement() {
   pogConfirmed = true;
+  auGroundPickupArmed = true; auPickupMotionStart = 0;
   if (fbDb && activeProfile && pogLastFeatures) {
     fbDb.collection('trainingPool').doc('motionTraining').collection('phoneOnGround').add({
       uid:          activeProfile.id,
