@@ -4040,43 +4040,57 @@ function _updatePendingShotBadge() {
   }
 }
 
-// ── Automatic missed-shot capture on phone pickup ─────────────────
-// Fires when the user picks up the phone after a confirmed placement.
-// We assume any shot they took during the on-ground window is the
-// loudest sound in the last 16s. The course-shot-modal then asks for
-// club + face at the next placement or near the green.
+// ── Automatic dominance-only capture on phone pickup ──────────────
+// Once the phone leaves the ground we look back at the last 17 s of
+// audio. If any moment in that window has a clear spike above ambient,
+// we treat it as the shot. Otherwise we ask the user whether a shot
+// was actually taken (so we can queue the audio for later review).
 async function auOnPhonePickedUp() {
   if (!auActive) return;
-  if (!auCourseRmsHistory.length) { console.log('[pickup] no audio history'); return; }
-  // If we already have a pending shot (real-time detection caught it), skip
-  if (onCoursePendingAudio) { console.log('[pickup] already pending — skipping auto-capture'); return; }
-  await _captureDominantAndQueue('Shot captured — label at green');
+  // Big centered status message — visible while we search
+  bigToast('🔍 Phone no longer on ground — searching last 17 seconds for shot sound', 2200);
+
+  // Brief delay so the rolling buffer captures any final post-pickup audio chunk
+  setTimeout(() => _searchAndQueueGroundShot(), 600);
 }
 
-// Manual fallback button — same flow, just user-triggered
+// Manual fallback button (still on the map) — same dominance search
 async function auManualCourseShot() {
-  if (!auActive)                  { toast('Audio not active'); return; }
-  if (!auCourseRmsHistory.length) { toast('No audio history yet — wait a moment'); return; }
-  if (onCoursePendingAudio)       { _triggerCourseShotModal(); return; }
-  await _captureDominantAndQueue('Missed shot captured — label at green');
+  if (!auActive) { toast('Audio not active'); return; }
+  if (onCoursePendingAudio) { _triggerCourseShotModal(); return; }
+  bigToast('🔍 Searching last 17 seconds for shot sound', 1800);
+  setTimeout(() => _searchAndQueueGroundShot(), 600);
 }
 
-async function _captureDominantAndQueue(toastMsg) {
-  // Find loudest moment in the recent 16s window
+async function _searchAndQueueGroundShot() {
+  if (!auCourseRmsHistory.length) {
+    _showNoShotDetectedModal(null);
+    return;
+  }
+
+  // Find the loudest moment in the recent window
   let best = auCourseRmsHistory[0];
   for (const e of auCourseRmsHistory) if (e.rms > best.rms) best = e;
 
+  // Capture audio clip + base64 regardless (we may need it for the review queue)
   const blob = await auCaptureClip();
-  if (!blob) { toast('Audio capture failed'); return; }
-  const base64 = await auBlobToBase64(blob);
+  const base64 = blob ? await auBlobToBase64(blob) : null;
+  const mime   = blob ? blob.type : null;
 
-  // Build features at current state — dominant moment may be a few seconds
-  // back, so spectral features are approximate. The reviewer can verify by
-  // playing back the captured clip.
+  // Threshold: is this moment loud enough to be a real shot?
+  const ratio   = best.rms / Math.max(auBaselineRms, 0.001);
+  const isSpike = best.rms >= AU_DOMINANT_MIN_RMS || ratio >= AU_DOMINANT_MIN_RATIO;
+
+  if (!isSpike) {
+    // No spike loud enough — ask the user whether a shot actually happened
+    _showNoShotDetectedModal({ best, base64, mime });
+    return;
+  }
+
+  // Spike found — queue features + audio for labelling at green/next placement
   const features = auBuildFeatures(best.rms, best.peak);
-  features.snr       = best.rms / Math.max(auBaselineRms, 0.001);
-  features.audioData = base64;
-  features.audioMime = blob.type;
+  features.snr       = parseFloat(ratio.toFixed(3));
+  if (base64) { features.audioData = base64; features.audioMime = mime; }
 
   onCoursePendingAudio = {
     features,
@@ -4085,9 +4099,126 @@ async function _captureDominantAndQueue(toastMsg) {
     ts:       best.ts
   };
 
-  auCourseRmsHistory = []; // reset so next pickup doesn't re-pick same peak
+  auCourseRmsHistory = [];   // reset for the next placement
   vibrate([20, 60, 20]);
-  toast(toastMsg);
+  bigToast('✓ Shot sound found — move to the ball to input club and face location', 2400);
+  _updatePendingShotBadge();
+}
+
+// Large centered status message, fades after ms
+function bigToast(text, ms) {
+  let el = document.getElementById('big-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'big-toast';
+    el.style.cssText = 'position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);' +
+      'z-index:9300;background:rgba(10,26,10,.96);color:#4ade80;font-size:17px;font-weight:700;' +
+      'padding:22px 26px;border-radius:14px;border:1.5px solid #166534;text-align:center;' +
+      'max-width:88%;line-height:1.45;box-shadow:0 8px 32px rgba(0,0,0,.7);font-family:inherit;' +
+      'pointer-events:none;opacity:0;transition:opacity .18s ease';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.style.opacity = '1';
+  clearTimeout(el._fadeTimer);
+  el._fadeTimer = setTimeout(() => { el.style.opacity = '0'; }, ms || 2000);
+}
+
+// "Phone was on ground, no shot detected" modal — user can confirm a shot did happen
+function _showNoShotDetectedModal(captured) {
+  // Store the captured candidate so "I did shoot" can queue it
+  window._noShotCaptured = captured;
+  let modal = document.getElementById('no-shot-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'no-shot-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,.82);' +
+      'align-items:center;justify-content:center';
+    modal.innerHTML = `
+      <div style="background:#0f1f0f;border:1.5px solid #d97706;border-radius:16px;padding:28px 22px;
+                  max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.7)">
+        <div style="font-size:36px;margin-bottom:10px">🤔</div>
+        <div style="font-size:18px;font-weight:800;color:#fbbf24;margin-bottom:10px">
+          Phone was on ground — no shot detected
+        </div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:22px;line-height:1.5">
+          Nothing in the last 17 seconds was loud enough to be a shot.
+        </div>
+        <button id="no-shot-yes-btn"
+          style="width:100%;padding:14px;background:#16a34a;border:none;border-radius:10px;
+                 color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;
+                 -webkit-tap-highlight-color:transparent;margin-bottom:8px">
+          I did shoot
+        </button>
+        <button id="no-shot-close-btn"
+          style="width:100%;padding:11px;background:none;border:1px solid #374151;border-radius:10px;
+                 color:#9ca3af;font-size:13px;cursor:pointer;font-family:inherit;
+                 -webkit-tap-highlight-color:transparent">
+          Dismiss
+        </button>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('no-shot-yes-btn').onclick = _userDidShootAnyway;
+    document.getElementById('no-shot-close-btn').onclick = () => {
+      modal.style.display = 'none';
+      window._noShotCaptured = null;
+      auCourseRmsHistory = [];
+    };
+  } else {
+    modal.style.display = 'flex';
+  }
+  vibrate([20, 100, 20]);
+}
+
+// User insists they did shoot — queue audio for manual review (preciousbabylu's
+// training UI). Whatever the loudest moment happened to be becomes the candidate.
+async function _userDidShootAnyway() {
+  const modal = document.getElementById('no-shot-modal');
+  if (modal) modal.style.display = 'none';
+  const captured = window._noShotCaptured;
+  window._noShotCaptured = null;
+
+  // Re-capture audio if we don't have a clip yet (e.g. modal showed because history was empty)
+  let base64 = captured && captured.base64;
+  let mime   = captured && captured.mime;
+  let best   = captured && captured.best;
+  if (!base64) {
+    const blob = await auCaptureClip();
+    if (blob) { base64 = await auBlobToBase64(blob); mime = blob.type; }
+  }
+  if (!best && auCourseRmsHistory.length) {
+    best = auCourseRmsHistory[0];
+    for (const e of auCourseRmsHistory) if (e.rms > best.rms) best = e;
+  }
+
+  if (!base64) {
+    toast('No audio available to save — try again');
+    return;
+  }
+
+  const features = best ? auBuildFeatures(best.rms, best.peak) : auBuildFeatures(0.01, 0.05);
+  if (best) features.snr = best.rms / Math.max(auBaselineRms, 0.001);
+  features.audioData = base64;
+  features.audioMime = mime;
+
+  const item = {
+    id:         'rv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    features,
+    audioData:  base64,
+    audioMime:  mime,
+    dominantTs: best ? best.ts : Date.now(),
+    dominantRms:best ? best.rms : 0,
+    courseId:   selectedCourse ? selectedCourse.osmId : null,
+    courseName: selectedCourse ? selectedCourse.name : null,
+    hole:       currentHole,
+    captured:   Date.now(),
+    source:     'no_detected_user_confirmed'
+  };
+  auReviewQueue.push(item);
+  auSaveReviewQueue();
+  fbSaveReviewItem(item);
+  auCourseRmsHistory = [];
+  toast(`Saved for manual review (${auReviewQueue.length} pending)`);
   _updatePendingShotBadge();
 }
 
