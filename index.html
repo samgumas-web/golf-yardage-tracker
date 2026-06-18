@@ -4124,6 +4124,7 @@ function _markShotSequencePoint(lat, lng) {
 function _updatePendingShotBadge() {
   const badge = document.getElementById('pending-shot-badge');
   if (badge) badge.style.display = onCoursePendingAudio ? 'flex' : 'none';
+  _updateDeleteLastShotBtn();
   const manualBtn = document.getElementById('manual-shot-btn');
   if (manualBtn) {
     const show = phoneLocation === 'ground' && selectedCourse && autoTrack && auEnabled
