@@ -5889,6 +5889,23 @@ function atMotionTick(e) {
     // Phone flat on ground → ~1.0.  Phone upright in hand/pocket → ~0.
     const flatness = (acc > 0.5 && ai) ? Math.abs(ai.z || 0) / acc : 0;
     pogDetect(rot, acc, accY, flatness, now);
+
+    // Pickup detection — if the phone was confirmed on ground and we see
+    // sustained motion, infer the user picked up after a shot. Disarms after
+    // firing so it doesn't double-trigger on the same pickup.
+    if (auGroundPickupArmed && selectedCourse) {
+      const movingHard = rot > AU_PICKUP_ROT_THRESH || accY > AU_PICKUP_ACCY_THRESH;
+      if (movingHard) {
+        if (!auPickupMotionStart) auPickupMotionStart = now;
+        else if (now - auPickupMotionStart >= AU_PICKUP_MOTION_MS) {
+          auGroundPickupArmed = false;
+          auPickupMotionStart = 0;
+          auOnPhonePickedUp();
+        }
+      } else {
+        auPickupMotionStart = 0; // motion stopped before threshold — reset debouncer
+      }
+    }
   }
 
   const trig = atIsTrained() ? atAdaptiveTrig() : AT_PRETRIG_DPS;
