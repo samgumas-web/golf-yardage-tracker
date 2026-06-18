@@ -5659,8 +5659,9 @@ async function _finishSelectCourse() {
     setTimeout(() => toast(`${withGps} holes loaded`), 600);
     enhanceWithGreenPolygons(courseHoles, course);
   }
+  // Draw the user's blue dot if we have a GPS fix, but don't pan to them — the
+  // zoomToHole(1) view above is what we want when the round starts.
   if (gpsPos && map) {
-    map.panTo([gpsPos.lat, gpsPos.lng]);
     updateUserOnMap(gpsPos.lat, gpsPos.lng);
   }
 }
