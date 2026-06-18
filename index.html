@@ -9281,8 +9281,17 @@ function onPhoneGroundPlacement(features) {
   } else if (!auActive) {
     auStartListening(); // fallback if mic wasn't pre-warmed (e.g. manual ground button)
   }
-  bigToast('📍 Your phone is on the ground — take your shot in the next 3 minutes', 2600);
-  vibrate([20, 40, 20]);
+  // First placement on this hole vs. subsequent: differentiate the user-facing message.
+  // Subsequent placements imply the previous shot ended here and a new one is starting.
+  const isFirstThisHole = (shotSequenceHole !== currentHole) || shotSequenceCount === 0;
+  if (isFirstThisHole) {
+    bigToast('📍 Your phone is on the ground — take your shot in the next 3 minutes', 2600);
+    vibrate([20, 40, 20]);
+  } else {
+    bigToast('✓ Shot end point detected — new shot start', 2400);
+    vibrate([60, 80, 60, 80, 60]);
+  }
+  if (gpsPos && selectedCourse) _markShotSequencePoint(gpsPos.lat, gpsPos.lng);
   updateGroundGateUI();
   // Always upload to Firebase — every detection is a training sample
   if (fbDb && activeProfile) {
