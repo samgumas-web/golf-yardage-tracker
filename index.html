@@ -4044,6 +4044,42 @@ function _dismissCourseShot() {
   if (modal) modal.style.display = 'none';
 }
 
+function _ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function _resetShotSequence() {
+  if (map) shotSequenceMarkers.forEach(m => { try { map.removeLayer(m); } catch {} });
+  shotSequenceMarkers = [];
+  shotSequenceCount = 0;
+}
+
+function _markShotSequencePoint(lat, lng) {
+  // Reset whenever the hole changes (player has moved on from the previous hole)
+  if (shotSequenceHole !== currentHole) {
+    _resetShotSequence();
+    shotSequenceHole = currentHole;
+  }
+  shotSequenceCount++;
+  const n = shotSequenceCount;
+  const label = (n === 1)
+    ? `${_ordinal(n)} shot start`
+    : `${_ordinal(n - 1)} shot end · ${_ordinal(n)} shot start`;
+
+  if (!map) return;
+  const icon = L.divIcon({
+    html: `<div class="shot-seq-mkr">${n}</div>`,
+    className: '',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  });
+  const m = L.marker([lat, lng], { icon, zIndexOffset: 600 }).addTo(map);
+  m.bindTooltip(label, { permanent: false, direction: 'top' });
+  shotSequenceMarkers.push(m);
+}
+
 function _updatePendingShotBadge() {
   const badge = document.getElementById('pending-shot-badge');
   if (badge) badge.style.display = onCoursePendingAudio ? 'flex' : 'none';
