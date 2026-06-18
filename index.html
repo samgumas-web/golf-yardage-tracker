@@ -4118,6 +4118,7 @@ function _markShotSequencePoint(lat, lng) {
   const m = L.marker([lat, lng], { icon, zIndexOffset: 600 }).addTo(map);
   m.bindTooltip(label, { permanent: false, direction: 'top' });
   shotSequenceMarkers.push(m);
+  _updateDeleteLastShotBtn();
 }
 
 function _updatePendingShotBadge() {
