@@ -3989,16 +3989,19 @@ function _confirmCourseShot() {
   if (!onCoursePendingAudio) return;
   if (!_csmSelectedClub) { toast('Select a club'); return; }
   if (!_csmSelectedFace) { toast('Select face contact'); return; }
-  const sample = {
+  // Full sample with audio clip — goes to Firestore trainingPool for later human review
+  const fullSample = {
     ...onCoursePendingAudio.features,
     club:         _csmSelectedClub,
     faceLocation: _csmSelectedFace,
     location:     'ground',
     ts:           onCoursePendingAudio.ts
   };
-  auLearnData.samples.push(sample);
+  // Lite sample (no audio blob) — goes to local auLearnData so localStorage doesn't bloat
+  const { audioData, audioMime, ...liteSample } = fullSample;
+  auLearnData.samples.push(liteSample);
   auSaveLearnData();
-  fbAudioSample(sample, 'SHOT');
+  fbAudioSample(fullSample, 'SHOT');
   auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
   try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
   toast(`Logged: ${_csmSelectedClub} — ${_csmSelectedFace}`);
