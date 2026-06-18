@@ -4125,6 +4125,9 @@ async function auManualCourseShot() {
 
 async function _searchAndQueueGroundShot() {
   if (!auCourseRmsHistory.length) {
+    // Phone is off the ground — clear the gate banner before showing the modal
+    lastGroundPlacement = 0;
+    updateGroundGateUI();
     _showNoShotDetectedModal(null);
     return;
   }
@@ -4137,6 +4140,11 @@ async function _searchAndQueueGroundShot() {
   const blob = await auCaptureClip();
   const base64 = blob ? await auBlobToBase64(blob) : null;
   const mime   = blob ? blob.type : null;
+
+  // Audio capture is done — the phone is definitely off the ground now.
+  // Clear the placement timestamp so the gate banner disappears.
+  lastGroundPlacement = 0;
+  updateGroundGateUI();
 
   // Threshold: is this moment loud enough to be a real shot?
   const ratio   = best.rms / Math.max(auBaselineRms, 0.001);
