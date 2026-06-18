@@ -5758,6 +5758,7 @@ function changeHole(d) {
   const n = Math.max(1, Math.min(18, currentHole + d));
   if (n === currentHole) return;
   currentHole = n;
+  _resetShotSequence();
   updateHoleDisplay();
   refreshHoleMarkers();
   renderHolesList();
