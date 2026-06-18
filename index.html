@@ -9393,9 +9393,9 @@ function updateGroundGateUI() {
   const el = document.getElementById('ground-gate-status');
   if (!el) return;
   if (phoneLocation !== 'ground') { el.style.display = 'none'; return; }
-  el.style.display = 'block';
   const remaining = Math.max(0, GROUND_GATE_MS - (Date.now() - lastGroundPlacement));
-  if (remaining > 0 && autoTrack) {
+  if (remaining > 0 && autoTrack && lastGroundPlacement > 0) {
+    el.style.display = 'block';
     const mins = Math.floor(remaining / 60000);
     const secs = Math.floor((remaining % 60000) / 1000);
     el.style.padding    = '7px 10px';
@@ -9406,10 +9406,8 @@ function updateGroundGateUI() {
         ` · <span onclick="cancelGroundPlacement()" style="color:#9ca3af;text-decoration:underline;cursor:pointer;-webkit-tap-highlight-color:transparent">not placing?</span>` +
       `</div>`;
   } else {
-    el.style.padding    = '4px 8px';
-    el.style.background = 'rgba(0,0,0,.6)';
-    el.innerHTML = `<span style="color:#facc15;font-size:10px">⬇ Place phone on ground near ball</span>`;
-    // Gate expired — suspend mic until next placement (not during training, which manages its own context)
+    // Phone is not currently on the ground (or gate expired) — hide the banner entirely
+    el.style.display = 'none';
     if (!auTrainMode && auContext && auContext.state === 'running') auContext.suspend().catch(() => {});
   }
   _updatePendingShotBadge();
