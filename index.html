@@ -9105,6 +9105,7 @@ function cancelGroundPlacement() {
   lastGroundPlacement = 0;
   pogLastFeatures = null;
   pogConfirmed    = false;
+  auGroundPickupArmed = false; auPickupMotionStart = 0;
   // No longer on ground — suspend the mic until next placement (not during training)
   if (!auTrainMode && auContext && auContext.state === 'running') auContext.suspend().catch(() => {});
   updateGroundGateUI();
