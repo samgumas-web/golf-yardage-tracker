@@ -6271,6 +6271,11 @@ function onMapClick(e) {
 
   // Normal mode — drop / move target pin
   setMapTarget(lat, lng);
+  // Save this tap as the persistent aim override for this hole, so the next
+  // time the player lands on this hole the auto-target reuses their choice.
+  if (selectedCourse && currentHole) {
+    _saveHoleAim(selectedCourse.osmId, currentHole, lat, lng);
+  }
 }
 
 // ── Map target pin + line ──────────────────────────────────
