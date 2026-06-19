@@ -5906,11 +5906,22 @@ function zoomToHole(n) {
   }
   const midLat = (h.lat + h.green.lat) / 2;
   const midLng = (h.lng + h.green.lng) / 2;
-  // Prefer preset zoom (calibrated to scorecard yardage); fall back to distance-derived
-  const zoom = h.zoom || (() => {
-    const distM = haversineM(h.lat, h.lng, h.green.lat, h.green.lng);
-    return distM < 130 ? 19 : distM < 230 ? 18 : distM < 420 ? 17 : 16;
-  })();
+
+  // Tightest zoom: tee+green should fill ~88% of the visible viewport height
+  // after rotation. Tee→green will lie along the vertical axis once the map is
+  // rotated, so we only need to fit the distance into the viewport height.
+  const distM = haversineM(h.lat, h.lng, h.green.lat, h.green.lng);
+  const container = document.getElementById('map-container');
+  const viewportH = container ? container.clientHeight : window.innerHeight;
+  const TARGET_FILL = 0.88;
+  const cosLat   = Math.cos(midLat * Math.PI / 180);
+  const M_PER_PX_AT_ZOOM0 = 156543.03392 * cosLat;
+  // viewportH * TARGET_FILL pixels needs to equal distM meters
+  // pxPerM = (viewportH * TARGET_FILL) / distM
+  // 2^zoom = pxPerM * M_PER_PX_AT_ZOOM0
+  let zoom = Math.log2((viewportH * TARGET_FILL * M_PER_PX_AT_ZOOM0) / distM);
+  zoom = Math.max(14, Math.min(22, zoom));
+
   map.setView([midLat, midLng], zoom);
   // Rotate the map so the green ends up at the top of the screen
   const bearing = _bearingDeg(h.lat, h.lng, h.green.lat, h.green.lng);
