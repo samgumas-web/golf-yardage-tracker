@@ -3424,7 +3424,7 @@ function openRoundDetail(roundId) {
   const scoreEl = document.getElementById('rd-score');
   scoreEl.textContent = relTxt;
   scoreEl.style.color = relColor;
-  document.getElementById('rd-score-label').textContent = `${round.grossScore} gross · ${round.holesPlayed} holes · ${dateStr}`;
+  document.getElementById('rd-score-label').textContent = `${_formatRoundResult(round)} · ${dateStr}`;
   document.getElementById('rd-putts').textContent = round.totalPutts || '0';
   document.getElementById('rd-avg-putts').textContent = round.avgPutts || '—';
 
