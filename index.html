@@ -6069,6 +6069,8 @@ function zoomToHole(n) {
   // Rotate the map so the green ends up at the top of the screen
   const bearing = _bearingDeg(h.lat, h.lng, h.green.lat, h.green.lng);
   _setMapBearing(bearing);
+  // Drop an aim point: green for par 3 / drivable holes, driver-landing for the rest
+  _autoSetHoleTarget();
 }
 
 // ── Course setup — tap tee then green per hole ─────────────
