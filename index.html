@@ -3036,6 +3036,7 @@ function saveCurrentRound() {
   pastRounds.unshift(round);
   savePastRounds();
   fbSaveRound(round);
+  _clearActiveRound(); // round is now in history — no need for the resume snapshot
   return round;
 }
 
