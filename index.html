@@ -5989,7 +5989,29 @@ function _destPoint(lat, lng, bearingDeg, distM) {
   return { lat: φ2 * 180 / Math.PI, lng: λ2 * 180 / Math.PI };
 }
 
+// Per-hole aim overrides. Once the player taps the map to set a better aim
+// point on a hole (e.g. when the straight-line driver landing puts them in
+// water or on a dogleg's wrong side), we remember it. Future visits to that
+// hole skip the auto-target and use the saved aim instead.
+function _holeAimKey(courseId, hole) {
+  return userKey(`gy_hole_aim_${courseId}_h${hole}`);
+}
+
+function _saveHoleAim(courseId, hole, lat, lng) {
+  try { localStorage.setItem(_holeAimKey(courseId, hole), JSON.stringify({ lat, lng })); } catch {}
+}
+
+function _loadHoleAim(courseId, hole) {
+  try {
+    const s = localStorage.getItem(_holeAimKey(courseId, hole));
+    if (!s) return null;
+    const d = JSON.parse(s);
+    return (d && d.lat && d.lng) ? d : null;
+  } catch { return null; }
+}
+
 // When the player enters a hole, automatically place the orange target pin:
+// - Saved aim override (from a previous manual tap on this hole): use it
 // - Par 3:         exactly on the green
 // - Drivable hole: exactly on the green (target the green when within driver range)
 // - Par 4/5:       driver-landing point along the tee→green line
@@ -5997,6 +6019,14 @@ function _autoSetHoleTarget() {
   if (!map || !selectedCourse) return;
   const h = courseHoles.find(h => h.number === currentHole);
   if (!h || !h.lat || !h.green || !h.green.lat) { clearMapTarget(); return; }
+
+  // Saved override wins (handles doglegs, water carries, anything the
+  // straight tee-to-green line gets wrong).
+  const saved = _loadHoleAim(selectedCourse.osmId, currentHole);
+  if (saved) {
+    setMapTarget(saved.lat, saved.lng);
+    return;
+  }
 
   const teeGreenDistM   = haversineM(h.lat, h.lng, h.green.lat, h.green.lng);
   const teeGreenYards   = teeGreenDistM * 1.09361;
