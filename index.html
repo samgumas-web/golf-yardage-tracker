@@ -4153,6 +4153,7 @@ function _deleteLastShotPoint() {
   _updatePendingShotBadge();
   updateGroundGateUI();
   _updateDeleteLastShotBtn();
+  _saveActiveRound();
   vibrate([30]);
   toast(hadPending ? 'Shot cleared' : 'Last shot point deleted');
 }
