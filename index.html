@@ -5872,15 +5872,32 @@ function changeHole(d) {
   lastHolePrompt = null;
 }
 
+// Initial bearing from (lat1,lng1) toward (lat2,lng2). Returns 0-360, where 0 = north.
+function _bearingDeg(lat1, lng1, lat2, lng2) {
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δλ = (lng2 - lng1) * Math.PI / 180;
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+}
+
+function _setMapBearing(deg) {
+  const mapEl = document.getElementById('map');
+  if (mapEl) mapEl.style.setProperty('--map-bearing', `${deg}deg`);
+}
+
 function zoomToHole(n) {
   if (!map) return;
   const h = courseHoles.find(h => h.number === n);
   if (!h || !h.lat) {
     if (selectedCourse) map.setView([selectedCourse.lat, selectedCourse.lng], 16);
+    _setMapBearing(0);
     return;
   }
   if (!h.green) {
     map.setView([h.lat, h.lng], h.zoom || 18);
+    _setMapBearing(0);
     return;
   }
   const midLat = (h.lat + h.green.lat) / 2;
@@ -5891,6 +5908,9 @@ function zoomToHole(n) {
     return distM < 130 ? 19 : distM < 230 ? 18 : distM < 420 ? 17 : 16;
   })();
   map.setView([midLat, midLng], zoom);
+  // Rotate the map so the green ends up at the top of the screen
+  const bearing = _bearingDeg(h.lat, h.lng, h.green.lat, h.green.lng);
+  _setMapBearing(bearing);
 }
 
 // ── Course setup — tap tee then green per hole ─────────────
