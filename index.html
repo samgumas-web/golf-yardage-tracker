@@ -5867,8 +5867,12 @@ function _bearingDeg(lat1, lng1, lat2, lng2) {
 }
 
 function _setMapBearing(deg) {
-  const mapEl = document.getElementById('map');
-  if (mapEl) mapEl.style.setProperty('--map-bearing', `${deg}deg`);
+  // leaflet-rotate plugin: setBearing rotates the tile layer + vector overlays
+  // while keeping marker icons upright in screen space. We want green-up, so
+  // the screen needs to rotate by -bearing (the green's direction comes up).
+  if (map && typeof map.setBearing === 'function') {
+    try { map.setBearing(-deg); } catch (e) { console.warn('setBearing:', e); }
+  }
 }
 
 function zoomToHole(n) {
