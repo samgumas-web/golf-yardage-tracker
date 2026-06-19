@@ -5958,6 +5958,7 @@ function changeHole(d) {
   renderHolesList();
   zoomToHole(n);
   lastHolePrompt = null;
+  _saveActiveRound();
 }
 
 // Initial bearing from (lat1,lng1) toward (lat2,lng2). Returns 0-360, where 0 = north.
