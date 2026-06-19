@@ -8279,7 +8279,7 @@ function renderScorecard() {
       <div style="text-align:center">
         <div style="font-size:15px;font-weight:800;color:var(--text)">Hole ${h}</div>
         <div style="font-size:12px;color:var(--green);font-weight:700;margin-top:1px;cursor:pointer" onclick="scNav(1)">${h < 18 ? 'Next Hole' : 'Finish Round'}</div>
-        ${h === 9 ? `<div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:6px;cursor:pointer;text-decoration:underline" onclick="finishNineHoles()">Finish Front 9</div>` : ''}
+        ${h < 18 ? `<div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:6px;cursor:pointer;text-decoration:underline" onclick="finishRoundAtHole(${h})">${h === 9 ? 'Finish Front 9' : `End round at hole ${h}`}</div>` : ''}
       </div>
       <button class="hdr-btn" onclick="scNav(1)" ${h>=18?'disabled style="opacity:.3"':''}>›</button>
     </div>`;
