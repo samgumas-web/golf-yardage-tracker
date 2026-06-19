@@ -5745,12 +5745,24 @@ async function _finishSelectCourse() {
   selectedCourse = course;
   persistSavedCourse(course);
   reconcileTee();
-  currentHole = 1;
+
+  const resumeData = _resumingActiveRound ? _loadActiveRound() : null;
+  if (resumeData) {
+    currentHole       = resumeData.currentHole       || 1;
+    shotSequenceHole  = resumeData.shotSequenceHole  || 0;
+    shotSequenceCount = resumeData.shotSequenceCount || 0;
+    if (resumeData.roundStartedAt) roundStartedAt = resumeData.roundStartedAt;
+  } else {
+    currentHole = 1;
+    shotSequenceHole = 0;
+    shotSequenceCount = 0;
+    roundScore = {}; saveRoundScore();
+  }
   courseHoleCount = 18;
   lastHolePrompt = null;
   courseHoles = [];
   holeMarkers = [];
-  roundScore = {}; saveRoundScore();
+  shotSequenceMarkers = [];
 
   clearMapTarget();
   updateHoleDisplay();
@@ -5763,7 +5775,14 @@ async function _finishSelectCourse() {
   showMapLoading(false);
   try { renderHoleMarkers(); } catch(e) { console.warn('renderHoleMarkers:', e); }
   renderHolesList();
-  zoomToHole(1);
+  zoomToHole(currentHole);
+
+  // Re-place saved shot markers after the map is ready
+  if (resumeData && resumeData.shotMarkers && resumeData.shotMarkers.length) {
+    _rehydrateShotMarkersOnMap(resumeData.shotMarkers);
+    toast(`Resumed round — ${resumeData.shotMarkers.length} shot points restored`);
+  }
+  _resumingActiveRound = false;
   if (!courseHoles.length) {
     setTimeout(() => toast('No hole data — tap "+ Mark Tees" to add tee boxes & greens'), 800);
   } else {
