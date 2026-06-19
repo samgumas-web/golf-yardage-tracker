@@ -5682,6 +5682,23 @@ function selectCourse(idxOrObj) {
                : typeof idxOrObj === 'string' ? JSON.parse(idxOrObj)
                : idxOrObj;
   _pendingCourse = course;
+  _resumingActiveRound = false;
+  // Offer to resume any in-progress round saved at this course
+  const ar = _loadActiveRound();
+  if (ar && ar.courseId === course.osmId && (ar.shotMarkers || []).length > 0) {
+    const hrs = Math.floor((Date.now() - ar.savedAt) / 3600000);
+    const mins = Math.floor(((Date.now() - ar.savedAt) % 3600000) / 60000);
+    const ago = hrs > 0 ? `${hrs}h ${mins}m ago` : `${mins} min ago`;
+    const msg = `Resume your in-progress round?\n\nHole ${ar.currentHole} · ${ar.shotMarkers.length} shot points saved\nLast active ${ago}`;
+    if (confirm(msg)) {
+      _resumingActiveRound = true;
+    } else {
+      _clearActiveRound();
+    }
+  } else if (ar && ar.courseId !== course.osmId) {
+    // Switching courses — drop the old active round
+    _clearActiveRound();
+  }
   // Show round screen with course name, then overlay the phone-location picker
   showScreen('scr-round');
   document.getElementById('round-course-name').textContent = course.name;
