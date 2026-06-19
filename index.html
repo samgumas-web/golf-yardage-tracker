@@ -8359,8 +8359,9 @@ function showRoundSummary() {
   const totalPar = Array.from({ length: holesPlayed }, (_, i) => {
     const hd = getHoleData(i + 1); return hd ? hd.par : 4;
   }).reduce((a, b) => a + b, 0);
+  // Use the same shorthand as the rounds list — partial rounds say "+N through M holes"
   document.getElementById('sum-score-label').textContent =
-    `${totalPar + totalVsPar} gross · ${holesPlayed} holes`;
+    _formatRoundResult({ grossScore: totalPar + totalVsPar, relScore: totalVsPar, holesPlayed });
 
   document.getElementById('sum-putts').textContent = totalPutts || '0';
   document.getElementById('sum-avg-putts').textContent =
