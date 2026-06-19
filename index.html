@@ -5721,9 +5721,11 @@ out center tags 30;`;
 function initLeafletMap(lat, lng) {
   if (map) { map.remove(); map = null; userMarker = null; holeMarkers = []; }
 
+  // rotate:true enables map bearing via the leaflet-rotate plugin — no oversized
+  // container needed, tiles only load for the visible viewport.
   // zoomSnap:0 + zoomDelta:0.25 lets us pick the exact fractional zoom that
   // frames each hole's tee+green tightly without snapping to integer levels.
-  map = L.map('map', { center:[lat,lng], zoom:16, zoomControl:false, attributionControl:false, maxZoom:22, zoomSnap: 0, zoomDelta: 0.25 });
+  map = L.map('map', { center:[lat,lng], zoom:16, zoomControl:false, attributionControl:false, maxZoom:22, zoomSnap: 0, zoomDelta: 0.25, rotate: true, rotateControl: false });
 
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 20
