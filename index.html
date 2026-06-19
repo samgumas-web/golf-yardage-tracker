@@ -4186,6 +4186,7 @@ function _markShotSequencePoint(lat, lng) {
   m.bindTooltip(label, { permanent: false, direction: 'top' });
   shotSequenceMarkers.push(m);
   _updateDeleteLastShotBtn();
+  _saveActiveRound();
 }
 
 function _updatePendingShotBadge() {
