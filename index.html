@@ -6299,7 +6299,14 @@ function setMapTarget(lat, lng) {
   vibrate(30);
 }
 
-function clearMapTarget() {
+function clearMapTarget(deleteSavedAim = false) {
+  // If the user explicitly hit the X button on the target chip, also forget any
+  // per-hole aim override they set previously. Next hole load will recompute
+  // a fresh auto-target. Internal callers (round start, no-green fallback)
+  // pass false so they don't blow away the user's saved overrides.
+  if (deleteSavedAim && selectedCourse && currentHole) {
+    try { localStorage.removeItem(_holeAimKey(selectedCourse.osmId, currentHole)); } catch {}
+  }
   tgtMapPos = null;
   if (tgtMapMarker)  { map.removeLayer(tgtMapMarker);  tgtMapMarker  = null; }
   if (tgtLine)       { map.removeLayer(tgtLine);        tgtLine       = null; }
