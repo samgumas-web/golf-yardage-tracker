@@ -3397,7 +3397,7 @@ function renderRoundsList() {
       <div class="round-item-score" style="color:${color}">${relTxt}</div>
       <div class="round-item-meta">
         <div class="round-item-course">${x(r.courseName)}</div>
-        <div class="round-item-date">${dateStr} · ${r.grossScore} gross · ${r.holesPlayed} holes</div>
+        <div class="round-item-date">${dateStr} · ${_formatRoundResult(r)}</div>
         <div class="round-item-putts">${r.totalPutts} putts · ${r.avgPutts} avg/hole</div>
       </div>
       <div style="color:var(--muted);font-size:18px">›</div>
