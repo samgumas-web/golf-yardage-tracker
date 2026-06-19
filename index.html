@@ -5928,7 +5928,7 @@ function showHoleBanner(num) {
 function confirmHoleChange() {
   const el = document.getElementById('hole-banner');
   const num = el._pending;
-  if (num) { currentHole = num; _resetShotSequence(); updateHoleDisplay(); refreshHoleMarkers(); renderHolesList(); zoomToHole(num); toast(`Now on Hole ${num}`); }
+  if (num) { currentHole = num; _resetShotSequence(); updateHoleDisplay(); refreshHoleMarkers(); renderHolesList(); zoomToHole(num); toast(`Now on Hole ${num}`); _saveActiveRound(); }
   el.style.display = 'none';
 }
 
