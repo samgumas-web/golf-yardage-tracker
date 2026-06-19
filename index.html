@@ -4063,6 +4063,72 @@ function _resetShotSequence() {
   shotSequenceCount = 0;
   _showNextShotStatus(false);
   _updateDeleteLastShotBtn();
+  _saveActiveRound();
+}
+
+// ── Active round persistence ─────────────────────────────────
+// Save markers + current-hole state so an accidental back-out can be undone.
+// Cleared when the user explicitly starts fresh or finishes the round.
+const ACTIVE_ROUND_KEY = 'gy_active_round';
+const ACTIVE_ROUND_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 hours
+let _resumingActiveRound = false; // set true between selectCourse and _finishSelectCourse if resume chosen
+
+function _saveActiveRound() {
+  if (!selectedCourse) return;
+  try {
+    const markers = shotSequenceMarkers.map(m => {
+      const ll = m.getLatLng ? m.getLatLng() : null;
+      return ll ? { lat: ll.lat, lng: ll.lng } : null;
+    }).filter(Boolean);
+    const data = {
+      courseId:        selectedCourse.osmId,
+      courseName:      selectedCourse.name,
+      currentHole,
+      shotSequenceHole,
+      shotSequenceCount,
+      shotMarkers:     markers,
+      roundStartedAt,
+      savedAt:         Date.now()
+    };
+    localStorage.setItem(ACTIVE_ROUND_KEY, JSON.stringify(data));
+  } catch (e) { console.warn('_saveActiveRound:', e); }
+}
+
+function _loadActiveRound() {
+  try {
+    const s = localStorage.getItem(ACTIVE_ROUND_KEY);
+    if (!s) return null;
+    const d = JSON.parse(s);
+    if (!d || !d.savedAt || Date.now() - d.savedAt > ACTIVE_ROUND_MAX_AGE_MS) {
+      localStorage.removeItem(ACTIVE_ROUND_KEY);
+      return null;
+    }
+    return d;
+  } catch { return null; }
+}
+
+function _clearActiveRound() {
+  try { localStorage.removeItem(ACTIVE_ROUND_KEY); } catch {}
+}
+
+function _rehydrateShotMarkersOnMap(markers) {
+  if (!map || !markers || !markers.length) return;
+  markers.forEach((m, idx) => {
+    const n = idx + 1;
+    const label = (n === 1)
+      ? `${_ordinal(n)} shot start`
+      : `${_ordinal(n - 1)} shot end · ${_ordinal(n)} shot start`;
+    const icon = L.divIcon({
+      html: `<div class="shot-seq-mkr">${n}</div>`,
+      className: '',
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
+    const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: 600 }).addTo(map);
+    mk.bindTooltip(label, { permanent: false, direction: 'top' });
+    shotSequenceMarkers.push(mk);
+  });
+  _updateDeleteLastShotBtn();
 }
 
 // Roll back the most recent shot point — used when the placement detector or
