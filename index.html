@@ -8312,9 +8312,29 @@ function scNav(delta) {
 }
 
 function finishNineHoles() {
-  if (!confirm('Finish round after 9 holes? Your scorecard and shots will be saved.')) return;
+  finishRoundAtHole(9);
+}
+
+// End the round at the current hole (any number 1-17). On 18 the round
+// auto-finishes when strokes are entered.
+function finishRoundAtHole(h) {
+  const target = h || currentHole;
+  const label = target === 9 ? 'after 9 holes' : `at hole ${target}`;
+  if (!confirm(`Finish round ${label}? Your scorecard and shots will be saved.`)) return;
   closePanel();
   setTimeout(showRoundSummary, 400);
+}
+
+// Format the round score for list/detail/summary displays.
+// Full 18-hole rounds keep the gross-score format; shorter rounds show the
+// score relative to par over the holes that were actually played.
+function _formatRoundResult(round) {
+  if (round.holesPlayed >= 18) {
+    return `${round.grossScore} gross · ${round.holesPlayed} holes`;
+  }
+  const rel = round.relScore;
+  const relTxt = rel === 0 ? 'even' : (rel > 0 ? `+${rel}` : String(rel));
+  return `${relTxt} through ${round.holesPlayed} holes`;
 }
 
 function resetScorecard() {
