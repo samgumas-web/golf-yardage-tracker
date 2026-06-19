@@ -5752,34 +5752,36 @@ function renderHoleMarkers() {
   for (const h of courseHoles) {
     if (!h.lat || !h.lng) continue; // skip holes with no GPS data
     const isActive = h.number === currentHole;
-    // Tee marker
-    const teeIcon = L.divIcon({
-      html: `<div class="hole-mkr${isActive?' active':''}">${h.number}</div>`,
-      className: '',
-      iconSize: isActive ? [32,32] : [26,26],
-      iconAnchor: isActive ? [16,16] : [13,13]
-    });
-    const tm = L.marker([h.lat, h.lng], { icon: teeIcon }).addTo(map);
-    tm.bindTooltip(`Hole ${h.number} — Tee`, { permanent:false, direction:'top' });
-    holeMarkers.push(tm);
-    // Green marker (if set)
-    if (h.green) {
-      const gIcon = L.divIcon({
-        html: `<div class="green-mkr${isActive?' active':''}">G${h.number}</div>`,
+    // Tee + green labels are skipped for the active hole so they don't intercept
+    // taps the player intends for the tee/green itself (distance measuring).
+    // The dashed tee→green line still draws so the active hole is still visible.
+    if (!isActive) {
+      const teeIcon = L.divIcon({
+        html: `<div class="hole-mkr">${h.number}</div>`,
         className: '',
-        iconSize: isActive ? [26,26] : [22,22],
-        iconAnchor: isActive ? [13,13] : [11,11]
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
       });
-      const gm = L.marker([h.green.lat, h.green.lng], { icon: gIcon, zIndexOffset: 100 }).addTo(map);
-      gm.bindTooltip(`Hole ${h.number} — Green`, { permanent:false, direction:'top' });
-      greenMarkers.push(gm);
-      // Draw a faint line tee→green for the active hole
-      if (isActive) {
-        const line = L.polyline([[h.lat, h.lng],[h.green.lat, h.green.lng]], {
-          color: 'rgba(82,196,26,0.35)', weight: 2, dashArray: '4 6'
-        }).addTo(map);
-        greenMarkers.push(line);
+      const tm = L.marker([h.lat, h.lng], { icon: teeIcon }).addTo(map);
+      tm.bindTooltip(`Hole ${h.number} — Tee`, { permanent: false, direction: 'top' });
+      holeMarkers.push(tm);
+      if (h.green) {
+        const gIcon = L.divIcon({
+          html: `<div class="green-mkr">G${h.number}</div>`,
+          className: '',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+        const gm = L.marker([h.green.lat, h.green.lng], { icon: gIcon, zIndexOffset: 100 }).addTo(map);
+        gm.bindTooltip(`Hole ${h.number} — Green`, { permanent: false, direction: 'top' });
+        greenMarkers.push(gm);
       }
+    } else if (h.green) {
+      // Active hole: just the faint dashed tee→green line, no label markers
+      const line = L.polyline([[h.lat, h.lng], [h.green.lat, h.green.lng]], {
+        color: 'rgba(82,196,26,0.35)', weight: 2, dashArray: '4 6'
+      }).addTo(map);
+      greenMarkers.push(line);
     }
   }
 }
