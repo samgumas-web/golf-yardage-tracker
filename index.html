@@ -9039,12 +9039,26 @@ function auSplicePointerMove(e) {
       clearTimeout(auSpliceGesture.timerId);
       auSpliceGesture.state = 'dragging';
       const f0 = auSpliceGesture.startFrac;
-      auSpliceDragging = Math.abs(f0 - auSpliceH1) < Math.abs(f0 - auSpliceH2) ? 'left' : 'right';
+      // Pick the closest of the up-to-4 visible handles
+      const candidates = [
+        { id: 'left',    pos: auSpliceH1 },
+        { id: 'right',   pos: auSpliceH2 }
+      ];
+      if (auSpliceL !== null) candidates.push({ id: 'ignoreL', pos: auSpliceL });
+      if (auSpliceR !== null) candidates.push({ id: 'ignoreR', pos: auSpliceR });
+      let best = candidates[0], bestDist = Math.abs(f0 - candidates[0].pos);
+      for (let i = 1; i < candidates.length; i++) {
+        const d = Math.abs(f0 - candidates[i].pos);
+        if (d < bestDist) { best = candidates[i]; bestDist = d; }
+      }
+      auSpliceDragging = best.id;
     }
   }
   if (auSpliceDragging) {
-    if (auSpliceDragging === 'left')  auSpliceH1 = Math.max(0.01, Math.min(frac, auSpliceH2 - 0.05));
-    if (auSpliceDragging === 'right') auSpliceH2 = Math.min(0.99, Math.max(frac, auSpliceH1 + 0.05));
+    if (auSpliceDragging === 'left')    auSpliceH1 = Math.max(auSpliceL !== null ? auSpliceL + 0.01 : 0.01, Math.min(frac, auSpliceH2 - 0.05));
+    if (auSpliceDragging === 'right')   auSpliceH2 = Math.min(auSpliceR !== null ? auSpliceR - 0.01 : 0.99, Math.max(frac, auSpliceH1 + 0.05));
+    if (auSpliceDragging === 'ignoreL') auSpliceL  = Math.max(0, Math.min(frac, auSpliceH1 - 0.02));
+    if (auSpliceDragging === 'ignoreR') auSpliceR  = Math.min(1, Math.max(frac, auSpliceH2 + 0.02));
     auSpliceDraw(_auSpliceLivePlayhead());
   }
   e.preventDefault();
