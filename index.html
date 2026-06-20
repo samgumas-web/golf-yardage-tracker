@@ -2036,7 +2036,8 @@ let auSelectedClub      = '';        // club chosen in training modal for next S
 let auSelectedFace      = '';        // face location chosen: Heel|Flush|Toe|Thin|Fat
 // Rolling audio recorder — keeps a pre-roll buffer so we can save audio before the label tap
 let auMediaRecorder     = null;
-let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~10s pre-roll)
+let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~40s pre-roll)
+let auRollingChunkTs    = [];        // wall-clock ts of each chunk in auRollingChunks (parallel array)
 // ── On-course manual shot review queue ────────────────────────────
 // When the algorithm misses a shot, the user can tap "I shot manually" —
 // we then grab the loudest moment from the last 10s of audio + a clip
