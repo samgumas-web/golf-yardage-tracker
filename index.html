@@ -8951,6 +8951,19 @@ function auSpliceDraw(playheadFrac) {
   drawHandle(h1px);
   drawHandle(h2px);
 
+  // Smaller grey IGNORE-zone handles
+  const drawTrimHandle = px => {
+    ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+    ctx.fillStyle = '#9ca3af';
+    const gW = 7, gH = 12;
+    ctx.beginPath();
+    ctx.roundRect(px - gW / 2, H / 2 - gH / 2, gW, gH, 2);
+    ctx.fill();
+  };
+  if (auSpliceL !== null) drawTrimHandle(lpx);
+  if (auSpliceR !== null) drawTrimHandle(rpx);
+
   // Playhead
   if (playheadFrac !== null && playheadFrac >= 0 && playheadFrac <= 1) {
     const px = Math.round(playheadFrac * W);
