@@ -2047,6 +2047,13 @@ const AU_DOMINANT_WIN_MS = 17000;    // how far back to search for the missed sh
 // rather than just ambient noise. Used in dominance-only mode.
 const AU_DOMINANT_MIN_RMS  = 0.04;   // absolute floor — a shot generally exceeds this
 const AU_DOMINANT_MIN_RATIO = 3;     // OR — at least 3× the rolling baseline RMS
+// Window-relative dominance: a phone lying in grass hears a MUFFLED impact, so the
+// absolute RMS can stay under 0.04 and the slow baseline drifts up on a windy course
+// (ground rumble) — defeating both tests above. But a strike is still a sharp transient
+// relative to the quiet grass around it. So also accept the loudest moment if it stands
+// well above the window's own median level, with only a tiny floor to reject pure silence.
+const AU_DOMINANT_WIN_RATIO = 4;     // loudest moment ≥ this × the window median RMS
+const AU_DOMINANT_FLOOR     = 0.012; // …and at least this loud (rejects dead-quiet windows)
 // ── Phone-pickup detection (arms while phone is confirmed on ground) ──
 let auGroundPickupArmed = false;     // true between confirmed placement and pickup detection
 let auPickupMotionStart = 0;         // ts when sustained motion began (debouncing)
