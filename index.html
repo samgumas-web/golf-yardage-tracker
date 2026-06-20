@@ -8934,6 +8934,23 @@ function auSpliceDraw(playheadFrac) {
     ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
     ctx.setLineDash([]);
   }
+
+  // Play-start marker (set via hold-tap) — amber triangle at the bottom
+  if (auSplicePlayStartFrac > 0 && auSplicePlayStartFrac < 1) {
+    const px = Math.round(auSplicePlayStartFrac * W);
+    ctx.strokeStyle = 'rgba(251,191,36,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(px, H - 1);
+    ctx.lineTo(px - 6, H - 11);
+    ctx.lineTo(px + 6, H - 11);
+    ctx.closePath();
+    ctx.fill();
+  }
 }
 
 function auSplicePointerFrac(e) {
