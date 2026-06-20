@@ -2041,8 +2041,8 @@ let auRollingChunks     = [];        // circular buffer of 250ms audio chunks (~
 // When the algorithm misses a shot, the user can tap "I shot manually" —
 // we then grab the loudest moment from the last 10s of audio + a clip
 // of it, then queue it for later human labelling in the training modal.
-let auCourseRmsHistory  = [];        // [{rms, peak, ts}] last ~17s for finding dominant moment
-const AU_DOMINANT_WIN_MS = 17000;    // how far back to search for the missed shot
+let auCourseRmsHistory  = [];        // [{rms, peak, ts}] last ~40s for finding dominant moment
+const AU_DOMINANT_WIN_MS = 40000;    // how far back to search for the missed shot
 // Threshold above which a moment in the window is considered a "real" shot
 // rather than just ambient noise. Used in dominance-only mode.
 const AU_DOMINANT_MIN_RMS  = 0.04;   // absolute floor — a shot generally exceeds this
