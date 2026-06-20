@@ -2066,9 +2066,13 @@ let auPostChunks        = [];        // chunks captured after the transient
 let auCapturingPost     = false;
 let auPostResolve       = null;
 const AU_CHUNK_MS          = 250;
-const AU_PRE_CHUNKS        = 68;   // 17 seconds of rolling pre-roll buffer (covers the on-ground window plus a few seconds for pickup latency)
-const AU_SPLICE_PRE_CHUNKS = 68;   // full 17-second pre-roll included in each splice clip (matches AU_PRE_CHUNKS so auto pickup capture has the full window)
+const AU_PRE_CHUNKS        = 160;  // 40 seconds of rolling pre-roll buffer (covers the on-ground look-back window plus a few seconds for pickup latency)
+const AU_SPLICE_PRE_CHUNKS = 68;   // 17-second pre-roll included in each training/splice clip
 const AU_POST_CHUNKS       = 4;    // 1 second post-trigger included in each splice clip
+// On-course saved clip: a tight slice centred on the dominant impact (not the whole 40s
+// buffer). 1 s before the strike + 2 s after — enough to verify the shot, small for Firebase.
+const AU_CLIP_PRE_CHUNKS   = 4;    // 1 second before the dominant moment
+const AU_CLIP_POST_CHUNKS  = 8;    // 2 seconds after the dominant moment
 
 function computeFeatureWeights(shots, nonShots) {
   if (shots.length < 5 || nonShots.length < 5) return;
