@@ -10423,26 +10423,39 @@ function startGPSTimeout() {
 </div>
 
 <!-- Course Shot Label Modal (ground mode, on-course) -->
-<div id="course-shot-modal" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.85);align-items:flex-end;justify-content:center">
-  <div style="background:#0f1f0f;border:1px solid #1e3a1e;border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:420px;box-shadow:0 -8px 32px rgba(0,0,0,.7)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-      <div style="font-size:16px;font-weight:700;color:#4ade80">Label Your Shot</div>
-      <button onclick="_dismissCourseShot()" style="background:none;border:none;color:#6b7280;font-size:24px;cursor:pointer;line-height:1;padding:0 4px">&#10005;</button>
+<div id="course-shot-modal" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(5,15,5,0.985);flex-direction:column;align-items:center;justify-content:flex-start">
+
+  <!-- Header -->
+  <div style="width:100%;max-width:480px;padding:18px 18px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(74,222,128,0.18)">
+    <div style="font-size:19px;font-weight:800;color:#4ade80;letter-spacing:.5px">🏌 Label Your Shot</div>
+    <button onclick="_dismissCourseShot()" title="Skip this shot"
+      style="background:none;border:none;color:#4b5563;font-size:24px;cursor:pointer;line-height:1;padding:4px 8px;-webkit-tap-highlight-color:transparent">✕</button>
+  </div>
+
+  <!-- Scrollable body -->
+  <div style="flex:1;width:100%;max-width:480px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:24px 22px 140px">
+
+    <!-- Distance display -->
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">
+        Estimated Shot Distance <span id="csm-to-pin" style="color:#4b5563"></span>
+      </div>
+      <div style="font-size:72px;font-weight:900;letter-spacing:-4px;color:#e5e7eb;line-height:1">
+        <span id="csm-yards">—</span><span style="font-size:18px;font-weight:600;color:#6b7280;margin-left:6px">YDS</span>
+      </div>
     </div>
 
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
-      <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.07em">Est. Shot Distance</div>
-      <div style="font-size:12px;color:#6b7280" id="csm-to-pin"></div>
-    </div>
-    <div style="font-size:44px;font-weight:900;letter-spacing:-3px;color:#e5e7eb;margin-bottom:20px;line-height:1.1">
-      <span id="csm-yards">—</span><span style="font-size:14px;font-weight:600;color:#6b7280;margin-left:6px">yds</span>
+    <!-- Club wheel picker -->
+    <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.1em;text-align:center;margin-bottom:8px">Which Club? <span style="color:#4b5563">(scroll)</span></div>
+    <div class="csm-wheel">
+      <div id="csm-club-wheel" class="csm-wheel-scroll"></div>
+      <div class="csm-wheel-marker"></div>
+      <div class="csm-wheel-mask"></div>
     </div>
 
-    <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Which club?</div>
-    <div id="csm-club-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;max-height:108px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
-
-    <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Face contact</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px">
+    <!-- Face grid -->
+    <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.1em;text-align:center;margin:24px 0 10px">Where on the Face?</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:8px">
       <button class="csm-face-btn" onclick="_csmSelectFace(this,'center')">Center</button>
       <button class="csm-face-btn" onclick="_csmSelectFace(this,'toe')">Toe</button>
       <button class="csm-face-btn" onclick="_csmSelectFace(this,'heel')">Heel</button>
@@ -10450,11 +10463,16 @@ function startGPSTimeout() {
       <button class="csm-face-btn" onclick="_csmSelectFace(this,'fat')">Fat / Chunk</button>
       <div></div>
     </div>
+  </div>
 
-    <button onclick="_confirmCourseShot()"
-      style="width:100%;padding:16px;background:#16a34a;border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
-      Log Shot
-    </button>
+  <!-- Fixed bottom action bar -->
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 22px 28px;background:linear-gradient(to top,rgba(5,15,5,1) 65%,rgba(5,15,5,0));pointer-events:none">
+    <div style="max-width:480px;margin:0 auto;pointer-events:auto">
+      <button onclick="_confirmCourseShot()"
+        style="width:100%;padding:18px;background:#16a34a;border:none;border-radius:14px;color:#fff;font-size:17px;font-weight:900;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;box-shadow:0 6px 18px rgba(22,163,74,0.4);letter-spacing:.5px">
+        ✓ LOG SHOT
+      </button>
+    </div>
   </div>
 </div>
 </body>
