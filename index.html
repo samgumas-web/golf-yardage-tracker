@@ -8794,6 +8794,8 @@ async function auSpliceOpen(blob) {
   const editorDiv = document.getElementById('au-splice-editor');
   if (!editorDiv) { auSpliceOpenFallback(); return; }
   auSplicePlayStartFrac = 0; // fresh clip — clear any previous play start
+  auSpliceL = null; auSpliceR = null;
+  _auSpliceUpdateTrimBtns();
 
   // Decode blob → AudioBuffer using explicit callback form (more compatible than Promise form)
   let arrayBuf;
