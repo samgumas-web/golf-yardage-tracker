@@ -9030,8 +9030,10 @@ async function auSpliceTogglePlay() {
   auSpliceSource = auSplicePlayCtx.createBufferSource();
   auSpliceSource.buffer = auSpliceAudioBuffer;
   auSpliceSource.connect(auSplicePlayCtx.destination);
-  auSpliceStartAt = auSplicePlayCtx.currentTime;
-  auSpliceSource.start();
+  // Start from the user-selected play position (set via hold-tap, default 0)
+  const offsetSec = (auSplicePlayStartFrac || 0) * auSpliceAudioBuffer.duration;
+  auSpliceStartAt = auSplicePlayCtx.currentTime - offsetSec;
+  auSpliceSource.start(0, offsetSec);
 
   const btn = document.getElementById('au-splice-play-btn');
   if (btn) btn.textContent = '⏹ Stop';
