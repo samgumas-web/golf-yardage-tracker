@@ -1956,7 +1956,8 @@ let auFeatureWeights = {
   spectralFlatness: 0.0625, spectralBandwidth: 0.0625
 };
 let phoneLocation    = localStorage.getItem('gy_phone_loc') || 'pocket'; // 'ground' | 'pocket' | 'bag'
-let onCoursePendingAudio = null;  // { features, startLat, startLng, ts } — audio captured on course, awaiting label
+let onCoursePendingAudio = null;  // { features, startLat, startLng, ts } — PREVIOUS shot, awaiting label
+let _csmNextPendingShot  = null;  // the just-captured shot waiting to become onCoursePendingAudio after the current label finishes
 let _csmSelectedClub = null;     // club selection state for course-shot modal
 let _csmSelectedFace = null;     // face selection state for course-shot modal
 // ── Per-shot sequence markers (cleared on hole change) ─────────────
