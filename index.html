@@ -8998,6 +8998,39 @@ function auSplicePointerFrac(e) {
   return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
 }
 
+function _auSpliceUpdateTrimBtns() {
+  const lBtn = document.getElementById('au-splice-trim-l-btn');
+  const rBtn = document.getElementById('au-splice-trim-r-btn');
+  if (lBtn) {
+    const on = auSpliceL !== null;
+    lBtn.textContent = on ? '✕ Remove start ignore' : '⟦ Ignore start';
+    lBtn.style.background  = on ? '#3a2010' : '#1c1c1c';
+    lBtn.style.borderColor = on ? '#9ca3af' : '#374151';
+    lBtn.style.color       = on ? '#d1d5db' : '#9ca3af';
+  }
+  if (rBtn) {
+    const on = auSpliceR !== null;
+    rBtn.textContent = on ? '✕ Remove end ignore' : 'Ignore end ⟧';
+    rBtn.style.background  = on ? '#3a2010' : '#1c1c1c';
+    rBtn.style.borderColor = on ? '#9ca3af' : '#374151';
+    rBtn.style.color       = on ? '#d1d5db' : '#9ca3af';
+  }
+}
+
+function auSpliceToggleTrimLeft() {
+  if (auSpliceL !== null) auSpliceL = null;
+  else auSpliceL = Math.max(0, auSpliceH1 - 0.15);
+  _auSpliceUpdateTrimBtns();
+  auSpliceDraw(_auSpliceLivePlayhead());
+}
+
+function auSpliceToggleTrimRight() {
+  if (auSpliceR !== null) auSpliceR = null;
+  else auSpliceR = Math.min(1, auSpliceH2 + 0.15);
+  _auSpliceUpdateTrimBtns();
+  auSpliceDraw(_auSpliceLivePlayhead());
+}
+
 function _auSpliceLivePlayhead() {
   return auSpliceSource && auSplicePlayCtx && auSpliceAudioBuffer
     ? Math.min(1, (auSplicePlayCtx.currentTime - auSpliceStartAt) / auSpliceAudioBuffer.duration)
