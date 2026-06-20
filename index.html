@@ -8887,11 +8887,20 @@ function auSpliceDraw(playheadFrac) {
 
   const h1px = Math.round(auSpliceH1 * W);
   const h2px = Math.round(auSpliceH2 * W);
+  const lpx  = auSpliceL !== null ? Math.round(auSpliceL * W) : 0;
+  const rpx  = auSpliceR !== null ? Math.round(auSpliceR * W) : W;
 
-  // Colored region backgrounds
-  ctx.fillStyle = 'rgba(239,68,68,0.18)';  ctx.fillRect(0, 0, h1px, H);
+  // Colored region backgrounds — IGNORE zones (grey), then NOT_SHOT (red),
+  // then SHOT (green), then NOT_SHOT (red), then IGNORE (grey)
+  if (auSpliceL !== null) {
+    ctx.fillStyle = 'rgba(75,85,99,0.35)'; ctx.fillRect(0, 0, lpx, H);
+  }
+  ctx.fillStyle = 'rgba(239,68,68,0.18)'; ctx.fillRect(lpx, 0, h1px - lpx, H);
   ctx.fillStyle = 'rgba(74,222,128,0.18)'; ctx.fillRect(h1px, 0, h2px - h1px, H);
-  ctx.fillStyle = 'rgba(239,68,68,0.18)';  ctx.fillRect(h2px, 0, W - h2px, H);
+  ctx.fillStyle = 'rgba(239,68,68,0.18)'; ctx.fillRect(h2px, 0, rpx - h2px, H);
+  if (auSpliceR !== null) {
+    ctx.fillStyle = 'rgba(75,85,99,0.35)'; ctx.fillRect(rpx, 0, W - rpx, H);
+  }
 
   // Waveform — min/max per pixel column
   const data = auSpliceAudioBuffer.getChannelData(0);
