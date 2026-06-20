@@ -4362,9 +4362,13 @@ async function _searchAndQueueGroundShot() {
 
   auCourseRmsHistory = [];   // reset for the next placement
   vibrate([20, 60, 20]);
-  bigToast('✓ Shot sound found — move to the ball to input club and face location', 2400);
+  bigToast('✓ Shot captured — label it now', 1800);
   _updatePendingShotBadge();
   _showNextShotStatus(true);
+  // Immediately pop the big modal — getting the label NOW is the whole point of
+  // running on-course in the first place, and the pending badge by itself was
+  // too easy to ignore.
+  setTimeout(_triggerCourseShotModal, 1000);
 }
 
 function _showNextShotStatus(show) {
