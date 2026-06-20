@@ -8866,10 +8866,12 @@ function auSpliceClose() {
   auSplicePendingBlob  = null;
   auSpliceEditorPending = false;
   auSplicePlayStartFrac = 0;
+  auSpliceL = null; auSpliceR = null;
   if (auSpliceGesture && auSpliceGesture.timerId) clearTimeout(auSpliceGesture.timerId);
   auSpliceGesture = null;
   const editorDiv = document.getElementById('au-splice-editor');
   if (editorDiv) editorDiv.style.display = 'none';
+  _auSpliceUpdateTrimBtns();
 }
 
 function auSpliceDraw(playheadFrac) {
