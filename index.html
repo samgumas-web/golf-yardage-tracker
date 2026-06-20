@@ -9620,8 +9620,9 @@ async function auTrainLabel(yes) {
   }
 
   // Attempt to attach the actual audio clip in the background (best-effort, non-blocking)
-  // Uses a snapshot of the current rolling buffer so concurrent labels don't interfere
-  const preChunks = auRollingChunks.slice(-AU_PRE_CHUNKS);
+  // Uses a snapshot of the current rolling buffer so concurrent labels don't interfere.
+  // AU_SPLICE_PRE_CHUNKS (not the full 40s buffer) keeps training clips short.
+  const preChunks = auRollingChunks.slice(-AU_SPLICE_PRE_CHUNKS);
   if (auMediaRecorder && auMediaRecorder.state !== 'inactive' && preChunks.length) {
     const mime = auMediaRecorder.mimeType || 'audio/webm';
     setTimeout(() => {
