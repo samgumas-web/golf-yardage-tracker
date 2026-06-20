@@ -8861,6 +8861,9 @@ function auSpliceClose() {
   auSpliceAudioBuffer  = null;
   auSplicePendingBlob  = null;
   auSpliceEditorPending = false;
+  auSplicePlayStartFrac = 0;
+  if (auSpliceGesture && auSpliceGesture.timerId) clearTimeout(auSpliceGesture.timerId);
+  auSpliceGesture = null;
   const editorDiv = document.getElementById('au-splice-editor');
   if (editorDiv) editorDiv.style.display = 'none';
 }
