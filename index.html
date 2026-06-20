@@ -4123,20 +4123,24 @@ function _confirmCourseShot() {
   auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
   try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
   toast(`Logged: ${_csmSelectedClub} — ${_csmSelectedFace}`);
-  onCoursePendingAudio = null;
-  _csmSelectedClub = null;
-  _csmSelectedFace = null;
-  _updatePendingShotBadge();
+  _promoteNextPendingShot();
   document.getElementById('course-shot-modal').style.display = 'none';
 }
 
 function _dismissCourseShot() {
-  onCoursePendingAudio = null;
+  _promoteNextPendingShot();
+  const modal = document.getElementById('course-shot-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+// After a shot is labelled (or skipped) promote the just-captured shot to be
+// the new pending — it'll get labelled after the player's next shot.
+function _promoteNextPendingShot() {
+  onCoursePendingAudio = _csmNextPendingShot || null;
+  _csmNextPendingShot  = null;
   _csmSelectedClub = null;
   _csmSelectedFace = null;
   _updatePendingShotBadge();
-  const modal = document.getElementById('course-shot-modal');
-  if (modal) modal.style.display = 'none';
 }
 
 function _ordinal(n) {
