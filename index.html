@@ -4349,12 +4349,12 @@ async function _searchAndQueueGroundShot() {
     return;
   }
 
-  // Spike found — queue features + audio for labelling at green/next placement
+  // Spike found — build features + audio for the just-captured shot
   const features = auBuildFeatures(best.rms, best.peak);
   features.snr       = parseFloat(ratio.toFixed(3));
   if (base64) { features.audioData = base64; features.audioMime = mime; }
 
-  onCoursePendingAudio = {
+  const newCapture = {
     features,
     startLat: gpsPos ? gpsPos.lat : 0,
     startLng: gpsPos ? gpsPos.lng : 0,
@@ -4363,13 +4363,26 @@ async function _searchAndQueueGroundShot() {
 
   auCourseRmsHistory = [];   // reset for the next placement
   vibrate([20, 60, 20]);
-  bigToast('✓ Shot captured — label it now', 1800);
-  _updatePendingShotBadge();
   _showNextShotStatus(true);
-  // Immediately pop the big modal — getting the label NOW is the whole point of
-  // running on-course in the first place, and the pending badge by itself was
-  // too easy to ignore.
-  setTimeout(_triggerCourseShotModal, 1000);
+
+  // "Label one shot behind" model: we only ask the player to label a shot
+  // once we have a measurable yardage for it. That yardage = haversine from
+  // where they placed the phone for the LAST shot to where they placed it
+  // for THIS shot. So when a new shot is captured:
+  //   - if a previous shot is still pending → trigger its modal now (this
+  //     pickup's GPS gives us its endpoint), and stash this new capture as
+  //     the next-to-be-promoted shot
+  //   - if no previous pending → this is the first capture, stash it silently
+  //     and wait for the next pickup (or the green) to label it
+  if (onCoursePendingAudio) {
+    _csmNextPendingShot = newCapture;
+    bigToast('✓ Shot recorded — label your last shot', 1800);
+    setTimeout(_triggerCourseShotModal, 800);
+  } else {
+    onCoursePendingAudio = newCapture;
+    bigToast('✓ Shot recorded — label after your next shot', 1800);
+    _updatePendingShotBadge();
+  }
 }
 
 function _showNextShotStatus(show) {
