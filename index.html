@@ -9176,9 +9176,13 @@ function auSpliceConfirmShot() {
   const face = auSelectedFace || '';
   const saved = [];
 
-  const leftF  = auFeaturesFromSlice(auSpliceAudioBuffer, 0, auSpliceH1);
+  // Skip everything outside [L, R] — those are IGNORE zones the user has
+  // explicitly excluded from training (e.g. a second shot in the same clip).
+  const lBound = auSpliceL !== null ? auSpliceL : 0;
+  const rBound = auSpliceR !== null ? auSpliceR : 1;
+  const leftF  = (lBound < auSpliceH1) ? auFeaturesFromSlice(auSpliceAudioBuffer, lBound, auSpliceH1) : null;
   const shotF  = auFeaturesFromSlice(auSpliceAudioBuffer, auSpliceH1, auSpliceH2);
-  const rightF = auFeaturesFromSlice(auSpliceAudioBuffer, auSpliceH2, 1);
+  const rightF = (auSpliceH2 < rBound) ? auFeaturesFromSlice(auSpliceAudioBuffer, auSpliceH2, rBound) : null;
 
   const spliceTs = Date.now();
   if (leftF)  { const s = { ...leftF,  club: 'NOT_SHOT', faceLocation: '', location: loc, ts: spliceTs }; auLearnData.samples.push(s); fbAudioSample(s, 'NOT_SHOT'); auTrainSession.nonShots++; saved.push('pre'); }
