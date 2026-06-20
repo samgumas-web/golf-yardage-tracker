@@ -4376,7 +4376,15 @@ async function _searchAndQueueGroundShot() {
 
   // Threshold: is this moment loud enough to be a real shot?
   const ratio   = best.rms / Math.max(auBaselineRms, 0.001);
-  const isSpike = best.rms >= AU_DOMINANT_MIN_RMS || ratio >= AU_DOMINANT_MIN_RATIO;
+  // Window-relative dominance: how far the loudest moment stands above the window's
+  // own quiet (median) level. Catches muffled ground-mic strikes that fail the
+  // absolute floor and the slow-baseline ratio (see AU_DOMINANT_WIN_RATIO).
+  const sortedRms  = auCourseRmsHistory.map(e => e.rms).sort((a, b) => a - b);
+  const medianRms  = sortedRms[Math.floor(sortedRms.length / 2)] || 0.001;
+  const winRatio   = best.rms / Math.max(medianRms, 0.001);
+  const isSpike = best.rms >= AU_DOMINANT_MIN_RMS
+              || ratio    >= AU_DOMINANT_MIN_RATIO
+              || (winRatio >= AU_DOMINANT_WIN_RATIO && best.rms >= AU_DOMINANT_FLOOR);
 
   if (!isSpike) {
     // No spike loud enough — ask the user whether a shot actually happened
