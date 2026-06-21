@@ -10144,7 +10144,9 @@ function onPhoneGroundPlacement(features) {
     bigToast('✓ Shot end point detected — new shot start', 2400);
     vibrate([60, 80, 60, 80, 60]);
   }
-  if (gpsPos && selectedCourse) _markShotSequencePoint(gpsPos.lat, gpsPos.lng);
+  // Note: the numbered shot marker is dropped when the shot SOUND is detected
+  // (see _searchAndQueueGroundShot), not on placement — so a marker always means a
+  // tracked shot, never just a phone-down that recorded nothing.
   _showNextShotStatus(false);
   updateGroundGateUI();
   // Always upload to Firebase — every detection is a training sample
