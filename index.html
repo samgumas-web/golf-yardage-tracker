@@ -5607,19 +5607,67 @@ function _promptHoleScoreOnGreen() {
   openPanel('scorecard'); // renderScorecard() runs inside openPanel for the current hole
 }
 
-// After a green-triggered prompt, once BOTH strokes and putts are entered, advance to
-// the next hole automatically (changeHole resets the shot count). Only fires for the
-// green-prompted hole so manual scorecard edits are never hijacked.
+// After a green-triggered prompt, once BOTH strokes and putts are entered, advance
+// automatically. Only fires for the green-prompted hole so manual scorecard edits
+// are never hijacked.
 function _maybeAutoAdvanceAfterGreen(h) {
   if (_awaitingGreenScore !== h || !_greenStrokesEntered || !_greenPuttsEntered) return;
   _awaitingGreenScore  = null;
   _greenStrokesEntered = false;
   _greenPuttsEntered   = false;
-  if (h >= 18) return; // hole 18 finishes the round via setStrokes
   const e = roundScore[h] || {};
-  toast(`Hole ${h}: ${e.strokes != null ? e.strokes : '—'} strokes · ${e.putts || 0} putts — next hole`);
+  toast(`Hole ${h}: ${e.strokes != null ? e.strokes : '—'} strokes · ${e.putts || 0} putts`);
   vibrate([15, 60, 15]);
-  setTimeout(() => { changeHole(1); closePanel(); }, 800);
+  setTimeout(() => _advanceAfterHole(h), 800);
+}
+
+// Decide where to go after a hole's score is logged. The round ends ONLY when every
+// hole has a score. Holes wrap 18→1; if the player loops back into already-scored
+// holes while some are still blank, they're sent to the first hole still missing one.
+function _advanceAfterHole(h) {
+  if (_allHolesScored()) { _finishRoundAuto(); return; }
+  const next       = h >= 18 ? 1 : h + 1;
+  const nextScored = roundScore[next] && roundScore[next].strokes != null;
+  if (nextScored) {
+    _promptMissingScore(); // wrapped back into played holes but something is blank
+  } else {
+    _navigateToHole(next);
+    closePanel();
+  }
+}
+
+function _allHolesScored() {
+  for (let h = 1; h <= 18; h++) {
+    if (!roundScore[h] || roundScore[h].strokes == null) return false;
+  }
+  return true;
+}
+
+function _firstUnscoredHole() {
+  for (let h = 1; h <= 18; h++) {
+    if (!roundScore[h] || roundScore[h].strokes == null) return h;
+  }
+  return null;
+}
+
+// Take the player to the first hole still missing a score and ask them to fill it in.
+// Re-arms auto-advance so completing it continues the finish check.
+function _promptMissingScore() {
+  const missing = _firstUnscoredHole();
+  if (missing === null) { _finishRoundAuto(); return; }
+  _navigateToHole(missing);
+  bigToast(`Please fill out score for Hole ${missing}`, 3500);
+  vibrate([20, 80, 20]);
+  _awaitingGreenScore  = missing;
+  _greenStrokesEntered = false;
+  _greenPuttsEntered   = false;
+  openPanel('scorecard');
+}
+
+function _finishRoundAuto() {
+  _awaitingGreenScore = null;
+  closePanel();
+  setTimeout(showRoundSummary, 400);
 }
 
 function onGPSErr(err) {
