@@ -3775,6 +3775,7 @@ async function auStartListening() {
         ? 'audio/webm;codecs=opus' : 'audio/webm';
       auMediaRecorder = new MediaRecorder(auStream, { mimeType });
       auRollingChunks = [];
+      auRollingChunkTs = [];
       auPostChunks    = [];
       auCapturingPost = false;
       auRecordingHeaderChunk = null;
@@ -3797,7 +3798,8 @@ async function auStartListening() {
           }
         } else {
           auRollingChunks.push(e.data);
-          if (auRollingChunks.length > AU_PRE_CHUNKS) auRollingChunks.shift();
+          auRollingChunkTs.push(Date.now());
+          if (auRollingChunks.length > AU_PRE_CHUNKS) { auRollingChunks.shift(); auRollingChunkTs.shift(); }
         }
       };
       auMediaRecorder.start(AU_CHUNK_MS);
