@@ -7544,6 +7544,10 @@ async function simulateFullRound() {
       if (hNum < 18) await _simWait(200);
     }
 
+    // All 18 holes scored — show the round summary (no longer auto-fired by setStrokes)
+    await _simWait(400);
+    showRoundSummary();
+
   } finally {
     AT_STILL_SECS = origSecs;
     AT_STABLE_M   = origM;
