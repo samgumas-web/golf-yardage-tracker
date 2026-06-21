@@ -1958,6 +1958,8 @@ let auFeatureWeights = {
 let phoneLocation    = localStorage.getItem('gy_phone_loc') || 'pocket'; // 'ground' | 'pocket' | 'bag'
 let onCoursePendingAudio = null;  // { features, startLat, startLng, ts } — PREVIOUS shot, awaiting label
 let _csmNextPendingShot  = null;  // the just-captured shot waiting to become onCoursePendingAudio after the current label finishes
+let greenScorePromptedHole = null; // hole # for which the scorecard has already auto-opened on green arrival (one-shot)
+const GREEN_ARRIVE_M = 25;        // within this many metres of the green marker = "on the green" → prompt for score (tunable)
 let _csmSelectedClub = null;     // club selection state for course-shot modal
 let _csmSelectedFace = null;     // face selection state for course-shot modal
 // ── Per-shot sequence markers (cleared on hole change) ─────────────
