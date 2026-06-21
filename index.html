@@ -8659,6 +8659,7 @@ function resetScorecard() {
 function startNewRound() {
   if (!confirm('Start a new round? The current scorecard will be cleared.')) return;
   roundScore = {}; roundStartedAt = null; saveRoundScore();
+  greenScorePromptedHole = null;
   showScreen('scr-round');
 }
 
