@@ -5572,6 +5572,31 @@ function onGPSPos(pos) {
       console.log('[green-proximity] no green data for hole', currentHole, '— modal cannot auto-fire');
     }
   }
+
+  // On-course: reaching the green ENDS the hole. Open the scorecard so the player
+  // can log score + putts; tapping "Next Hole" there advances and resets the shot
+  // count. Independent of audio detection so it fires even when no shot was captured.
+  // One-shot per hole (greenScorePromptedHole) so it doesn't reopen while putting.
+  if (selectedCourse && !auTrainMode && greenScorePromptedHole !== currentHole) {
+    const hole = courseHoles.find(h => h.number === currentHole);
+    if (hole && hole.green && hole.green.lat) {
+      const onGreen = (hole.green.polygon && hole.green.polygon.length >= 3)
+        ? pointInPolygon(gpsPos.lat, gpsPos.lng, hole.green.polygon)
+        : haversineM(gpsPos.lat, gpsPos.lng, hole.green.lat, hole.green.lng) < GREEN_ARRIVE_M;
+      if (onGreen) {
+        greenScorePromptedHole = currentHole;
+        _promptHoleScoreOnGreen();
+      }
+    }
+  }
+}
+
+// Player has reached the green — surface the scorecard for the current hole so they
+// can enter score & putts, then advance with the scorecard's "Next Hole" control.
+function _promptHoleScoreOnGreen() {
+  bigToast('⛳ On the green — enter your score & putts, then tap Next Hole', 3000);
+  vibrate([20, 80, 20, 80, 20]);
+  openPanel('scorecard'); // renderScorecard() runs inside openPanel for the current hole
 }
 
 function onGPSErr(err) {
