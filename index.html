@@ -4196,6 +4196,17 @@ function _confirmCourseShot() {
   fbAudioSample(fullSample, 'SHOT');
   auLearnData.poolCount = (auLearnData.poolCount || 0) + 1;
   try { localStorage.setItem(AU_LEARN_KEY, JSON.stringify(auLearnData)); } catch {}
+  // Persist the shot itself (start → end) so it renders as an arc on the round map
+  // and feeds club-distance stats — on-course shots were previously only saved to
+  // the audio training pool, which is why their arcs never appeared.
+  const p = onCoursePendingAudio;
+  if (p.startLat != null && p.startLng != null && p.endLat != null && p.endLng != null) {
+    const yards = p.yards != null ? p.yards
+      : Math.round(haversine({ lat: p.startLat, lng: p.startLng }, { lat: p.endLat, lng: p.endLng }));
+    persistShot(_csmSelectedClub, yards,
+      { lat: p.startLat, lng: p.startLng }, { lat: p.endLat, lng: p.endLng },
+      { hole: p.hole, silent: true });
+  }
   toast(`Logged: ${_csmSelectedClub} — ${_csmSelectedFace}`);
   _promoteNextPendingShot();
   document.getElementById('course-shot-modal').style.display = 'none';
