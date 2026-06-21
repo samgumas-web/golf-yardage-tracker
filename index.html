@@ -5597,9 +5597,29 @@ function onGPSPos(pos) {
 // Player has reached the green — surface the scorecard for the current hole so they
 // can enter score & putts, then advance with the scorecard's "Next Hole" control.
 function _promptHoleScoreOnGreen() {
-  bigToast('⛳ On the green — enter your score & putts, then tap Next Hole', 3000);
+  bigToast('⛳ On the green — enter your score & putts', 3000);
   vibrate([20, 80, 20, 80, 20]);
+  // Arm auto-advance: once both strokes and putts are entered for this hole,
+  // the scorecard jumps to the next hole (see _maybeAutoAdvanceAfterGreen).
+  _awaitingGreenScore  = currentHole;
+  _greenStrokesEntered = false;
+  _greenPuttsEntered   = false;
   openPanel('scorecard'); // renderScorecard() runs inside openPanel for the current hole
+}
+
+// After a green-triggered prompt, once BOTH strokes and putts are entered, advance to
+// the next hole automatically (changeHole resets the shot count). Only fires for the
+// green-prompted hole so manual scorecard edits are never hijacked.
+function _maybeAutoAdvanceAfterGreen(h) {
+  if (_awaitingGreenScore !== h || !_greenStrokesEntered || !_greenPuttsEntered) return;
+  _awaitingGreenScore  = null;
+  _greenStrokesEntered = false;
+  _greenPuttsEntered   = false;
+  if (h >= 18) return; // hole 18 finishes the round via setStrokes
+  const e = roundScore[h] || {};
+  toast(`Hole ${h}: ${e.strokes != null ? e.strokes : '—'} strokes · ${e.putts || 0} putts — next hole`);
+  vibrate([15, 60, 15]);
+  setTimeout(() => { changeHole(1); closePanel(); }, 800);
 }
 
 function onGPSErr(err) {
