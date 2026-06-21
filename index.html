@@ -4472,6 +4472,13 @@ async function _searchAndQueueGroundShot() {
   vibrate([20, 60, 20]);
   _showNextShotStatus(true);
 
+  // Drop a numbered marker at the spot the shot was struck so the player can see
+  // their shot was detected and tracked (marker N = the Nth shot of this hole).
+  if (newCapture.startLat && newCapture.startLng) {
+    _markShotSequencePoint(newCapture.startLat, newCapture.startLng);
+    toast(`📍 Shot ${shotSequenceCount} tracked`);
+  }
+
   // "Label one shot behind" model: we only ask the player to label a shot
   // once we have a measurable yardage for it. That yardage = haversine from
   // where they placed the phone for the LAST shot to where they placed it
