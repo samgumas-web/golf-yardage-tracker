@@ -6193,6 +6193,7 @@ function changeHole(d) {
   // new hole, which would mis-attribute the distance.
   if (onCoursePendingAudio) _triggerCourseShotModal();
   currentHole = n;
+  _awaitingGreenScore = null; // moving holes cancels any pending green auto-advance
   _resetShotSequence();
   updateHoleDisplay();
   refreshHoleMarkers();
