@@ -4543,13 +4543,15 @@ async function _userDidShootAnyway() {
   let base64 = captured && captured.base64;
   let mime   = captured && captured.mime;
   let best   = captured && captured.best;
-  if (!base64) {
-    const blob = await auCaptureClip();
-    if (blob) { base64 = await auBlobToBase64(blob); mime = blob.type; }
-  }
   if (!best && auCourseRmsHistory.length) {
     best = auCourseRmsHistory[0];
     for (const e of auCourseRmsHistory) if (e.rms > best.rms) best = e;
+  }
+  if (!base64) {
+    // Prefer a tight clip around the loudest moment; fall back to a live capture
+    // if we have no buffered timeline (empty history).
+    const blob = best ? auCaptureClipAround(best.ts) : await auCaptureClip();
+    if (blob) { base64 = await auBlobToBase64(blob); mime = blob.type; }
   }
 
   if (!base64) {
