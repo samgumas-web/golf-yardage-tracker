@@ -1963,6 +1963,7 @@ const GREEN_ARRIVE_M = 25;        // within this many metres of the green marker
 let _awaitingGreenScore  = null;  // hole # whose score we're collecting after a green prompt (enables auto-advance)
 let _greenStrokesEntered = false; // strokes tapped for the awaited hole
 let _greenPuttsEntered   = false; // putts tapped for the awaited hole
+let _fillingMissing      = false; // true once the round loop is complete and we're collecting skipped scores
 let _csmSelectedClub = null;     // club selection state for course-shot modal
 let _csmSelectedFace = null;     // face selection state for course-shot modal
 // ── Per-shot sequence markers (cleared on hole change) ─────────────
