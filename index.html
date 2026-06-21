@@ -7538,7 +7538,7 @@ async function simulateFullRound() {
         for (let s = 0; s < wpts.length - 1; s++) await simShot(wpts[s], wpts[s + 1]);
       }
 
-      // Enter score — setStrokes on hole 18 auto-triggers showRoundSummary
+      // Enter score for the hole
       setPutts(hNum, putts);
       setStrokes(strokes);
       if (hNum < 18) await _simWait(200);
