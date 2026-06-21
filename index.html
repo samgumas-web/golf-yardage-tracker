@@ -4369,7 +4369,7 @@ function _updatePendingShotBadge() {
 async function auOnPhonePickedUp() {
   if (!auActive) return;
   // Big centered status message — visible while we search
-  bigToast('🔍 Phone no longer on ground — searching last 17 seconds for shot sound', 2200);
+  bigToast('🔍 Phone no longer on ground — searching last 40 seconds for shot sound', 2200);
 
   // Brief delay so the rolling buffer captures any final post-pickup audio chunk
   setTimeout(() => _searchAndQueueGroundShot(), 600);
