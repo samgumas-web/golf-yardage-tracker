@@ -4090,7 +4090,7 @@ function _captureOnCourseAudio() {
     _triggerCourseShotModal();
     return; // new shot is not captured; player must label previous first
   }
-  onCoursePendingAudio = { features: { ...auPending }, startLat: gpsPos.lat, startLng: gpsPos.lng, ts: Date.now() };
+  onCoursePendingAudio = { features: { ...auPending }, startLat: gpsPos.lat, startLng: gpsPos.lng, ts: Date.now(), hole: currentHole };
   _updatePendingShotBadge();
 }
 
