@@ -10191,12 +10191,7 @@ function cancelGroundPlacement() {
   pogLastFeatures = null;
   pogConfirmed    = false;
   auGroundPickupArmed = false; auPickupMotionStart = 0;
-  // Roll back the shot-sequence marker that was added when placement fired
-  if (shotSequenceHole === currentHole && shotSequenceMarkers.length > 0) {
-    const last = shotSequenceMarkers.pop();
-    if (map && last) { try { map.removeLayer(last); } catch {} }
-    shotSequenceCount = Math.max(0, shotSequenceCount - 1);
-  }
+  // No marker to roll back — markers are now added on shot-sound detection, not placement.
   // No longer on ground — suspend the mic until next placement (not during training)
   if (!auTrainMode && auContext && auContext.state === 'running') auContext.suspend().catch(() => {});
   updateGroundGateUI();
