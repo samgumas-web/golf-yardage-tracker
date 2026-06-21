@@ -5658,6 +5658,7 @@ function _firstUnscoredHole() {
 function _promptMissingScore() {
   const missing = _firstUnscoredHole();
   if (missing === null) { _finishRoundAuto(); return; }
+  _fillingMissing = true;
   _navigateToHole(missing);
   bigToast(`Please fill out score for Hole ${missing}`, 3500);
   vibrate([20, 80, 20]);
@@ -5669,6 +5670,7 @@ function _promptMissingScore() {
 
 function _finishRoundAuto() {
   _awaitingGreenScore = null;
+  _fillingMissing     = false;
   closePanel();
   setTimeout(showRoundSummary, 400);
 }
