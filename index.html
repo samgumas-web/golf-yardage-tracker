@@ -8742,6 +8742,7 @@ function startNewRound() {
   if (!confirm('Start a new round? The current scorecard will be cleared.')) return;
   roundScore = {}; roundStartedAt = null; saveRoundScore();
   greenScorePromptedHole = null;
+  _awaitingGreenScore = null; _fillingMissing = false;
   showScreen('scr-round');
 }
 
