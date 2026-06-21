@@ -5626,10 +5626,11 @@ function _maybeAutoAdvanceAfterGreen(h) {
 // hole has a score. Holes wrap 18→1; if the player loops back into already-scored
 // holes while some are still blank, they're sent to the first hole still missing one.
 function _advanceAfterHole(h) {
+  const HC = courseHoleCount || 18;
   if (_allHolesScored()) { _finishRoundAuto(); return; }
   // Already past the loop and mopping up skipped scores — keep jumping to blanks.
   if (_fillingMissing) { _promptMissingScore(); return; }
-  const next       = h >= 18 ? 1 : h + 1;
+  const next       = h >= HC ? 1 : h + 1;
   const nextScored = roundScore[next] && roundScore[next].strokes != null;
   if (nextScored) {
     _promptMissingScore(); // wrapped back into played holes but something is blank
@@ -5640,14 +5641,16 @@ function _advanceAfterHole(h) {
 }
 
 function _allHolesScored() {
-  for (let h = 1; h <= 18; h++) {
+  const HC = courseHoleCount || 18;
+  for (let h = 1; h <= HC; h++) {
     if (!roundScore[h] || roundScore[h].strokes == null) return false;
   }
   return true;
 }
 
 function _firstUnscoredHole() {
-  for (let h = 1; h <= 18; h++) {
+  const HC = courseHoleCount || 18;
+  for (let h = 1; h <= HC; h++) {
     if (!roundScore[h] || roundScore[h].strokes == null) return h;
   }
   return null;
