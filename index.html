@@ -4020,7 +4020,7 @@ function auLoop() {
         if (phoneLocation === 'bag' && auEnabled && autoTrack && auLastScore >= 0.55) onAudioShot();
         // Ground mode on-course: real-time spike detection is DISABLED here.
         // Detection only fires retrospectively when the phone is picked up
-        // (see auOnPhonePickedUp + dominance-only search of the last 17 s).
+        // (see auOnPhonePickedUp + dominance-only search of the last 40 s).
         if (phoneLocation === 'ground' && auEnabled && autoTrack && auLastScore >= 0.55 && !selectedCourse) {
           if (Date.now() - lastGroundPlacement < GROUND_GATE_MS) onAudioShot();
         }
