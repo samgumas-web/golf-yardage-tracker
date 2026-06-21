@@ -4357,9 +4357,9 @@ function _markShotSequencePoint(lat, lng) {
   }
   shotSequenceCount++;
   const n = shotSequenceCount;
-  const label = (n === 1)
-    ? `${_ordinal(n)} shot start`
-    : `${_ordinal(n - 1)} shot end · ${_ordinal(n)} shot start`;
+  // Each marker is where a detected shot was struck — i.e. the start of shot N
+  // (which is also where shot N-1 came to rest).
+  const label = `Shot ${n}${n > 1 ? ` · ${_ordinal(n - 1)} shot landed here` : ''}`;
 
   if (!map) return;
   const icon = L.divIcon({
