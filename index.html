@@ -3853,6 +3853,30 @@ function auCaptureClip() {
   });
 }
 
+// Returns a Blob|null containing a tight clip centred on a PAST moment: 1s before
+// (AU_CLIP_PRE_CHUNKS) and 2s after (AU_CLIP_POST_CHUNKS) the given timestamp.
+// Used for on-course shots, where the dominant impact happened seconds before the
+// phone was picked up — so all needed audio is already in the rolling buffer and we
+// can slice it synchronously (no post-roll wait). This keeps the saved/Firebase clip
+// to ~3s instead of the full 40s look-back window.
+function auCaptureClipAround(centerTs) {
+  if (!auMediaRecorder || !auRollingChunks.length || !auRollingChunkTs.length) return null;
+  // Find the buffered chunk whose timestamp is closest to the dominant moment.
+  let centerIdx = auRollingChunkTs.length - 1;
+  let bestDiff  = Infinity;
+  for (let i = 0; i < auRollingChunkTs.length; i++) {
+    const d = Math.abs(auRollingChunkTs[i] - centerTs);
+    if (d < bestDiff) { bestDiff = d; centerIdx = i; }
+  }
+  const start = Math.max(0, centerIdx - AU_CLIP_PRE_CHUNKS);
+  const end   = Math.min(auRollingChunks.length, centerIdx + AU_CLIP_POST_CHUNKS + 1);
+  const slice = auRollingChunks.slice(start, end);
+  const chunks = [auRecordingHeaderChunk, ...slice].filter(Boolean);
+  if (!chunks.length) return null;
+  const mime = auMediaRecorder ? auMediaRecorder.mimeType : 'audio/webm';
+  return new Blob(chunks, { type: mime });
+}
+
 // Strips the first audio Cluster from a WebM chunk so the result contains only
 // codec-init data (EBML header + Tracks) with no audio samples.
 // Prepending this header-only blob to any set of later Clusters makes a decodable
