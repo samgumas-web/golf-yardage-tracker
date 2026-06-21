@@ -4379,7 +4379,7 @@ async function auOnPhonePickedUp() {
 async function auManualCourseShot() {
   if (!auActive) { toast('Audio not active'); return; }
   if (onCoursePendingAudio) { _triggerCourseShotModal(); return; }
-  bigToast('🔍 Searching last 17 seconds for shot sound', 1800);
+  bigToast('🔍 Searching last 40 seconds for shot sound', 1800);
   setTimeout(() => _searchAndQueueGroundShot(), 600);
 }
 
