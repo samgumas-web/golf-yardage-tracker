@@ -7873,10 +7873,12 @@ function onSelChange() {
   document.getElementById('save-btn').disabled = !(startMark && endMark && document.getElementById('club-sel').value);
 }
 
-function persistShot(clubName, yards, gpsStart, gpsEnd) {
+function persistShot(clubName, yards, gpsStart, gpsEnd, opts) {
+  opts = opts || {};
+  const holeNum = opts.hole || currentHole;
   if (!roundStartedAt) roundStartedAt = new Date().toISOString();
   const now = new Date().toISOString();
-  const shot = { id: Date.now(), club: clubName, yards, date: now, hole: currentHole };
+  const shot = { id: Date.now(), club: clubName, yards, date: now, hole: holeNum };
   if (gpsStart) { shot.sLat = gpsStart.lat; shot.sLng = gpsStart.lng; }
   if (gpsEnd)   { shot.eLat = gpsEnd.lat;   shot.eLng = gpsEnd.lng;   }
   shots.unshift(shot);
@@ -7889,11 +7891,11 @@ function persistShot(clubName, yards, gpsStart, gpsEnd) {
     user_email: activeProfile ? activeProfile.email : 'anonymous',
     club: clubName,
     yards,
-    hole: currentHole,
+    hole: holeNum,
     shot_date: now
   });
   vibrate([30,20,30,20,100]);
-  toast(`Saved! ${fmt(yards)} ${unitStr()} · ${clubName} (Hole ${currentHole})`);
+  if (!opts.silent) toast(`Saved! ${fmt(yards)} ${unitStr()} · ${clubName} (Hole ${holeNum})`);
 }
 
 function saveShot() {
