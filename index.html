@@ -8653,8 +8653,8 @@ function finishNineHoles() {
   finishRoundAtHole(9);
 }
 
-// End the round at the current hole (any number 1-17). On 18 the round
-// auto-finishes when strokes are entered.
+// End the round manually at the current hole (any number 1-18). The round also
+// ends automatically once every hole has a score (see _advanceAfterHole).
 function finishRoundAtHole(h) {
   const target = h || currentHole;
   const label = target === 9 ? 'after 9 holes' : `at hole ${target}`;
