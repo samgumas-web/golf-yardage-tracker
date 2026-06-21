@@ -5684,9 +5684,18 @@ function _advanceAfterHole(h) {
   if (nextScored) {
     _promptMissingScore(); // wrapped back into played holes but something is blank
   } else {
+    const saved = _roundShotsForHole(h); // count before _navigateToHole resets the sequence
     _navigateToHole(next);
     closePanel();
+    toast(`Hole ${h}: ${saved} shot${saved === 1 ? '' : 's'} saved · now on Hole ${next}`);
   }
+}
+
+// How many shots were saved for a hole in the CURRENT round (used for the
+// "X shots saved" confirmation when advancing to the next hole).
+function _roundShotsForHole(h) {
+  const since = roundStartedAt || '';
+  return shots.filter(s => s.hole === h && s.date >= since).length;
 }
 
 function _allHolesScored() {
