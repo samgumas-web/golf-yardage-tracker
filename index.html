@@ -8630,10 +8630,8 @@ function setStrokes(strokes) {
   roundScore[h].strokes = strokes;
   saveRoundScore();
   renderScorecard();
-  if (h === 18) {
-    closePanel();
-    setTimeout(showRoundSummary, 400);
-  }
+  // Note: reaching hole 18 no longer ends the round on its own — the round only
+  // ends automatically once EVERY hole has a score (see _advanceAfterHole).
   if (_awaitingGreenScore === h) { _greenStrokesEntered = true; _maybeAutoAdvanceAfterGreen(h); }
 }
 
