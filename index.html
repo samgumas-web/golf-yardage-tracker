@@ -6185,8 +6185,8 @@ function updateHoleDisplay() {
   updateHoleHUD();
 }
 
-function changeHole(d) {
-  const n = Math.max(1, Math.min(18, currentHole + d));
+function _navigateToHole(n) {
+  n = Math.max(1, Math.min(18, n));
   if (n === currentHole) return;
   // If a shot is pending unlabelled when the player advances, surface the
   // modal now — otherwise it would sit silently until the next pickup on a
@@ -6201,6 +6201,10 @@ function changeHole(d) {
   zoomToHole(n);
   lastHolePrompt = null;
   _saveActiveRound();
+}
+
+function changeHole(d) {
+  _navigateToHole(currentHole + d);
 }
 
 // Returns the player's typical driver yardage. Prefers actual shot history,
