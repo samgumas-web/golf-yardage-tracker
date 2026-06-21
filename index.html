@@ -8633,12 +8633,14 @@ function setStrokes(strokes) {
     closePanel();
     setTimeout(showRoundSummary, 400);
   }
+  if (_awaitingGreenScore === h) { _greenStrokesEntered = true; _maybeAutoAdvanceAfterGreen(h); }
 }
 
 function setPutts(hole, p) {
   if (!roundScore[hole]) roundScore[hole] = { strokes: null, putts: 0 };
   roundScore[hole].putts = p;
   saveRoundScore(); renderScorecard();
+  if (_awaitingGreenScore === hole) { _greenPuttsEntered = true; _maybeAutoAdvanceAfterGreen(hole); }
 }
 
 function scNav(delta) {
