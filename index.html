@@ -1960,6 +1960,9 @@ let onCoursePendingAudio = null;  // { features, startLat, startLng, ts } — PR
 let _csmNextPendingShot  = null;  // the just-captured shot waiting to become onCoursePendingAudio after the current label finishes
 let greenScorePromptedHole = null; // hole # for which the scorecard has already auto-opened on green arrival (one-shot)
 const GREEN_ARRIVE_M = 25;        // within this many metres of the green marker = "on the green" → prompt for score (tunable)
+let _awaitingGreenScore  = null;  // hole # whose score we're collecting after a green prompt (enables auto-advance)
+let _greenStrokesEntered = false; // strokes tapped for the awaited hole
+let _greenPuttsEntered   = false; // putts tapped for the awaited hole
 let _csmSelectedClub = null;     // club selection state for course-shot modal
 let _csmSelectedFace = null;     // face selection state for course-shot modal
 // ── Per-shot sequence markers (cleared on hole change) ─────────────
