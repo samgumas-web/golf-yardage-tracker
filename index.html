@@ -6045,6 +6045,7 @@ async function _finishSelectCourse() {
     roundScore = {}; saveRoundScore();
   }
   greenScorePromptedHole = null;
+  _awaitingGreenScore = null; _fillingMissing = false;
   courseHoleCount = 18;
   lastHolePrompt = null;
   courseHoles = [];
