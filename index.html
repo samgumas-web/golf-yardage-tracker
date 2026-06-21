@@ -5586,20 +5586,37 @@ function onGPSPos(pos) {
   // Auto shot detection
   if (autoTrack) atGPSTick(gpsPos);
 
-  // On-course ground mode: near the green triggers label modal for any pending audio shot.
-  // 30m radius covers walking onto the green (greens are typically 15-25m wide from center).
+  // On-course ground mode: within the green zone (≈30m) the player ends the shot by
+  // stopping at their ball instead of placing the phone again. Once inside the zone, a
+  // pending shot is finalised only after the phone has been stationary for ~5s (the time
+  // it takes to line up a putt/chip) — so the captured endpoint is the exact landing spot
+  // near/on the green, giving an accurate shot distance.
   if (onCoursePendingAudio && selectedCourse && !auTrainMode) {
     const hole = courseHoles.find(h => h.number === currentHole);
-    if (hole && hole.green && hole.green.lat) {
-      const distM = haversineM(gpsPos.lat, gpsPos.lng, hole.green.lat, hole.green.lng);
-      const modal = document.getElementById('course-shot-modal');
-      if (distM < 30 && modal && modal.style.display !== 'flex') {
-        console.log('[green-proximity] firing modal — distM:', distM.toFixed(1));
-        _triggerCourseShotModal();
+    const greenDist = (hole && hole.green && hole.green.lat)
+      ? haversineM(gpsPos.lat, gpsPos.lng, hole.green.lat, hole.green.lng)
+      : Infinity;
+    if (greenDist < 30) {
+      // Inside the green zone — watch for the player standing still at their ball.
+      const moved = !_stillAnchor ||
+        haversineM(gpsPos.lat, gpsPos.lng, _stillAnchor.lat, _stillAnchor.lng) > GROUND_STILL_M;
+      if (moved) {
+        _stillAnchor = { lat: gpsPos.lat, lng: gpsPos.lng };
+        _stillSince  = Date.now();
+        _stillFired  = false;
+      } else if (!_stillFired && Date.now() - _stillSince >= GROUND_STILL_MS) {
+        const modal = document.getElementById('course-shot-modal');
+        if (modal && modal.style.display !== 'flex') {
+          _stillFired = true;
+          console.log('[green-zone] stationary 5s — firing label modal, greenDist:', greenDist.toFixed(1));
+          _triggerCourseShotModal();
+        }
       }
     } else {
-      console.log('[green-proximity] no green data for hole', currentHole, '— modal cannot auto-fire');
+      _stillAnchor = null; _stillFired = false; // outside the green zone — reset stop tracking
     }
+  } else {
+    _stillAnchor = null; _stillFired = false;   // no pending shot — reset stop tracking
   }
 
   // On-course: reaching the green ENDS the hole. Open the scorecard so the player
