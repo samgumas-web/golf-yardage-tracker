@@ -1958,6 +1958,14 @@ let auFeatureWeights = {
 let phoneLocation    = localStorage.getItem('gy_phone_loc') || 'pocket'; // 'ground' | 'pocket' | 'bag'
 let onCoursePendingAudio = null;  // { features, startLat, startLng, ts } — PREVIOUS shot, awaiting label
 let _csmNextPendingShot  = null;  // the just-captured shot waiting to become onCoursePendingAudio after the current label finishes
+// "Stopped at the ball" detection — ends a pending shot where the player actually stops
+// (lining up a putt/chip) rather than at a fixed distance from the green, for accurate yardage.
+let _stillAnchor = null;          // {lat,lng} GPS anchor for the current stop
+let _stillSince  = 0;             // timestamp the player became stationary at the anchor
+let _stillFired  = false;         // whether the label modal already fired for this stop
+const GROUND_STILL_MS    = 5000;  // stationary this long (≈ time to line up a putt/chip) ends the shot
+const GROUND_STILL_M     = 10;    // GPS drift tolerance while "standing still" (matches AT_STABLE_M)
+const GROUND_MIN_SHOT_M  = 18;    // stop must be at least this far from the shot start (~20 yds) to count
 let greenScorePromptedHole = null; // hole # for which the scorecard has already auto-opened on green arrival (one-shot)
 const GREEN_ARRIVE_M = 25;        // within this many metres of the green marker = "on the green" → prompt for score (tunable)
 let _awaitingGreenScore  = null;  // hole # whose score we're collecting after a green prompt (enables auto-advance)
