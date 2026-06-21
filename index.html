@@ -4456,7 +4456,8 @@ async function _searchAndQueueGroundShot() {
     features,
     startLat: gpsPos ? gpsPos.lat : 0,
     startLng: gpsPos ? gpsPos.lng : 0,
-    ts:       best.ts
+    ts:       best.ts,
+    hole:     currentHole
   };
 
   auCourseRmsHistory = [];   // reset for the next placement
