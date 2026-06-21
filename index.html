@@ -4099,12 +4099,17 @@ function _triggerCourseShotModal() {
   const modal = document.getElementById('course-shot-modal');
   if (!modal || modal.style.display === 'flex') return;
 
-  // Estimated shot distance: from where phone was placed to current GPS
+  // Estimated shot distance: from where phone was placed to current GPS.
+  // Capture the endpoint now (current GPS = where the ball came to rest / next
+  // placement) so the saved shot has both a start and an end for its map arc.
   let estimatedYards = 0;
   if (gpsPos) {
     estimatedYards = Math.round(haversine(
       { lat: onCoursePendingAudio.startLat, lng: onCoursePendingAudio.startLng }, gpsPos
     ));
+    onCoursePendingAudio.endLat = gpsPos.lat;
+    onCoursePendingAudio.endLng = gpsPos.lng;
+    onCoursePendingAudio.yards  = estimatedYards;
   }
 
   // Distance remaining to pin
