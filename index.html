@@ -4200,7 +4200,7 @@ function _confirmCourseShot() {
   // and feeds club-distance stats — on-course shots were previously only saved to
   // the audio training pool, which is why their arcs never appeared.
   const p = onCoursePendingAudio;
-  if (p.startLat != null && p.startLng != null && p.endLat != null && p.endLng != null) {
+  if (p.startLat && p.startLng && p.endLat && p.endLng) {
     const yards = p.yards != null ? p.yards
       : Math.round(haversine({ lat: p.startLat, lng: p.startLng }, { lat: p.endLat, lng: p.endLng }));
     persistShot(_csmSelectedClub, yards,
