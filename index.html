@@ -5315,13 +5315,19 @@ async function forceUploadAudioToPool() {
   const btn = document.getElementById('force-audio-pool-btn');
   if (btn) { btn.disabled=true; btn.textContent='Uploading…'; }
   const newSamples = auLearnData.samples.slice(auLearnData.poolCount || 0);
+  // Only upload samples that actually carry an audio clip. Feature-only (lite) samples
+  // are already represented in the pool — they were uploaded WITH audio at label time
+  // via fbAudioSample — so re-uploading them here just creates audio-less duplicates
+  // that pollute the pool and the date view.
+  const toUpload = newSamples.filter(s => s.audioData);
+  const skipped  = newSamples.length - toUpload.length;
   let uploadOk = true;
-  if (newSamples.length) {
+  if (toUpload.length) {
     const base = fbDb.collection('trainingPool').doc('audioTraining').collection('golfClubAudio');
     try {
-      for (let i = 0; i < newSamples.length; i += 499) {
+      for (let i = 0; i < toUpload.length; i += 499) {
         const batch = fbDb.batch();
-        newSamples.slice(i, i+499).forEach(s => {
+        toUpload.slice(i, i+499).forEach(s => {
           const club   = s.club || 'SHOT_UNKNOWN';
           const face   = s.faceLocation || 'None';
           const clipRef = base.doc(auSanitizeId(club))
@@ -5338,31 +5344,38 @@ async function forceUploadAudioToPool() {
             zcr:           parseFloat((s.zcr          ||0).toFixed(4)),
             centroid:      parseFloat((s.centroid     ||0).toFixed(4)),
             attack:        parseFloat((s.attack       ||0).toFixed(4)),
-            ts: Date.now()
+            ts:            s.ts || Date.now(),  // preserve the sample's original capture time
+            audioData:     s.audioData,
+            audioMime:     s.audioMime || 'audio/webm'
           };
-          if (s.audioData) { doc.audioData = s.audioData; doc.audioMime = s.audioMime || 'audio/webm'; }
           batch.set(clipRef, doc);
         });
         await batch.commit();
       }
-      auLearnData.poolCount = auLearnData.samples.length;
-      auLearnData.poolVersion = AU_POOL_VERSION;
-      auSaveLearnData();
     } catch(e) {
       uploadOk = false;
       console.warn('forceUploadAudioToPool:', e);
     }
   }
-  // Only bust the audio pool cache and re-read if the upload actually succeeded
-  if (uploadOk && newSamples.length > 0) {
+  // Mark all processed (including skipped feature-only ones) so they aren't re-evaluated.
+  if (uploadOk && newSamples.length) {
+    auLearnData.poolCount = auLearnData.samples.length;
+    auLearnData.poolVersion = AU_POOL_VERSION;
+    auSaveLearnData();
+  }
+  // Only bust the audio pool cache and re-read if we actually uploaded clips.
+  if (uploadOk && toUpload.length > 0) {
     localStorage.removeItem(AU_POOL_CACHE_KEY);
     await fbLoadAudioPool();
   }
   if (btn) { btn.disabled=false; btn.textContent='↑ Upload Audio Training Data'; }
   if (!uploadOk) {
     toast('Upload failed — check connection and try again');
-  } else if (newSamples.length > 0) {
-    toast(`Uploaded ${newSamples.length} audio samples to Firestore`);
+  } else if (toUpload.length > 0) {
+    toast(`Uploaded ${toUpload.length} audio clip${toUpload.length !== 1 ? 's' : ''}` +
+          (skipped ? ` · skipped ${skipped} feature-only` : ''));
+  } else if (skipped > 0) {
+    toast(`Nothing to upload — ${skipped} feature-only sample${skipped !== 1 ? 's' : ''} already in the pool`);
   } else {
     toast('All audio data already uploaded');
   }
