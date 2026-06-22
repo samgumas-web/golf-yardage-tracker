@@ -186,7 +186,7 @@ async function loadData() {
         course: p.courseName,
         snr:   f.snr || p.dominantRms || 0,
         source: p.source || '',
-        audioData: p.audioData,
+        audioData: p.audioData || null,
         audioMime: p.audioMime || 'audio/webm'
       });
     });
