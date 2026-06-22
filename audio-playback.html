@@ -227,18 +227,18 @@ async function loadData() {
       `<br><br><span style="color:#6b7280">Diagnostics:</span><br>` +
       `• Signed-in uid: <span style="color:#93c5fd">${esc(uid)}</span><br>` +
       `• Clips fetched (all users): <b style="color:#9ca3af">${dbg.fetched}</b><br>` +
-      `• Clips with your uid: <b style="color:#9ca3af">${dbg.mine}</b> (with audio: ${dbg.mineWithAudio})<br>` +
-      `• Newest of YOUR clips: ${esc(fmtTs(dbg.newestMineTs))}<br>` +
-      `• Newest of ANY clip: ${esc(fmtTs(dbg.newestAnyTs))}<br>` +
+      `• Clips with your uid: <b style="color:#9ca3af">${dbg.mine}</b> (with playable audio: ${dbg.mineWithAudio})<br>` +
+      `• Newest clip WITH audio: ${esc(fmtTs(dbg.newestMineAudioTs))}<br>` +
+      `• Newest clip of any kind: ${esc(fmtTs(dbg.newestMineTs))}<br>` +
       `• Cutoff (clips must be newer than): ${esc(fmtTs(sinceMs))}` +
-      (dbg.mine > 0 && dbg.newestMineTs < sinceMs
-        ? `<br><br><b style="color:#fbbf24">→ Your clips exist but are older than the window. Increase the "days" box and Load again.</b>`
+      (dbg.mineWithAudio > 0 && dbg.newestMineAudioTs < sinceMs
+        ? `<br><br><b style="color:#fbbf24">→ You have ${dbg.mineWithAudio} clip(s) with audio, but the newest is older than this window. Increase the "days" box (e.g. 30) and Load again to hear them.</b>`
         : '') +
       (dbg.fetched > 0 && dbg.mine === 0
         ? `<br><br><b style="color:#fbbf24">→ Clips exist but none match your uid — you may be signed into a different account than the one that recorded them.</b>`
         : '') +
       (dbg.mine > 0 && dbg.mineWithAudio === 0
-        ? `<br><br><b style="color:#fbbf24">→ Your clips exist but were saved without an audio blob (features only) — there is nothing to play.</b>`
+        ? `<br><br><b style="color:#fbbf24">→ Your clips were saved without an audio blob (features only) — nothing to play. Future rounds will keep audio (fix applied).</b>`
         : '') +
       `</div>`;
     STATUS.textContent = `Loaded — 0 clips (fetched ${dbg.fetched}, yours ${dbg.mine})`;
