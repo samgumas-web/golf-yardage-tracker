@@ -8380,6 +8380,29 @@ function setRangeTrainMode(mode) {
   });
 }
 
+// Phone-location picker on the Range tab — mirrors on-course mode. Sets the same global
+// phoneLocation used by detection and the audio training studio, so the choice carries
+// straight into the session (ground → loudest/dominant strike is flagged for labeling).
+function setRangePhoneLoc(loc) {
+  phoneLocation = loc;
+  localStorage.setItem('gy_phone_loc', loc);
+  ['ground', 'pocket', 'bag'].forEach(l => {
+    const b = document.getElementById('rloc-' + l);
+    if (!b) return;
+    const active = l === loc;
+    b.style.background  = active ? '#14532d' : 'var(--card2)';
+    b.style.borderColor = active ? '#16a34a' : 'var(--border)';
+    b.style.color       = active ? '#4ade80' : 'var(--muted)';
+  });
+  const hint = document.getElementById('rloc-hint');
+  if (hint) hint.textContent = loc === 'ground'
+    ? 'Phone flat on the ground by the ball — the single loudest (dominant) strike is flagged for you to label as shot / not-shot.'
+    : loc === 'pocket' ? 'Phone in your pocket — swing motion drives detection.'
+    : 'Phone in your golf bag.';
+  // Keep the audio-training studio's own selector in sync if it's already open
+  if (auTrainMode) auSetTrainLoc(loc);
+}
+
 function startRangeTrainSession() {
   if (rangeTrainMode === 'swing') {
     if (!autoTrack) toggleAutoTrack();
