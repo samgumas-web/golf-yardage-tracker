@@ -126,14 +126,14 @@ async function loadData() {
       if (ts > dbg.newestMineTs) dbg.newestMineTs = ts;
       if (p.audioData) dbg.mineWithAudio++;
     }
-    if (p.uid !== uid || ts < sinceMs) return;
+    if (p.uid !== uid || ts < sinceMs || !p.audioData) return; // listen tool — only clips with audio
     items.push({
       kind:  p.type === 'NOT_SHOT' ? 'notshot' : 'shot',
       ts,
       club:  p.club || (p.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
       face:  p.faceLocation || '',
       snr:   p.snr || 0,
-      audioData: p.audioData || null,
+      audioData: p.audioData,
       audioMime: p.audioMime || 'audio/webm'
     });
   };
