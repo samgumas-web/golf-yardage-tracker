@@ -262,10 +262,13 @@ async function loadData() {
       if (it.course) ctx.push(`<b>course:</b> ${esc(it.course)}`);
       if (it.source) ctx.push(`<b>src:</b> ${esc(it.source)}`);
       ctx.push(`<b>snr:</b> ${(Number(it.snr) || 0).toFixed(3)}`);
+      const player = it.audioData
+        ? `<audio controls preload="none" src="data:${esc(it.audioMime)};base64,${it.audioData}"></audio>`
+        : `<div style="color:#f87171;font-size:11px;margin-top:4px">⚠ no audio clip saved for this detection</div>`;
       html += `<div class="clip">
         <div class="clip-top"><span class="clip-time">${esc(time)}</span><span>${badge}</span></div>
         <div class="meta">${ctx.join(' &nbsp;·&nbsp; ')}</div>
-        <audio controls preload="none" src="data:${esc(it.audioMime)};base64,${it.audioData}"></audio>
+        ${player}
       </div>`;
     });
   }
