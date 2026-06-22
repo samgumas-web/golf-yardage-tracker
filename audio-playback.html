@@ -114,7 +114,7 @@ async function loadData() {
   const uid = auth.currentUser.uid;
   const items = [];
   let poolError = '';
-  const dbg = { fetched: 0, mine: 0, mineWithAudio: 0, newestAnyTs: 0, newestMineTs: 0 };
+  const dbg = { fetched: 0, mine: 0, mineWithAudio: 0, newestAnyTs: 0, newestMineTs: 0, newestMineAudioTs: 0 };
 
   // ── Source 1: confirmed / labelled shot clips in the training pool ──
   const pushClip = (p) => {
