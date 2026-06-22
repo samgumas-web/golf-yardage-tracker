@@ -4471,6 +4471,24 @@ async function _searchAndQueueGroundShot() {
     hole:     currentHole
   };
 
+  // Persist this detection's audio immediately so it's reviewable even if the player
+  // never labels it. base64 may be null if capture failed — we still log the detection.
+  fbSaveCourseDetection({
+    id:         'cs_' + best.ts + '_' + Math.random().toString(36).slice(2, 8),
+    ts:         best.ts,
+    hole:       currentHole,
+    courseId:   selectedCourse ? selectedCourse.osmId : null,
+    courseName: selectedCourse ? selectedCourse.name : null,
+    startLat:   newCapture.startLat,
+    startLng:   newCapture.startLng,
+    snr:        features.snr || 0,
+    rms:        parseFloat((best.rms || 0).toFixed(4)),
+    hasAudio:   !!base64,
+    audioData:  base64 || null,
+    audioMime:  mime || 'audio/webm',
+    capturedAt: Date.now()
+  });
+
   auCourseRmsHistory = [];   // reset for the next placement
   vibrate([20, 60, 20]);
   _showNextShotStatus(true);
