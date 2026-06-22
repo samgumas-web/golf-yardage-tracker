@@ -116,15 +116,18 @@ async function loadData() {
   let poolError = '';
 
   // ── Source 1: confirmed / labelled shot clips in the shared training pool ──
+  // The security rules allow reading the pool only WITHOUT a uid filter (the same way
+  // the main app loads it for training), so we fetch newest-first and keep only OUR
+  // clips client-side. limit covers the recent window for a small user base.
   try {
     const snap = await db.collectionGroup('audioClips')
-      .where('uid', '==', uid)
-      .limit(1000)
+      .orderBy('ts', 'desc')
+      .limit(1500)
       .get({ source: 'server' });
     snap.forEach(d => {
       const p = d.data();
       const ts = p.ts || 0;
-      if (ts < sinceMs || !p.audioData) return;
+      if (p.uid !== uid || ts < sinceMs || !p.audioData) return;
       items.push({
         kind:  p.type === 'NOT_SHOT' ? 'notshot' : 'shot',
         ts,
