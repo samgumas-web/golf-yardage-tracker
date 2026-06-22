@@ -124,7 +124,7 @@ async function loadData() {
     if (p.uid === uid) {
       dbg.mine++;
       if (ts > dbg.newestMineTs) dbg.newestMineTs = ts;
-      if (p.audioData) dbg.mineWithAudio++;
+      if (p.audioData) { dbg.mineWithAudio++; if (ts > dbg.newestMineAudioTs) dbg.newestMineAudioTs = ts; }
     }
     if (p.uid !== uid || ts < sinceMs || !p.audioData) return; // listen tool — only clips with audio
     items.push({
