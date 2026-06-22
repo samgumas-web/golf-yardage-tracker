@@ -211,7 +211,7 @@ async function loadData() {
       if (it.hole != null) ctx.push(`<b>hole:</b> ${esc(it.hole)}`);
       if (it.course) ctx.push(`<b>course:</b> ${esc(it.course)}`);
       if (it.source) ctx.push(`<b>src:</b> ${esc(it.source)}`);
-      ctx.push(`<b>snr:</b> ${(it.snr || 0).toFixed ? it.snr.toFixed(3) : it.snr}`);
+      ctx.push(`<b>snr:</b> ${(Number(it.snr) || 0).toFixed(3)}`);
       html += `<div class="clip">
         <div class="clip-top"><span class="clip-time">${esc(time)}</span><span>${badge}</span></div>
         <div class="meta">${ctx.join(' &nbsp;·&nbsp; ')}</div>
