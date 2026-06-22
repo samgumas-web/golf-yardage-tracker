@@ -175,7 +175,7 @@ async function loadData() {
     snap.forEach(d => {
       const p = d.data();
       const ts = p.ts || p.capturedAt || 0;
-      if (ts < sinceMs) return;
+      if (ts < sinceMs || !p.audioData) return;
       items.push({
         kind:  'shot',
         ts,
@@ -185,7 +185,7 @@ async function loadData() {
         course: p.courseName,
         snr:   p.snr || p.rms || 0,
         source: 'on-course detection',
-        audioData: p.audioData || null,
+        audioData: p.audioData,
         audioMime: p.audioMime || 'audio/webm'
       });
     });
