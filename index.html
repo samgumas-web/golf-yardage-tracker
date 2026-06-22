@@ -4428,7 +4428,10 @@ async function _searchAndQueueGroundShot() {
 
   // Capture a tight ~3s clip centred on the dominant moment (1s before / 2s after) —
   // not the whole 40s window. Captured regardless (we may need it for the review queue).
-  const blob = auCaptureClipAround(best.ts);
+  // Fall back to a live pre-roll capture if the timestamped slice came up empty, so we
+  // almost always have an audio clip to save.
+  let blob = auCaptureClipAround(best.ts);
+  if (!blob) blob = await auCaptureClip();
   const base64 = blob ? await auBlobToBase64(blob) : null;
   const mime   = blob ? blob.type : null;
 
