@@ -4651,6 +4651,16 @@ function fbSaveReviewItem(item) {
     .set(item).catch(e => console.warn('fbSaveReviewItem:', e));
 }
 
+// Persist EVERY detected on-course shot (audio clip + metadata) to the player's own
+// collection at detection time — independent of whether they later label it — so rounds
+// are always reviewable by ear afterwards (see audio-playback.html).
+function fbSaveCourseDetection(item) {
+  if (!fbDb || !activeProfile || !item) return;
+  fbDb.collection('users').doc(activeProfile.id)
+    .collection('courseShotAudio').doc(item.id)
+    .set(item).catch(e => console.warn('fbSaveCourseDetection:', e));
+}
+
 async function fbLoadReviewQueue() {
   if (!fbDb || !activeProfile) return;
   try {
