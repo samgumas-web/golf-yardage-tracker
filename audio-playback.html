@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GolfYards — Listen to Collected Shots</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a1a0a; color: #ccc; font-family: monospace; font-size: 13px; padding: 18px; }
+  h1 { color: #4ade80; margin-bottom: 6px; font-size: 18px; }
+  .sub { color: #6b7280; margin-bottom: 16px; font-size: 12px; line-height: 1.5; }
+  #status { color: #facc15; margin-bottom: 14px; min-height: 20px; }
+  button { background: #1a472a; border: 1px solid #166534; color: #4ade80; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 8px; }
+  button:hover { background: #14532d; }
+  input { background: #111; border: 1px solid #1e3a1e; border-radius: 6px; color: #ccc; font-size: 13px; padding: 8px 10px; }
+  .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 18px; }
+  .summary-card { background: #111; border: 1px solid #1e3a1e; border-radius: 8px; padding: 10px 14px; }
+  .summary-card .label { font-size: 11px; color: #6b7280; margin-bottom: 2px; }
+  .summary-card .value { font-size: 16px; color: #4ade80; font-weight: bold; }
+  .day-header { color: #4ade80; font-size: 14px; font-weight: bold; margin: 20px 0 10px; border-bottom: 1px solid #1e3a1e; padding-bottom: 5px; }
+  .clip { background: #111; border: 1px solid #1e3a1e; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .clip-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .clip-time { color: #93c5fd; font-size: 13px; font-weight: bold; }
+  .badge { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; margin-left: 6px; }
+  .badge.shot   { background: #1a472a; color: #4ade80; border: 1px solid #166534; }
+  .badge.review { background: #3a2a00; color: #fbbf24; border: 1px solid #7a4d00; }
+  .badge.notshot{ background: #3a0000; color: #f87171; border: 1px solid #7a0000; }
+  .meta { color: #6b7280; font-size: 11px; margin-bottom: 8px; }
+  .meta b { color: #9ca3af; font-weight: normal; }
+  audio { width: 100%; height: 34px; margin-top: 4px; }
+  .no-data { color: #4b5563; font-style: italic; padding: 12px 0; }
+  #sign-in-area { margin-bottom: 20px; }
+  #sign-in-area input { width: 100%; max-width: 320px; margin-bottom: 8px; display: block; }
+</style>
+</head>
+<body>
+<h1>🎧 Listen to Collected Shots</h1>
+<div class="sub">
+  Plays back the actual audio clip captured for every shot your phone detected on the course.
+  Use it to confirm each detection is a real club strike (and spot any that are wind / silence / mishits).
+</div>
+<div id="status">Loading Firebase…</div>
+
+<div id="sign-in-area" style="display:none">
+  <input id="email-inp" type="email" placeholder="GolfYards account email">
+  <input id="pw-inp" type="password" placeholder="Password">
+  <button onclick="signIn()">Sign In</button>
+</div>
+
+<div id="main" style="display:none">
+  <div class="controls">
+    <label>Last <input id="days-inp" type="number" value="2" min="1" max="30" style="width:56px"> days</label>
+    <button onclick="loadData()">↻ Load</button>
+    <button onclick="signOut()" style="background:#1a1a2e;border-color:#374151;color:#9ca3af">Sign out</button>
+  </div>
+  <div id="summary" class="summary-grid"></div>
+  <div id="output"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            'AIzaSyCrOToPLYqbDnknhcWcVlQrOchs8YGTB9g',
+  authDomain:        'golfyards-16f37.firebaseapp.com',
+  projectId:         'golfyards-16f37',
+  storageBucket:     'golfyards-16f37.firebasestorage.app',
+  messagingSenderId: '172351445870',
+  appId:             '1:172351445870:web:11772be91aeb54d1dfbf7f'
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+const STATUS = document.getElementById('status');
+const SIGNIN = document.getElementById('sign-in-area');
+const MAIN   = document.getElementById('main');
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    STATUS.textContent = `Signed in as ${user.email}`;
+    SIGNIN.style.display = 'none';
+    MAIN.style.display   = 'block';
+    loadData();
+  } else {
+    STATUS.textContent = 'Not signed in';
+    SIGNIN.style.display = 'block';
+    MAIN.style.display   = 'none';
+  }
+});
+
+function signIn() {
+  const email = document.getElementById('email-inp').value.trim();
+  const pw    = document.getElementById('pw-inp').value;
+  if (!email || !pw) { STATUS.textContent = 'Enter email and password'; return; }
+  STATUS.textContent = 'Signing in…';
+  auth.signInWithEmailAndPassword(email, pw)
+    .catch(e => { STATUS.textContent = 'Sign-in failed: ' + e.message; });
+}
+function signOut() { auth.signOut(); }
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadData() {
+  const days = Math.max(1, parseInt(document.getElementById('days-inp').value, 10) || 2);
+  const sinceMs = Date.now() - days * 86400 * 1000;
+  const summaryEl = document.getElementById('summary');
+  const outputEl  = document.getElementById('output');
+  summaryEl.innerHTML = '<div style="color:#4b5563">Loading…</div>';
+  outputEl.innerHTML  = '';
+  STATUS.textContent = `Fetching your audio from the last ${days} day(s)…`;
+
+  const uid = auth.currentUser.uid;
+  const items = [];
+  let poolError = '';
+
+  // ── Source 1: confirmed / labelled shot clips in the shared training pool ──
+  try {
+    const snap = await db.collectionGroup('audioClips')
+      .where('uid', '==', uid)
+      .limit(1000)
+      .get({ source: 'server' });
+    snap.forEach(d => {
+      const p = d.data();
+      const ts = p.ts || 0;
+      if (ts < sinceMs || !p.audioData) return;
+      items.push({
+        kind:  p.type === 'NOT_SHOT' ? 'notshot' : 'shot',
+        ts,
+        club:  p.club || (p.type === 'SHOT' ? 'SHOT_UNKNOWN' : 'NOT_SHOT'),
+        face:  p.faceLocation || '',
+        snr:   p.snr || 0,
+        audioData: p.audioData,
+        audioMime: p.audioMime || 'audio/webm'
+      });
+    });
+  } catch (e) {
+    poolError = e.message || String(e);
+    console.warn('Pool query failed:', e);
+  }
+
+  // ── Source 2: on-course "review queue" clips (detected but flagged / user-confirmed) ──
+  try {
+    const snap = await db.collection('users').doc(uid)
+      .collection('audioReviewQueue').get({ source: 'server' });
+    snap.forEach(d => {
+      const p = d.data();
+      const ts = p.captured || p.dominantTs || 0;
+      if (ts < sinceMs || !p.audioData) return;
+      const f = p.features || {};
+      items.push({
+        kind:  'review',
+        ts,
+        club:  f.club || '—',
+        face:  f.faceLocation || '',
+        hole:  p.hole,
+        course: p.courseName,
+        snr:   f.snr || p.dominantRms || 0,
+        source: p.source || '',
+        audioData: p.audioData,
+        audioMime: p.audioMime || 'audio/webm'
+      });
+    });
+  } catch (e) {
+    console.warn('Review-queue query failed:', e);
+  }
+
+  if (!items.length) {
+    summaryEl.innerHTML = '';
+    outputEl.innerHTML = `<div class="no-data">No audio clips found in the last ${days} day(s).` +
+      (poolError ? `<br><br>Note: the training-pool query failed — ${esc(poolError)}` : '') +
+      `</div>`;
+    STATUS.textContent = `Loaded — 0 clips`;
+    return;
+  }
+
+  items.sort((a, b) => b.ts - a.ts);
+
+  const shotN   = items.filter(i => i.kind === 'shot').length;
+  const reviewN = items.filter(i => i.kind === 'review').length;
+  const notN    = items.filter(i => i.kind === 'notshot').length;
+  summaryEl.innerHTML = `
+    <div class="summary-card"><div class="label">Total Clips</div><div class="value">${items.length}</div></div>
+    <div class="summary-card"><div class="label">Confirmed Shots</div><div class="value">${shotN}</div></div>
+    <div class="summary-card"><div class="label">Review Clips</div><div class="value" style="color:#fbbf24">${reviewN}</div></div>
+    <div class="summary-card"><div class="label">Non-Shots</div><div class="value" style="color:#f87171">${notN}</div></div>
+  `;
+
+  // Group by calendar day
+  const byDay = {};
+  for (const it of items) {
+    const key = new Date(it.ts).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    (byDay[key] = byDay[key] || []).push(it);
+  }
+
+  let html = '';
+  for (const day of Object.keys(byDay)) {
+    const rows = byDay[day];
+    html += `<div class="day-header">${esc(day)} <span style="color:#6b7280;font-weight:normal">· ${rows.length} clip${rows.length !== 1 ? 's' : ''}</span></div>`;
+    rows.forEach(it => {
+      const time = new Date(it.ts).toLocaleTimeString();
+      const badge = it.kind === 'shot'
+        ? '<span class="badge shot">CONFIRMED SHOT</span>'
+        : it.kind === 'review'
+          ? '<span class="badge review">REVIEW</span>'
+          : '<span class="badge notshot">NON-SHOT</span>';
+      const ctx = [];
+      if (it.club && it.club !== '—' && it.club !== 'SHOT_UNKNOWN') ctx.push(`<b>club:</b> ${esc(it.club)}`);
+      if (it.face)   ctx.push(`<b>face:</b> ${esc(it.face)}`);
+      if (it.hole != null) ctx.push(`<b>hole:</b> ${esc(it.hole)}`);
+      if (it.course) ctx.push(`<b>course:</b> ${esc(it.course)}`);
+      if (it.source) ctx.push(`<b>src:</b> ${esc(it.source)}`);
+      ctx.push(`<b>snr:</b> ${(it.snr || 0).toFixed ? it.snr.toFixed(3) : it.snr}`);
+      html += `<div class="clip">
+        <div class="clip-top"><span class="clip-time">${esc(time)}</span><span>${badge}</span></div>
+        <div class="meta">${ctx.join(' &nbsp;·&nbsp; ')}</div>
+        <audio controls preload="none" src="data:${esc(it.audioMime)};base64,${it.audioData}"></audio>
+      </div>`;
+    });
+  }
+  outputEl.innerHTML = html;
+  STATUS.textContent = `Loaded ${items.length} clip(s) from the last ${days} day(s)` +
+    (poolError ? ` — training-pool query failed (see below)` : '');
+}
+</script>
+</body>
+</html>
