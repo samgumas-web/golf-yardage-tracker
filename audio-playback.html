@@ -168,7 +168,32 @@ async function loadData() {
     if (!items.length && pathErr) poolError = pathErr;
   }
 
-  // ── Source 2: on-course "review queue" clips (detected but flagged / user-confirmed) ──
+  // ── Source 2: every on-course detection, saved at detection time (most reliable) ──
+  try {
+    const snap = await db.collection('users').doc(uid)
+      .collection('courseShotAudio').get({ source: 'server' });
+    snap.forEach(d => {
+      const p = d.data();
+      const ts = p.ts || p.capturedAt || 0;
+      if (ts < sinceMs) return;
+      items.push({
+        kind:  'shot',
+        ts,
+        club:  '—',
+        face:  '',
+        hole:  p.hole,
+        course: p.courseName,
+        snr:   p.snr || p.rms || 0,
+        source: 'on-course detection',
+        audioData: p.audioData || null,
+        audioMime: p.audioMime || 'audio/webm'
+      });
+    });
+  } catch (e) {
+    console.warn('courseShotAudio query failed:', e);
+  }
+
+  // ── Source 3: on-course "review queue" clips (detected but flagged / user-confirmed) ──
   try {
     const snap = await db.collection('users').doc(uid)
       .collection('audioReviewQueue').get({ source: 'server' });
