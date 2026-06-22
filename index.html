@@ -1293,6 +1293,17 @@
           </button>
         </div>
 
+        <!-- Phone location selector (mirrors on-course mode) -->
+        <div style="text-align:left;margin-bottom:18px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px">Where's your phone?</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+            <button onclick="setRangePhoneLoc('ground')" id="rloc-ground" style="padding:10px 4px;font-size:12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;font-family:inherit">📍 Ground</button>
+            <button onclick="setRangePhoneLoc('pocket')" id="rloc-pocket" style="padding:10px 4px;font-size:12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;font-family:inherit">👖 Pocket</button>
+            <button onclick="setRangePhoneLoc('bag')"    id="rloc-bag"    style="padding:10px 4px;font-size:12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;font-family:inherit">🎒 Bag</button>
+          </div>
+          <div id="rloc-hint" style="font-size:11px;color:var(--muted);margin-top:7px;line-height:1.4"></div>
+        </div>
+
         <button class="btn btn-p" onclick="startRangeTrainSession()" style="font-size:15px;padding:15px">Start Session</button>
       </div>
       <div id="range-active-ui" style="display:none">
