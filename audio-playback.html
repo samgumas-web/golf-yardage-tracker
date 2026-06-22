@@ -247,20 +247,13 @@ async function loadData() {
 
   items.sort((a, b) => b.ts - a.ts);
 
-  const shotN     = items.filter(i => i.kind === 'shot').length;
-  const reviewN   = items.filter(i => i.kind === 'review').length;
-  const playableN = items.filter(i => i.audioData).length;
+  const shotN   = items.filter(i => i.kind === 'shot').length;
+  const reviewN = items.filter(i => i.kind === 'review').length;
   summaryEl.innerHTML = `
-    <div class="summary-card"><div class="label">Detections (last ${days}d)</div><div class="value">${items.length}</div></div>
-    <div class="summary-card"><div class="label">Playable (have audio)</div><div class="value" style="color:${playableN ? '#4ade80' : '#f87171'}">${playableN}</div></div>
-    <div class="summary-card"><div class="label">Confirmed Shots</div><div class="value">${shotN}</div></div>
+    <div class="summary-card"><div class="label">Playable Clips (last ${days}d)</div><div class="value">${items.length}</div></div>
+    <div class="summary-card"><div class="label">On-course Shots</div><div class="value" style="color:#4ade80">${shotN}</div></div>
     <div class="summary-card"><div class="label">Review Clips</div><div class="value" style="color:#fbbf24">${reviewN}</div></div>
   `;
-  if (!playableN) {
-    summaryEl.innerHTML += `<div style="grid-column:1/-1;color:#fbbf24;font-size:12px;padding:6px 0">
-      ⚠ ${items.length} shot${items.length !== 1 ? 's were' : ' was'} detected and logged, but the actual audio clip was not saved for any of them —
-      so there is nothing to play back. The detections happened; the recordings weren't stored.</div>`;
-  }
 
   // Group by calendar day
   const byDay = {};
