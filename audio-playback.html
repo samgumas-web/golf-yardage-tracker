@@ -175,7 +175,7 @@ async function loadData() {
     snap.forEach(d => {
       const p = d.data();
       const ts = p.captured || p.dominantTs || 0;
-      if (ts < sinceMs || !p.audioData) return;
+      if (ts < sinceMs) return;
       const f = p.features || {};
       items.push({
         kind:  'review',
