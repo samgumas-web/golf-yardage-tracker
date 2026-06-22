@@ -114,10 +114,18 @@ async function loadData() {
   const uid = auth.currentUser.uid;
   const items = [];
   let poolError = '';
+  const dbg = { fetched: 0, mine: 0, mineWithAudio: 0, newestAnyTs: 0, newestMineTs: 0 };
 
   // ── Source 1: confirmed / labelled shot clips in the training pool ──
   const pushClip = (p) => {
+    dbg.fetched++;
     const ts = p.ts || 0;
+    if (ts > dbg.newestAnyTs) dbg.newestAnyTs = ts;
+    if (p.uid === uid) {
+      dbg.mine++;
+      if (ts > dbg.newestMineTs) dbg.newestMineTs = ts;
+      if (p.audioData) dbg.mineWithAudio++;
+    }
     if (p.uid !== uid || ts < sinceMs || !p.audioData) return;
     items.push({
       kind:  p.type === 'NOT_SHOT' ? 'notshot' : 'shot',
