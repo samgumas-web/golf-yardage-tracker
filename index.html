@@ -694,6 +694,24 @@
     pointer-events: none;
     letter-spacing: -.3px;
   }
+  /* Compact distance pill floating just above the target pin (18Birdies-style) */
+  .tgt-pill {
+    transform: translate(-50%, calc(-50% - 70px));
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(12,22,12,.92);
+    color: #fff; font-size: 14px; font-weight: 900; letter-spacing: -.3px;
+    padding: 6px 8px 6px 11px; border-radius: 16px;
+    border: 1.5px solid var(--orange);
+    box-shadow: 0 3px 12px rgba(0,0,0,.55);
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tgt-pill-x {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(255,255,255,.18); color: #fff;
+    font-size: 13px; line-height: 1; cursor: pointer;
+  }
   /* hint shown on map when no target set */
   #map-tap-hint {
     position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
