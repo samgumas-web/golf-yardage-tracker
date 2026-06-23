@@ -6710,8 +6710,8 @@ function setMapTarget(lat, lng) {
   // _enableTgtDrag() using the map's rotation-aware coordinate conversion.
   if (!tgtMapMarker) {
     const icon = L.divIcon({
-      html: `<div class="tgt-pin-icon"><div class="tgt-pin-head"></div><div class="tgt-pin-shadow"></div></div>`,
-      className: '', iconSize: [32, 40], iconAnchor: [16, 38]
+      html: `<div class="tgt-pin-hit"><div class="tgt-pin-icon"><div class="tgt-pin-head"></div><div class="tgt-pin-shadow"></div></div></div>`,
+      className: '', iconSize: [56, 64], iconAnchor: [28, 50]
     });
     tgtMapMarker = L.marker([lat, lng], { icon, zIndexOffset: 900 }).addTo(map);
   } else {
