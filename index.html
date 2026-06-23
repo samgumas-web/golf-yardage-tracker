@@ -6829,7 +6829,6 @@ function updateTgtLine() {
 
   const from = [gpsPos.lat, gpsPos.lng];
   const to   = [tgtMapPos.lat, tgtMapPos.lng];
-  const mid  = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
   const d    = haversine(gpsPos, tgtMapPos);
   const label = `${fmt(d)} ${unitStr()}`;
 
@@ -6843,16 +6842,18 @@ function updateTgtLine() {
     tgtLine.setLatLngs([from, to]);
   }
 
-  // Midpoint distance label
-  const midIcon = L.divIcon({
-    html: `<div class="tgt-mid-label">${label}</div>`,
+  // Distance pill glued just above the target pin (replaces the big bottom popup).
+  // The little × clears the target. The pill floats above the pin's drag hit area
+  // so it never interferes with grabbing/dragging the pin.
+  const pillIcon = L.divIcon({
+    html: `<div class="tgt-pill">${label}<span class="tgt-pill-x" onclick="clearMapTarget(true)">×</span></div>`,
     className: '', iconSize: [0, 0], iconAnchor: [0, 0]
   });
   if (!tgtMidMarker) {
-    tgtMidMarker = L.marker(mid, { icon: midIcon, interactive: false, zIndexOffset: 800 }).addTo(map);
+    tgtMidMarker = L.marker(to, { icon: pillIcon, interactive: true, zIndexOffset: 1100 }).addTo(map);
   } else {
-    tgtMidMarker.setLatLng(mid);
-    tgtMidMarker.setIcon(midIcon);
+    tgtMidMarker.setLatLng(to);
+    tgtMidMarker.setIcon(pillIcon);
   }
 }
 
