@@ -6697,16 +6697,15 @@ function onMapClick(e) {
 function setMapTarget(lat, lng) {
   tgtMapPos = { lat, lng };
 
-  // Pin marker — draggable so the player can grab it and fine-tune the target onto
-  // the green or a hazard. autoPan lets the map follow when dragging toward an edge.
+  // Pin marker. NOTE: Leaflet's built-in draggable markers don't work under the
+  // leaflet-rotate plugin (rotate:true), so dragging is handled manually in
+  // _enableTgtDrag() using the map's rotation-aware coordinate conversion.
   if (!tgtMapMarker) {
     const icon = L.divIcon({
       html: `<div class="tgt-pin-icon"><div class="tgt-pin-head"></div><div class="tgt-pin-shadow"></div></div>`,
       className: '', iconSize: [32, 40], iconAnchor: [16, 38]
     });
-    tgtMapMarker = L.marker([lat, lng], { icon, zIndexOffset: 900, draggable: true, autoPan: true }).addTo(map);
-    tgtMapMarker.on('drag',    _onTgtDrag);
-    tgtMapMarker.on('dragend', _onTgtDragEnd);
+    tgtMapMarker = L.marker([lat, lng], { icon, zIndexOffset: 900 }).addTo(map);
   } else {
     tgtMapMarker.setLatLng([lat, lng]);
   }
@@ -6715,26 +6714,60 @@ function setMapTarget(lat, lng) {
   updateTgtLine();
   updateTgtOverlay();
   vibrate(30);
+  requestAnimationFrame(_enableTgtDrag); // bind drag once the icon element exists
 }
 
-// Live-update the distance line + readout as the target pin is dragged.
-function _onTgtDrag(e) {
-  const ll = e.target.getLatLng();
-  tgtMapPos = { lat: ll.lat, lng: ll.lng };
-  updateTgtLine();
-  updateTgtOverlay();
-}
+// Manual drag for the target pin (works under leaflet-rotate, unlike marker.draggable).
+// Grab the pin and the orange aim point follows your finger; on release the spot is
+// saved as this hole's aim, exactly like tapping a new location.
+function _enableTgtDrag() {
+  if (!tgtMapMarker || !map) return;
+  const el = tgtMapMarker.getElement();
+  if (!el || el._tgtDragBound) return;
+  el._tgtDragBound = true;
+  el.style.cursor = 'grab';
+  el.style.touchAction = 'none'; // stop the browser scrolling/zooming during a touch-drag
 
-// Persist the dropped position as this hole's aim override (same as a fresh tap).
-function _onTgtDragEnd(e) {
-  const ll = e.target.getLatLng();
-  tgtMapPos = { lat: ll.lat, lng: ll.lng };
-  updateTgtLine();
-  updateTgtOverlay();
-  vibrate(30);
-  if (selectedCourse && currentHole) {
-    _saveHoleAim(selectedCourse.osmId, currentHole, ll.lat, ll.lng);
-  }
+  let dragging = false;
+
+  const move = (ev) => {
+    if (!dragging) return;
+    ev.preventDefault();
+    const ll = map.mouseEventToLatLng(ev); // rotation-aware screen → lat/lng
+    tgtMapPos = { lat: ll.lat, lng: ll.lng };
+    tgtMapMarker.setLatLng(ll);
+    updateTgtLine();
+    updateTgtOverlay();
+  };
+
+  const up = () => {
+    if (!dragging) return;
+    dragging = false;
+    el.style.cursor = 'grab';
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+    try { map.dragging.enable(); } catch {}
+    const ll = tgtMapMarker.getLatLng();
+    tgtMapPos = { lat: ll.lat, lng: ll.lng };
+    updateTgtLine();
+    updateTgtOverlay();
+    vibrate(30);
+    if (selectedCourse && currentHole) {
+      _saveHoleAim(selectedCourse.osmId, currentHole, ll.lat, ll.lng);
+    }
+  };
+
+  el.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    dragging = true;
+    el.style.cursor = 'grabbing';
+    try { map.dragging.disable(); } catch {} // don't pan the map while dragging the pin
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
 }
 
 function clearMapTarget(deleteSavedAim = false) {
