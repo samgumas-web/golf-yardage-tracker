@@ -659,6 +659,14 @@
     border-radius: 6px; transition: color .15s;
   }
   .tgt-clear:hover { color: var(--red); }
+  /* Transparent grab area around the pin — bigger touch target without changing the look */
+  .tgt-pin-hit {
+    width: 56px; height: 64px;
+    display: flex; justify-content: center; align-items: flex-start;
+    padding-top: 12px;
+    cursor: grab; touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
   .tgt-pin-icon {
     width: 30px; height: 36px;
     display: flex; flex-direction: column; align-items: center;
