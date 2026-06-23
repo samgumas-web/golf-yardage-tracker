@@ -6728,12 +6728,15 @@ function _enableTgtDrag() {
   el.style.cursor = 'grab';
   el.style.touchAction = 'none'; // stop the browser scrolling/zooming during a touch-drag
 
-  let dragging = false;
+  let dragging = false, grabDx = 0, grabDy = 0;
 
   const move = (ev) => {
     if (!dragging) return;
     ev.preventDefault();
-    const ll = map.mouseEventToLatLng(ev); // rotation-aware screen → lat/lng
+    // Keep the pin in the same spot relative to the finger (no jump on first move),
+    // converting through container pixels so map rotation is respected.
+    const pt = map.mouseEventToContainerPoint(ev);
+    const ll = map.containerPointToLatLng(L.point(pt.x + grabDx, pt.y + grabDy));
     tgtMapPos = { lat: ll.lat, lng: ll.lng };
     tgtMapMarker.setLatLng(ll);
     updateTgtLine();
@@ -6762,6 +6765,10 @@ function _enableTgtDrag() {
     ev.preventDefault();
     ev.stopPropagation();
     dragging = true;
+    const startPt  = map.mouseEventToContainerPoint(ev);
+    const markerPt = map.latLngToContainerPoint(tgtMapMarker.getLatLng());
+    grabDx = markerPt.x - startPt.x;
+    grabDy = markerPt.y - startPt.y;
     el.style.cursor = 'grabbing';
     try { map.dragging.disable(); } catch {} // don't pan the map while dragging the pin
     window.addEventListener('pointermove', move);
